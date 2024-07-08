@@ -195,7 +195,7 @@ function dailyQuestGenerator(level, day) {
 
     const dailyQuestHTML = daily.map(item => `<div class="quest-item" data-quest="${item}">[ Incomplete ] ${item}</div>`).join("");
     const dailyQuestFormHTML = daily.filter(item => item !== 'Cardio' && item !== 'Cardio 2x' && item !== 'Calorie Count' && !item.includes('Day')).map(item => `
-        <div class="input-group">
+        <div class="input-group" id="${item.toLowerCase()}">
             <label>${item} Completed: <input type="checkbox" id="${item.toLowerCase()}-completed" onchange="updateQuestStatus()"></label>
         </div>`).join("");
 
