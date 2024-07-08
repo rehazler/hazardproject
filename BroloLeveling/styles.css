@@ -248,3 +248,6 @@ button:hover {
     color: #00eaff;
 }
 
+div[id="calorie count"] {
+    display: none;
+}
