@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BROLO LEVELING</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="title-container">
+        <h1>BROLO LEVELING</h1>
+    </div>
+    <div class="quest-container">
+        <div>
+            <h2>Daily Quest</h2>
+            <div id="daily"></div>
+        </div>
+    </div>
+    <div class="container">
+        <form id="fitness-form">
+            <div class="nav-buttons">
+                <button class="left highlight" type="button" onclick="showForm()">Form</button>
+                <button class="right" type="button" onclick="showProfile()">Profile</button>
+            </div>
+            <div id="daily-quest-items"></div>
+            <div class="input-group">
+            <label>Quest Items:</label>
+            <div class="input-group" id="calorie-count-group">
+                <label>Calorie Count:</label>
+                <input type="number" id="calories" name="calories" placeholder="Enter # of calories eaten" onchange="updateQuestStatus()">
+            </div>
+                <span>30 Minute Workout Blocks</span>
+                <input type="number" name="workout-blocks" id="workout-blocks" placeholder="Enter # of workout blocks">
+            </div>
+            <div class="input-group">
+                <span>Miles Run</span>
+                <input type="number" name="mile-count" id="mile-count" placeholder="Enter # of miles run" onchange="updateQuestStatus()">
+            </div>
+            <div class="input-group" id="weigh-in-group">
+                <label>Weigh In:</label>
+                <input type="number" id="weight" name="weight" placeholder="Enter weight">
+            </div>
+            <button class="submit" type="button" onclick="calculateExperience()">Submit</button>
+        </form>
+
+        <div id="profile-section" style="display: none;">
+            <div class="nav-buttons">
+                <button class="left" type="button" onclick="showForm()">Form</button>
+                <button class="right highlight" type="button" onclick="showProfile()">Profile</button>
+            </div>
+            <div class="input-group">
+                <label>Previous Weight:</label>
+                <input type="number" id="previous-weight" name="previous-weight">
+            </div>
+            <div class="input-group">
+                <label>Goal Weight:</label>
+                <input type="number" id="goal-weight" name="goal-weight" placeholder="Enter goal weight">
+            </div>
+            <div class="input-group">
+                <label>Calorie Goal:</label>
+                <input type="number" id="calorie-goal" name="calorie-goal" placeholder="Enter calorie goal">
+            </div>
+            <div class="input-group checkbox-group">
+                <label><input type="checkbox" id="is-min-calorie" name="is-min-calorie"> Minimum Calorie Goal?</label>
+            </div>
+            <div class="input-group">
+                <label>Daily Step Goal:</label>
+                <input type="number" id="step-goal" name="step-goal" placeholder="Enter step goal">
+            </div>
+            <button class="submit" type="button" onclick="saveProfile()">Save Profile</button>
+        </div>
+
+        <div id="level-section">
+            <div id="level"></div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <button class="settings-button" onclick="toggleSettings()"><i class="fas fa-cog"></i></button>
+    <div id="settings-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="toggleSettings()">&times;</span>
+            <h2>Settings</h2>
+            <div class="input-group">
+                <label><input type="checkbox" id="light-mode-toggle" onchange="toggleLightMode()"> Light Mode</label>
+            </div>
+            <div class="input-group">
+                <label><input type="checkbox" id="testing-mode-toggle" onchange="toggleTestingMode()"> Testing Mode</label>
+            </div>
+            <div id="testing-options" style="display: none;">
+                <div class="input-group">
+                    <label>Set Total Experience:</label>
+                    <input type="number" id="current-experience" placeholder="Enter experience">
+                    <button class="submit" type="button" onclick="setExperience()">Set Experience</button>
+                </div>
+                <div class="input-group">
+                    <label><input type="checkbox" id="allow-multiple-submissions"> Allow Multiple Submissions</label>
+                </div>
+                <div class="input-group">
+                    <button class="submit" type="button" onclick="generateNewDailyQuest()">Generate New Daily Quest</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
