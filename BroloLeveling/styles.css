@@ -102,6 +102,7 @@ input[type="text"]:focus {
     align-items: center;
 }
 input[type="checkbox"] {
+    top: 8px;
     margin-right: 10px;
     appearance: none;
     background-color: #0d0d0d;
