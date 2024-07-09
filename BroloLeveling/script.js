@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedQuest = JSON.parse(localStorage.getItem('lastQuest')) || {lastDay: []};
         const dailyQuestHTML = savedQuest.lastDay.map(item => `<div class="quest-item" data-quest="${item}">[ Incomplete ] ${item}</div>`).join("");
         const dailyQuestFormHTML = savedQuest.lastDay.filter(item => item !== 'Cardio' && item !== 'Cardio 2x' && item !== 'Calorie Count' && !item.includes('Day')).map(item => `
-            <div class="input-group">
+            <div class="input-group" id="${item.toLowerCase()}">
                 <label>${item} Completed: <input type="checkbox" id="${item.toLowerCase()}-completed" onchange="updateQuestStatus()"></label>
             </div>`).join("");
 
@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedQuest = JSON.parse(localStorage.getItem('lastQuest')) || {lastDay: []};
         const dailyQuestHTML = savedQuest.lastDay.map(item => `<div class="quest-item" data-quest="${item}">[ Incomplete ] ${item}</div>`).join("");
         const dailyQuestFormHTML = savedQuest.lastDay.filter(item => item !== 'Cardio' && item !== 'Cardio 2x' && !item.includes('Day')).map(item => `
-            <div class="input-group">
+            <div class="input-group" id="${item.toLowerCase()}">
                 <label>${item} Completed: <input type="checkbox" id="${item.toLowerCase()}-completed" onchange="updateQuestStatus()"></label>
             </div>`).join("");
 
