@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Livestreams & Playlists</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Me</a></li>
+            <li><a href="livestreams.html">Livestreams & Playlists</a></li>
+            <li><a href="wiki.html">Wiki</a></li>
+            <li><a href="forms.html">Forms</a></li>
+        </ul>
+    </nav>
+    <header>
+        <h1>Livestreams & Playlists</h1>
+    </header>
+    <main>
+        <section>
+            <h2>Livestream</h2>
+            <p>Catch my live streams directly here:</p>
+            <div class="embed-container">
+                <!-- Twitch Embed 
+                <iframe
+                    src="https://player.twitch.tv/?channel=voiddoll&parent=yourdomain.com"
+                    allowfullscreen>
+                </iframe>-->
+            </div>
+            <!-- Add a placeholder for the Twitch embed -->
+            <div id="twitch-embed"></div>
+
+            <!-- Load the Twitch embed JavaScript file -->
+            <script src="https://embed.twitch.tv/embed/v1.js"></script>
+
+            <!-- Create a Twitch.Embed object that will render within the "twitch-embed" element -->
+            <script type="text/javascript">
+                var embed = new Twitch.Embed("twitch-embed", {
+                    width: 854,
+                    height: 480,
+                    channel: "voiddoll",
+                    parent: ["localhost", "127.0.0.1", "192.168.0.149", "192.168.01", "https://themadhazard.com"] // Replace "yourdomain.com" with your actual domain
+                });
+
+                embed.addEventListener(Twitch.Embed.VIDEO_READY, function() {
+                  console.log('The video is ready');
+                });
+            </script>
+        </section>
+
+        <section>
+            <h2>My Playlists</h2>
+            <p>Click a playlist to start watching:</p>
+            <div class="playlist-container">
+                <!-- Horizontal Playlist List -->
+                <ul id="playlist-list">
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEnWzfFF79kivJ-bCqR2a_3m">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Dark Reign</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEnr-_wCZ6FdoqmB58dntQb2">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Strixhaven</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnElhe-ZVbdweFLQ6wGl7Az0G">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Fallen Throne</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEkOkf4gpq55agjVoxHp8GDB">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>One Shots</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEnca84zNanVvE2w-Sovhm-u">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>New Blood</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEkxMI5pU9yYrfZiivJ7QiU_">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Bound By Night</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnElfsIpn4v8rJAxVuc00pPOF">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Dungeons & Cuties</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEk2vniRl062-YRt1dtoxAKvB">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Embraced by Night</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEm-9S3zqaR77q_kFEy7K9tV">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Salem NY by Night</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEmUS_SP5YoyTeHjvXxGvbhi">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Judas by Night</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEkn9tUqhzCwZH3y9JKnrTi7">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>Call to Shadow</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEkJT4OC1QI8KXxDYJIw5g4Q">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>ASMR Roleplays</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEkfRxZl2hsIKkUJD3-ipv6h">
+                            <img src="https://img.youtube.com/vi/playlist_thumbnail_id/0.jpg" alt="Playlist Thumbnail">
+                            <span>It Takes Two (Let's Play)</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="embed-container">
+                <iframe
+                    id="youtube-player"
+                    src=""
+                    title="YouTube video player"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                ></iframe>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2025 Your Name. All rights reserved.</p>
+    </footer>
+    <script>
+        // Attach click event listeners to playlist links
+        document.getElementById('playlist-list').addEventListener('click', function (event) {
+            event.preventDefault();
+            const playlistId = event.target.closest('a')?.getAttribute('data-playlist-id');
+            if (playlistId) {
+                document.getElementById('youtube-player').src = `https://www.youtube.com/embed/videoseries?list=${playlistId}`;
+            }
+        });
+    </script>
+</body>
+</html>
