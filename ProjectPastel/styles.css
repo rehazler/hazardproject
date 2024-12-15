@@ -1,33 +1,55 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Cormorant+Garamond:wght@400;600&display=swap');
+
+/* General Body Styling */
 body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    background-color: #f4f4f4;
+    font-family: 'Cormorant Garamond', serif;
+    background: linear-gradient(to bottom, #1a0b1e, #292448); /* Deep purple gradient */
+    color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+/* Headers and Titles */
+h1, h2, h3 {
+    font-family: 'Permanent Marker', cursive; /* Playful bold font */
+    color: #d3b3e7; /* Soft pastel purple */
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.6); /* Dark shadow for depth */
 }
 
 h1 {
-    color: #333;
+    font-size: 2.5rem;
+    text-align: center;
 }
 
-#data-container {
-    padding: 10px;
-    background: #fff;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+h2 {
+    font-size: 2rem;
+    margin-top: 20px;
 }
 
-.data-item {
-    margin-bottom: 10px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
+h3 {
+    font-size: 1.5rem;
+    margin-top: 15px;
 }
 
+/* Links */
+a {
+    color: #98e6d6; /* Soft pastel mint */
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    color: #f3b0c3; /* Pastel pink */
+    text-decoration: underline;
+}
 
 /* Navigation Bar */
 nav {
-    background: #333;
+    background-color: #2b1b2e; /* Dark purple */
     padding: 10px;
-    margin-bottom: 20px;
+    border-bottom: 2px solid #503554;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
 }
 
 nav ul {
@@ -35,39 +57,70 @@ nav ul {
     padding: 0;
     display: flex;
     justify-content: space-around;
+    margin: 0;
 }
 
 nav ul li {
-    display: inline;
+    margin: 0;
 }
 
 nav ul li a {
-    color: #fff;
-    text-decoration: none;
-    font-weight: bold;
+    color: #f4f4f4;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
 }
 
 nav ul li a:hover {
-    text-decoration: underline;
+    color: #e6a1b1; /* Pastel pink */
 }
 
-/* About Page Styles */
-main {
-    background: #fff;
+/* Section Containers */
+section {
+    background: #2e1d32; /* Dark purple background */
+    color: #f4f4f4;
     padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    width: 90%;
+    max-width: 800px;
 }
 
-h2 {
-    color: #555;
+/* Buttons */
+button {
+    background: #4b2e4c; /* Deep purple */
+    color: #fff;
+    border: 2px solid #f3b0c3; /* Soft pastel pink border */
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1rem;
 }
 
-footer {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 0.8em;
-    color: #666;
+button:hover {
+    background: #d3b3e7; /* Pastel purple */
+    color: #2e1d32; /* Dark text */
+    border-color: #f3b0c3;
+}
+
+/* Embedded Containers (Twitch/YouTube) */
+.embed-container {
+    position: relative;
+    overflow: hidden;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+.embed-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
 }
 
 /* Horizontal Scrollable Playlist */
@@ -92,10 +145,6 @@ footer {
     text-align: center;
 }
 
-#playlist-list li a {
-    text-decoration: none;
-    color: #333;
-}
 
 #playlist-list li img {
     width: 150px;
@@ -113,57 +162,25 @@ footer {
     font-weight: bold;
 }
 
-/* Embedded Player */
-#youtube-player {
+/* Footer */
+footer {
+    text-align: center;
+    background: #2b1b2e; /* Dark purple */
+    color: #f4f4f4;
+    padding: 10px 0;
+    font-size: 0.9rem;
+}
+
+/* Decorative Elements (Stars and Sparkles) */
+body::after {
+    content: "";
+    background: url('https://i.imgur.com/rmPEZHk.png'); /* Placeholder star pattern */
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 400px;
-    border: none;
-}
-
-/* Wiki Sections */
-#wiki-container section {
-    margin-bottom: 20px;
-    background: #fff;
-    padding: 15px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-#wiki-container h2 {
-    color: #333;
-    margin-bottom: 10px;
-}
-
-#wiki-container h3 {
-    color: #555;
-    margin-bottom: 5px;
-}
-
-#wiki-container ul {
-    list-style: none;
-    padding: 0;
-}
-
-#wiki-container ul li {
-    margin-bottom: 10px;
-    line-height: 1.5;
-}
-
-ul {
-    list-style: none;
-    padding: 0;
-}
-
-ul li {
-    margin-bottom: 10px;
-}
-
-ul li a {
-    text-decoration: none;
-    color: #0066cc;
-    font-weight: bold;
-}
-
-ul li a:hover {
-    text-decoration: underline;
+    height: 100%;
+    opacity: 0.15;
+    z-index: -1;
+    pointer-events: none;
 }
