@@ -162,6 +162,123 @@ button:hover {
     font-weight: bold;
 }
 
+/* Search and Filter Controls */
+#search-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #2c2c2c;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+#search-input {
+    width: 70%;
+    padding: 10px;
+    border: 2px solid #e6a1b1;
+    border-radius: 5px;
+    background: #1d1d1d;
+    color: #f4f4f4;
+    font-family: 'Cormorant Garamond', serif;
+}
+
+#category-filter {
+    width: 25%;
+    padding: 10px;
+    border: 2px solid #e6a1b1;
+    border-radius: 5px;
+    background: #1d1d1d;
+    color: #f4f4f4;
+    font-family: 'Cormorant Garamond', serif;
+    appearance: none;
+    cursor: pointer;
+}
+
+#category-filter:focus, #search-input:focus {
+    outline: none;
+    border-color: #f3b0c3;
+}
+
+/* Highlighted Search Matches */
+.highlight {
+    background-color: #f3b0c3; /* Soft pastel pink */
+    color: #1d1d1d; /* Dark text for contrast */
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+/* Campaign List */
+#sheet-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+#sheet-list li {
+    margin-bottom: 10px;
+}
+
+#sheet-list li a {
+    text-decoration: none;
+    color: #98e6d6;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+#sheet-list li a:hover {
+    color: #f3b0c3;
+    text-decoration: underline;
+}
+
+/* Back Button */
+#back-button {
+    display: inline-block;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background: #444;
+    color: #f4f4f4;
+    border: 2px solid #e6a1b1;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Cormorant Garamond', serif;
+}
+
+#back-button:hover {
+    background: #e6a1b1;
+    color: #1d1d1d;
+}
+
+/* Collapsible Sections */
+details {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #2c2c2c;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+details summary {
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #f4f4f4;
+    display: flex; /* Align arrow and text horizontally */
+    align-items: center; /* Center text and arrow vertically */
+    gap: 10px; /* Add spacing between arrow and text */
+}
+
+details summary:hover {
+    color: #f3b0c3;
+}
+
+details ul {
+    margin-top: 10px;
+}
+
+
+
 /* Footer */
 footer {
     text-align: center;
