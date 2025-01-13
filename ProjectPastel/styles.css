@@ -183,6 +183,30 @@ button:hover {
     font-family: 'Cormorant Garamond', serif;
 }
 
+#search-campaigns {
+    width: 96%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border: 2px solid #d3b3e7; /* Highlighted border color */
+    border-radius: 5px;
+    font-size: 1rem;
+    background-color: #444; /* Light background for better contrast */
+    color: #98e6d6;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+#search-campaigns::placeholder {
+    color: #999; /* Subtle placeholder color */
+    font-style: italic;
+}
+
+#search-campaigns:focus {
+    outline: none;
+    border-color: #d3b3e7; /* Darker blue border on focus */
+    background-color: #333; /* Light blue background on focus */
+}
+
+
 #category-filter {
     width: 25%;
     padding: 10px;
@@ -251,6 +275,7 @@ button:hover {
 }
 
 /* Collapsible Sections */
+/* Collapsible Sections */
 details {
     margin-bottom: 20px;
     padding: 10px;
@@ -300,4 +325,89 @@ body::after {
     opacity: 0.15;
     z-index: -1;
     pointer-events: none;
+}
+
+/* General styles for the entire site */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Wiki-specific styles */
+body.wiki-page {
+    background: linear-gradient(to bottom, #1a0b1e, #292448);
+    color: #f4f4f4;
+}
+
+body.wiki-page #wiki-container {
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 20px;
+    background: rgba(42, 31, 51, 0.9);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Wiki Headings */
+body.wiki-page h2 {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 2rem;
+    color: #d3b3e7;
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+body.wiki-page h3 {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.7rem;
+    color: #98e6d6;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #503554;
+    padding-bottom: 5px;
+}
+
+/* Navbar (General) */
+nav {
+    background-color: #2b1b2e;
+    padding: 10px;
+    border-bottom: 2px solid #503554;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    justify-content: space-around;
+    margin: 0;
+}
+
+nav ul li a {
+    color: #f4f4f4;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
+}
+
+nav ul li a:hover {
+    color: #e6a1b1;
+}
+
+/* Specific Wiki Page Styles */
+body.wiki-page h4 {
+    font-size: 1.2rem;
+    color: #f3b0c3;
+    margin-top: 10px;
+}
+
+/* Wiki Images */
+body.wiki-page img {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 8px;
+    border: 2px solid #d3b3e7;
 }
