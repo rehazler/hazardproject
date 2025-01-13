@@ -2,22 +2,19 @@ const SHEET_NAMES_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-names';
 const SHEET_DATA_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-data';
 let campaigns = {}; // Store data globally for filtering
 
-// Utility function to parse URL parameters
 function getURLParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
 }
 
-// Fetch and display sheet names
 async function fetchSheetNames() {
-    console.log('fetchSheetNames called'); // Debugging log
     try {
         const response = await fetch(SHEET_NAMES_URL);
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         const sheetNames = await response.json();
 
         const container = document.getElementById('wiki-container');
-        container.innerHTML = ` 
+        container.innerHTML = `
             <h2>Select a Campaign:</h2>
             <input type="text" id="search-campaigns" placeholder="Search campaigns..." />
             <ul id="sheet-list"></ul>
@@ -39,11 +36,7 @@ async function fetchSheetNames() {
                 link.addEventListener('click', event => {
                     event.preventDefault();
                     const sheetName = event.target.getAttribute('data-sheet');
-
-                    // Update the URL
                     history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}`);
-
-                    // Fetch and display campaign data
                     fetchSheetData(sheetName);
                 });
             });
@@ -60,9 +53,7 @@ async function fetchSheetNames() {
     }
 }
 
-// Fetch and display data for a specific sheet
 async function fetchSheetData(sheetName) {
-    console.log(`Fetching data for campaign: ${sheetName}`); // Debugging log
     try {
         const response = await fetch(`${SHEET_DATA_URL}?sheetName=${encodeURIComponent(sheetName)}`);
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
@@ -70,41 +61,18 @@ async function fetchSheetData(sheetName) {
 
         processWikiData(sheetName, data);
 
-        // Handle non-existent campaigns
-        if (!campaigns[sheetName]) {
-            document.getElementById('wiki-container').innerHTML = `
-                <p style="color: red;">Campaign not found: ${sheetName}</p>
-            `;
-            setTimeout(fetchSheetNames, 3000); // Redirect back to list after 3 seconds
-            return;
-        }
-
         const container = document.getElementById('wiki-container');
+        container.innerHTML = '';
 
-        // Clear existing content
-        container.innerHTML = ''; // Clear the container
-
-        // Add Back Button
         const backButton = document.createElement('button');
         backButton.id = 'back-button';
         backButton.textContent = 'Back to Campaign List';
-        console.log('Back button created and appended'); // Debugging log
-
-        // Ensure event listener is attached after the button is added to the DOM
         backButton.addEventListener('click', () => {
-            console.log('Back button clicked'); // Debugging log
-
-            // Clear URL parameters
             history.pushState(null, '', window.location.pathname);
-
-            // Fetch and display the campaign list
             fetchSheetNames();
         });
-
-        // Append the button to the container
         container.appendChild(backButton);
 
-        // Render the selected campaign details
         renderWikiData(sheetName);
     } catch (error) {
         console.error(`Error fetching data for sheet ${sheetName}:`, error);
@@ -112,66 +80,135 @@ async function fetchSheetData(sheetName) {
     }
 }
 
-
-// Process fetched data
 function processWikiData(sheetName, data) {
-    campaigns[sheetName] = { NPCs: [], Locations: [] }; // Initialize campaign object
-    data.values.forEach((row, index) => {
-        if (index === 0) return; // Skip header row
-        const [npcName, npcRole, locationName, description, category] = row;
+    campaigns[sheetName] = { items: [] };
 
-        if (category === 'NPC' && npcName) {
-            campaigns[sheetName].NPCs.push({ name: npcName, role: npcRole, description });
-        } else if (category === 'Location' && locationName) {
-            campaigns[sheetName].Locations.push({ name: locationName, description });
+    let currentItem = null;
+    let currentProfileSection = null;
+
+    data.values.forEach((row, index) => {
+        if (index === 0) return;
+
+        const [name, category, profilePicture, profileSection, profileDescriptor, profileDescription, pageSection, pageDescriptor, pageDescription, artworkSection, artworkDescriptor, artworkLink, artworkDescription] = row;
+
+        if (!name && !category && !profileSection && !pageSection && !artworkSection) return;
+
+        if (name) {
+            if (currentItem) campaigns[sheetName].items.push(currentItem);
+            currentItem = {
+                name,
+                category: category || '',
+                profilePicture: profilePicture || '',
+                profileTable: {},
+                pageSections: [],
+                artworkSections: []
+            };
+            currentProfileSection = null;
+        }
+
+        if (currentItem) {
+            if (profileSection) {
+                currentProfileSection = profileSection;
+                if (!currentItem.profileTable[currentProfileSection]) {
+                    currentItem.profileTable[currentProfileSection] = [];
+                }
+            }
+
+            if (currentProfileSection && profileDescriptor && profileDescription) {
+                currentItem.profileTable[currentProfileSection].push({
+                    descriptor: profileDescriptor,
+                    description: profileDescription
+                });
+            }
+
+            if (pageSection) {
+                const existingPage = currentItem.pageSections.find(ps => ps.sectionName === pageSection);
+                if (!existingPage) {
+                    currentItem.pageSections.push({
+                        sectionName: pageSection,
+                        details: [{ descriptor: pageDescriptor || '', description: pageDescription || '' }]
+                    });
+                } else {
+                    existingPage.details.push({ descriptor: pageDescriptor || '', description: pageDescription || '' });
+                }
+            }
+
+            if (artworkSection) {
+                const existingArtwork = currentItem.artworkSections.find(as => as.sectionName === artworkSection);
+                if (!existingArtwork) {
+                    currentItem.artworkSections.push({
+                        sectionName: artworkSection,
+                        details: [{ descriptor: artworkDescriptor || '', link: artworkLink || '', description: artworkDescription || '' }]
+                    });
+                } else {
+                    existingArtwork.details.push({ descriptor: artworkDescriptor || '', link: artworkLink || '', description: artworkDescription || '' });
+                }
+            }
         }
     });
+
+    if (currentItem) campaigns[sheetName].items.push(currentItem);
 }
 
-// Render campaign details
 function renderWikiData(sheetName) {
     const container = document.getElementById('wiki-container');
 
-    // Preserve back button
-    const backButton = document.getElementById('back-button');
-    container.innerHTML = backButton ? backButton.outerHTML : '';
-
-    const campaign = campaigns[sheetName];
-    if (!campaign) {
-        console.error(`No data found for campaign: ${sheetName}`);
+    const campaign = campaigns[sheetName]?.items;
+    if (!campaign || campaign.length === 0) {
+        container.innerHTML = `<p style="color: red;">No data found for campaign: ${sheetName}</p>`;
         return;
     }
 
-    const section = document.createElement('section');
-    section.innerHTML = `
-        <h2>${sheetName}</h2>
-        ${campaign.NPCs.length > 0 ? `
-            <details open>
-                <summary><h3>NPCs</h3></summary>
-                <ul>${campaign.NPCs.map(npc => `
-                    <li><strong>${npc.name}</strong>: ${npc.role}<br>${npc.description}</li>
-                `).join('')}</ul>
-            </details>
-        ` : ''}
-        ${campaign.Locations.length > 0 ? `
-            <details open>
-                <summary><h3>Locations</h3></summary>
-                <ul>${campaign.Locations.map(location => `
-                    <li><strong>${location.name}</strong>: ${location.description}</li>
-                `).join('')}</ul>
-            </details>
-        ` : ''}
-    `;
-    container.appendChild(section);
+    campaign.forEach(item => {
+        const section = document.createElement('section');
+        section.innerHTML = `
+            <h2>${item.name}</h2>
+            <p><strong>Category:</strong> ${item.category}</p>
+            <div style="display: flex;">
+                <div style="flex: 3;">
+                    ${item.pageSections.map(pageSection => `
+                        <h3>${pageSection.sectionName}</h3>
+                        ${pageSection.details.map(detail => `
+                            <h4>${detail.descriptor}</h4>
+                            <p>${detail.description}</p>
+                        `).join('')}
+                    `).join('')}
+                    ${item.artworkSections.map(artworkSection => `
+                        <h3>${artworkSection.sectionName}</h3>
+                        ${artworkSection.details.map(detail => `
+                            <h4>${detail.descriptor}</h4>
+                            <img src="${detail.link}" alt="${detail.descriptor}" style="max-width: 100%; margin-bottom: 0.5rem;">
+                            <p style="font-style: italic;">${detail.description}</p>
+                        `).join('')}
+                    `).join('')}
+                </div>
+                <div style="flex: 1; text-align: center; padding-left: 20px;">
+                    <h3>${item.name}</h3>
+                    ${item.profilePicture ? `<img src="${item.profilePicture}" alt="${item.name} Image" style="max-width: 100%; margin-bottom: 1rem;">` : ''}
+                    ${Object.entries(item.profileTable).map(([sectionName, descriptors]) => `
+                        <h3>${sectionName}</h3>
+                        <table style="width: 100%; border: 1px solid #ccc; text-align: left; margin-bottom: 1rem; table-layout: fixed;">
+                            ${descriptors.map(row => `
+                                <tr>
+                                    <td style="width: 50%; font-weight: bold;">${row.descriptor}</td>
+                                    <td>${row.description}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        container.appendChild(section);
+    });
 }
 
-// Initialize page
 document.addEventListener('DOMContentLoaded', () => {
     const campaignName = getURLParameter('campaign');
-    console.log('Detected campaign parameter:', campaignName); // Debugging log
+
     if (campaignName) {
-        fetchSheetData(campaignName); // Load specific campaign if parameter exists
+        fetchSheetData(campaignName);
     } else {
-        fetchSheetNames(); // Otherwise, load the campaign list
+        fetchSheetNames();
     }
 });
