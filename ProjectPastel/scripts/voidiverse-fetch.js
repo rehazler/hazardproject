@@ -67,11 +67,21 @@ async function fetchSheetData(sheetName) {
         const backButton = document.createElement('button');
         backButton.id = 'back-button';
         backButton.textContent = 'Back to Campaign List';
+        backButton.style.float = 'left';
+        backButton.style.marginBottom = '20px';
         backButton.addEventListener('click', () => {
             history.pushState(null, '', window.location.pathname);
             fetchSheetNames();
         });
         container.appendChild(backButton);
+
+        const campaignTitle = document.createElement('h1');
+        campaignTitle.textContent = sheetName;
+        campaignTitle.style.color = '#f4f4f4';
+        campaignTitle.style.textAlign = 'center';
+        campaignTitle.style.margin = '40px 0 20px';
+        campaignTitle.style.clear = 'both';
+        container.appendChild(campaignTitle);
 
         renderWikiData(sheetName);
     } catch (error) {
@@ -155,7 +165,7 @@ function renderWikiData(sheetName) {
 
     const campaign = campaigns[sheetName]?.items;
     if (!campaign || campaign.length === 0) {
-        container.innerHTML = `<p style="color: red;">No data found for campaign: ${sheetName}</p>`;
+        container.innerHTML += `<p style="color: red;">No data found for campaign: ${sheetName}</p>`;
         return;
     }
 
