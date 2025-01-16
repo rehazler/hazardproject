@@ -15,8 +15,8 @@ async function fetchSheetNames() {
 
         const container = document.getElementById('wiki-container');
         container.innerHTML = `
-            <h1>Select a Campaign:</h1>
             <input type="text" id="search-campaigns" placeholder="Search campaigns..." />
+            <h3 style="color: #f4f4f4; border-bottom: unset; padding-bottom: unset; margin-bottom: -15px;">Select a Campaign:</h3>
             <ul id="sheet-list"></ul>
         `;
 
