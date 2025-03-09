@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+    <title>Your Feed Title</title>
+    <link>https://yourwebsite.com</link>
+    <description>Your feed description</description>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 08 Mar 2025 12:00:00 +0000</lastBuildDate>
+
+    <item>
+        <title>First Article Title</title>
+        <link>https://yourwebsite.com/first-article</link>
+        <description>This is a brief description of the first article.</description>
+        <pubDate>Fri, 08 Mar 2025 12:00:00 +0000</pubDate>
+        <guid>https://yourwebsite.com/first-article</guid>
+    </item>
+
+    <item>
+        <title>Second Article Title</title>
+        <link>https://yourwebsite.com/second-article</link>
+        <description>This is a brief description of the second article.</description>
+        <pubDate>Fri, 08 Mar 2025 11:00:00 +0000</pubDate>
+        <guid>https://yourwebsite.com/second-article</guid>
+    </item>
+
+</channel>
+</rss>
