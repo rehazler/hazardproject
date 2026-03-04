@@ -2,6 +2,20 @@ const SHEET_NAMES_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-names';
 const SHEET_DATA_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-data';
 let campaigns = {}; // Store data globally for filtering
 
+function escapeHTML(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function safeURL(url) {
+    const s = String(url ?? '');
+    return /^https?:\/\//.test(s) ? s : '';
+}
+
 function getURLParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
@@ -28,7 +42,7 @@ async function fetchSheetNames() {
                 .filter(sheetName => sheetName.toLowerCase().includes(filter.toLowerCase()))
                 .forEach(sheetName => {
                     const listItem = document.createElement('li');
-                    listItem.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}" data-sheet="${sheetName}">${sheetName}</a>`;
+                    listItem.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}" data-sheet="${escapeHTML(sheetName)}">${escapeHTML(sheetName)}</a>`;
                     sheetList.appendChild(listItem);
                 });
 
@@ -86,7 +100,7 @@ async function fetchSheetData(sheetName) {
         renderWikiData(sheetName);
     } catch (error) {
         console.error(`Error fetching data for sheet ${sheetName}:`, error);
-        document.getElementById('wiki-container').innerHTML = `<p style="color: red;">Error loading data for ${sheetName}. Please try again later.</p>`;
+        document.getElementById('wiki-container').innerHTML = `<p style="color: red;">Error loading data for ${escapeHTML(sheetName)}. Please try again later.</p>`;
     }
 }
 
@@ -165,43 +179,43 @@ function renderWikiData(sheetName) {
 
     const campaign = campaigns[sheetName]?.items;
     if (!campaign || campaign.length === 0) {
-        container.innerHTML += `<p style="color: red;">No data found for campaign: ${sheetName}</p>`;
+        container.innerHTML += `<p style="color: red;">No data found for campaign: ${escapeHTML(sheetName)}</p>`;
         return;
     }
 
     campaign.forEach(item => {
         const section = document.createElement('section');
         section.innerHTML = `
-            <h2>${item.name}</h2>
-            <p><strong>Category:</strong> ${item.category}</p>
+            <h2>${escapeHTML(item.name)}</h2>
+            <p><strong>Category:</strong> ${escapeHTML(item.category)}</p>
             <div style="display: flex;">
                 <div style="flex: 3;">
                     ${item.pageSections.map(pageSection => `
-                        <h3>${pageSection.sectionName}</h3>
+                        <h3>${escapeHTML(pageSection.sectionName)}</h3>
                         ${pageSection.details.map(detail => `
-                            <h4>${detail.descriptor}</h4>
-                            <p>${detail.description}</p>
+                            <h4>${escapeHTML(detail.descriptor)}</h4>
+                            <p>${escapeHTML(detail.description)}</p>
                         `).join('')}
                     `).join('')}
                     ${item.artworkSections.map(artworkSection => `
-                        <h3>${artworkSection.sectionName}</h3>
+                        <h3>${escapeHTML(artworkSection.sectionName)}</h3>
                         ${artworkSection.details.map(detail => `
-                            <h4>${detail.descriptor}</h4>
-                            <img src="${detail.link}" alt="${detail.descriptor}" style="max-width: 100%; margin-bottom: 0.5rem;">
-                            <p style="font-style: italic;">${detail.description}</p>
+                            <h4>${escapeHTML(detail.descriptor)}</h4>
+                            <img src="${safeURL(detail.link)}" alt="${escapeHTML(detail.descriptor)}" style="max-width: 100%; margin-bottom: 0.5rem;">
+                            <p style="font-style: italic;">${escapeHTML(detail.description)}</p>
                         `).join('')}
                     `).join('')}
                 </div>
                 <div style="flex: 1; text-align: center; padding-left: 20px;">
-                    <h3>${item.name}</h3>
-                    ${item.profilePicture ? `<img src="${item.profilePicture}" alt="${item.name} Image" style="max-width: 100%; margin-bottom: 1rem;">` : ''}
+                    <h3>${escapeHTML(item.name)}</h3>
+                    ${item.profilePicture ? `<img src="${safeURL(item.profilePicture)}" alt="${escapeHTML(item.name)} Image" style="max-width: 100%; margin-bottom: 1rem;">` : ''}
                     ${Object.entries(item.profileTable).map(([sectionName, descriptors]) => `
-                        <h3>${sectionName}</h3>
+                        <h3>${escapeHTML(sectionName)}</h3>
                         <table style="width: 100%; border: 1px solid #ccc; text-align: left; margin-bottom: 1rem; table-layout: fixed;">
                             ${descriptors.map(row => `
                                 <tr>
-                                    <td style="width: 50%; font-weight: bold;">${row.descriptor}</td>
-                                    <td>${row.description}</td>
+                                    <td style="width: 50%; font-weight: bold;">${escapeHTML(row.descriptor)}</td>
+                                    <td>${escapeHTML(row.description)}</td>
                                 </tr>
                             `).join('')}
                         </table>
