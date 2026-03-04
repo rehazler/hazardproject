@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Livestreams & Playlists</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <title>Voidiverse | Livestreams & Playlists</title>
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -18,41 +18,20 @@
             <h2>Livestream</h2>
             <p>Catch my live streams directly here:</p>
             <div class="embed-container">
-                <!-- Twitch Embed -->
                 <iframe
-                    src="https://player.twitch.tv/?channel=voiddoll&parent=themadhazard.com"
+                    src="https://player.twitch.tv/?channel=voiddoll&parent=themadhazard.com&parent=localhost&parent=127.0.0.1"
                     allowfullscreen>
                 </iframe>
             </div>
-            <!-- Add a placeholder for the Twitch embed -->
-            <!-- <div id="twitch-embed"></div> -->
-
-            <!-- Load the Twitch embed JavaScript file -->
-            <!-- <script src="https://embed.twitch.tv/embed/v1.js"></script> -->
-
-            <!-- Create a Twitch.Embed object that will render within the "twitch-embed" element -->
-            <!-- <script type="text/javascript">
-                var embed = new Twitch.Embed("twitch-embed", {
-                    width: 800,
-                    height: 480,
-                    channel: "voiddoll",
-                    parent: ["localhost", "127.0.0.1", "192.168.0.149", "192.168.01", "https://themadhazard.com"] // Replace "yourdomain.com" with your actual domain
-                });
-
-                embed.addEventListener(Twitch.Embed.VIDEO_READY, function() {
-                  console.log('The video is ready');
-                });
-            </script> -->
         </section>
 
         <section>
             <h2>My Playlists</h2>
             <p>Click a playlist to start watching:</p>
             <div class="playlist-container">
-                <!-- Horizontal Playlist List -->
                 <ul id="playlist-list">
                     <li>
-                        <a href="#" data-playlist-id="PL5BJiQEfMnEnWzfFF79kivJ-bCqR2a_3m">
+                        <a href="#" data-playlist-id="PL5BJiQEfMnEnWzfFF79kivJ-bCqR2a_3m" class="active">
                             <img src="https://i.ytimg.com/vi/eW2bDp_zTow/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBulWvYTP6HzutxsIYchnS1PWs7nQ" alt="Playlist Thumbnail">
                             <span>Dark Reign</span>
                         </a>
@@ -146,12 +125,12 @@
             <div class="embed-container">
                 <iframe
                     id="youtube-player"
-                    src=""
+                    src="https://www.youtube.com/embed/videoseries?list=PL5BJiQEfMnEnWzfFF79kivJ-bCqR2a_3m"
                     title="YouTube video player"
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen>
-                ></iframe>
+                </iframe>
             </div>
         </section>
     </main>
@@ -159,12 +138,15 @@
         <p>&copy; 2025 Void Doll. All rights reserved.</p>
     </footer>
     <script>
-        // Attach click event listeners to playlist links
         document.getElementById('playlist-list').addEventListener('click', function (event) {
             event.preventDefault();
-            const playlistId = event.target.closest('a')?.getAttribute('data-playlist-id');
+            const link = event.target.closest('a');
+            if (!link) return;
+            const playlistId = link.getAttribute('data-playlist-id');
             if (playlistId) {
                 document.getElementById('youtube-player').src = `https://www.youtube.com/embed/videoseries?list=${playlistId}`;
+                document.querySelectorAll('#playlist-list a').forEach(a => a.classList.remove('active'));
+                link.classList.add('active');
             }
         });
     </script>
