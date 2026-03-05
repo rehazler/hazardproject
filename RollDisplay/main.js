@@ -118,9 +118,12 @@ function dice_initialize(container) {
         box.draw_selector();
     }
 
+    var dismissTimer = null;
+
     function before_roll(vectors, notation, callback) {
         info_div.style.display = 'none';
         selector_div.style.display = 'none';
+        if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
         // do here rpc call or whatever to get your own result of throw.
         // then callback with array of your result, example:
         // callback([2, 2, 2, 2]); // for 4d6 where all dice values are 2.
@@ -132,16 +135,24 @@ function dice_initialize(container) {
     }
 
     function after_roll(notation, result) {
-        if (params.chromakey || params.noresult) return;
-        var res = result.join(' ');
-        if (notation.constant) {
-            if (notation.constant > 0) res += ' +' + notation.constant;
-            else res += ' -' + Math.abs(notation.constant);
+        if (!params.chromakey && !params.noresult) {
+            var res = result.join(' ');
+            if (notation.constant) {
+                if (notation.constant > 0) res += ' +' + notation.constant;
+                else res += ' -' + Math.abs(notation.constant);
+            }
+            if (result.length > 1) res += ' = ' +
+                    (result.reduce(function(s, a) { return s + a; }) + notation.constant);
+            label.innerHTML = res;
+            info_div.style.display = 'inline-block';
         }
-        if (result.length > 1) res += ' = ' + 
-                (result.reduce(function(s, a) { return s + a; }) + notation.constant);
-        label.innerHTML = res;
-        info_div.style.display = 'inline-block';
+        if (params.timeout) {
+            dismissTimer = setTimeout(function() {
+                dismissTimer = null;
+                box.clear();
+                info_div.style.display = 'none';
+            }, parseFloat(params.timeout) * 1000);
+        }
     }
 
     box.bind_mouse(container, notation_getter, before_roll, after_roll);

@@ -161,7 +161,7 @@ teal.get_url_params = function() {
     var res = {};
     for (var i in params) {
         var keyvalue = params[i].split("=");
-        res[keyvalue[0]] = decodeURI(keyvalue[1]);
+        res[keyvalue[0]] = decodeURIComponent(keyvalue[1]);
     }
     return res;
 }

@@ -672,8 +672,19 @@
 
     function shift_dice_faces(dice, value, res) {
         var r = that.dice_face_range[dice.dice_type];
+        if (dice.dice_type == 'd100') {
+            if (value % 10 !== 0 || value < 0 || value > 90) {
+                console.warn('RollDisplay: dicevalue ' + value + ' is invalid for d100. Use multiples of 10 from 0 to 90. Rolling randomly.');
+                return;
+            }
+            value = value / 10;
+            res = res / 10;
+        }
         if (dice.dice_type == 'd10' && value == 10) value = 0;
-        if (!(value >= r[0] && value <= r[1])) return;
+        if (!(value >= r[0] && value <= r[1])) {
+            console.warn('RollDisplay: dicevalue ' + value + ' is out of range for ' + dice.dice_type + ' (valid: ' + r[0] + '\u2013' + r[1] + '). Rolling randomly.');
+            return;
+        }
         var num = value - res;
         var geom = dice.geometry.clone();
         for (var i = 0, l = geom.faces.length; i < l; ++i) {
@@ -766,7 +777,9 @@
         var userValue = [];
         function roll(request_results) {
             if (after_roll) {
-                if($t.dice.dice_value) {userValue[0]=$t.dice.dice_value};
+                if ($t.dice.dice_value) {
+                userValue = String($t.dice.dice_value).split(',').map(function(v) { return parseInt(v.trim()); });
+            }
                 box.clear();
                 box.roll(vectors, userValue || request_results || notation.result, function(result) {
                     if (after_roll) after_roll.call(box, notation, result);
