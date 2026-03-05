@@ -208,6 +208,28 @@ button:hover {
     padding: 2px 4px;
 }
 
+/* Wiki Breadcrumb */
+#wiki-breadcrumb {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    color: #999;
+}
+
+#wiki-breadcrumb a {
+    color: #98e6d6;
+    font-weight: normal;
+}
+
+#wiki-breadcrumb span {
+    color: #d3b3e7;
+}
+
+.wiki-count {
+    font-size: 0.85em;
+    color: #999;
+    font-weight: normal;
+}
+
 /* Campaign List */
 #sheet-list {
     list-style: none;

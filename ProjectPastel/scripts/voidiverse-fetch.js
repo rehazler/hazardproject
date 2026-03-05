@@ -1,6 +1,6 @@
 const SHEET_NAMES_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-names';
 const SHEET_DATA_URL = 'https://minip-xc9e.onrender.com/api/get-sheet-data';
-let campaigns = {}; // Store data globally for filtering
+let campaigns = {};
 
 function escapeHTML(str) {
     return String(str ?? '')
@@ -21,99 +21,56 @@ function getURLParameter(name) {
     return urlParams.get(name);
 }
 
-async function fetchSheetNames() {
-    try {
-        const response = await fetch(SHEET_NAMES_URL);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        const sheetNames = await response.json();
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-        const container = document.getElementById('wiki-container');
-        container.innerHTML = `
-            <input type="text" id="search-campaigns" placeholder="Search campaigns..." />
-            <h3 style="color: #f4f4f4; border-bottom: unset; padding-bottom: unset; margin-bottom: -15px;">Select a Campaign:</h3>
-            <ul id="sheet-list"></ul>
-        `;
-
-        const sheetList = document.getElementById('sheet-list');
-
-        function renderCampaignList(filter = '') {
-            sheetList.innerHTML = '';
-            sheetNames
-                .filter(sheetName => sheetName.toLowerCase().includes(filter.toLowerCase()))
-                .forEach(sheetName => {
-                    const listItem = document.createElement('li');
-                    listItem.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}" data-sheet="${escapeHTML(sheetName)}">${escapeHTML(sheetName)}</a>`;
-                    sheetList.appendChild(listItem);
-                });
-
-            document.querySelectorAll('[data-sheet]').forEach(link => {
-                link.addEventListener('click', event => {
-                    event.preventDefault();
-                    const sheetName = event.target.getAttribute('data-sheet');
-                    history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}`);
-                    fetchSheetData(sheetName);
-                });
-            });
-        }
-
-        renderCampaignList();
-
-        document.getElementById('search-campaigns').addEventListener('input', event => {
-            renderCampaignList(event.target.value);
-        });
-    } catch (error) {
-        console.error('Error fetching sheet names:', error);
-        document.getElementById('wiki-container').innerHTML = `<p style="color: red;">Error loading campaigns. Please try again later.</p>`;
-    }
+function makeBackButton(label, onClick) {
+    const btn = document.createElement('button');
+    btn.id = 'back-button';
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    return btn;
 }
 
-async function fetchSheetData(sheetName) {
-    try {
-        const response = await fetch(`${SHEET_DATA_URL}?sheetName=${encodeURIComponent(sheetName)}`);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        const data = await response.json();
+function makeBreadcrumb(crumbs) {
+    const nav = document.createElement('nav');
+    nav.id = 'wiki-breadcrumb';
+    nav.innerHTML = crumbs.map((c, i) =>
+        i < crumbs.length - 1
+            ? `<a href="#" data-crumb="${i}">${escapeHTML(c.label)}</a>`
+            : `<span>${escapeHTML(c.label)}</span>`
+    ).join(' › ');
+    crumbs.forEach((c, i) => {
+        if (i < crumbs.length - 1) {
+            nav.querySelectorAll('[data-crumb]')[i]?.addEventListener('click', e => {
+                e.preventDefault();
+                c.onClick();
+            });
+        }
+    });
+    return nav;
+}
 
-        processWikiData(sheetName, data);
+// ── Data fetching ──────────────────────────────────────────────────────────
 
-        const container = document.getElementById('wiki-container');
-        container.innerHTML = '';
-
-        const backButton = document.createElement('button');
-        backButton.id = 'back-button';
-        backButton.textContent = 'Back to Campaign List';
-        backButton.style.float = 'left';
-        backButton.style.marginBottom = '20px';
-        backButton.addEventListener('click', () => {
-            history.pushState(null, '', window.location.pathname);
-            fetchSheetNames();
-        });
-        container.appendChild(backButton);
-
-        const campaignTitle = document.createElement('h1');
-        campaignTitle.textContent = sheetName;
-        campaignTitle.style.color = '#f4f4f4';
-        campaignTitle.style.textAlign = 'center';
-        campaignTitle.style.margin = '40px 0 20px';
-        campaignTitle.style.clear = 'both';
-        container.appendChild(campaignTitle);
-
-        renderWikiData(sheetName);
-    } catch (error) {
-        console.error(`Error fetching data for sheet ${sheetName}:`, error);
-        document.getElementById('wiki-container').innerHTML = `<p style="color: red;">Error loading data for ${escapeHTML(sheetName)}. Please try again later.</p>`;
-    }
+async function ensureSheetData(sheetName) {
+    if (campaigns[sheetName]) return;
+    document.getElementById('wiki-container').innerHTML =
+        `<p>Loading ${escapeHTML(sheetName)}…</p>`;
+    const response = await fetch(`${SHEET_DATA_URL}?sheetName=${encodeURIComponent(sheetName)}`);
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    processWikiData(sheetName, await response.json());
 }
 
 function processWikiData(sheetName, data) {
     campaigns[sheetName] = { items: [] };
-
     let currentItem = null;
     let currentProfileSection = null;
 
     data.values.forEach((row, index) => {
         if (index === 0) return;
-
-        const [name, category, profilePicture, profileSection, profileDescriptor, profileDescription, pageSection, pageDescriptor, pageDescription, artworkSection, artworkDescriptor, artworkLink, artworkDescription] = row;
+        const [name, category, profilePicture, profileSection, profileDescriptor,
+               profileDescription, pageSection, pageDescriptor, pageDescription,
+               artworkSection, artworkDescriptor, artworkLink, artworkDescription] = row;
 
         if (!name && !category && !profileSection && !pageSection && !artworkSection) return;
 
@@ -133,39 +90,34 @@ function processWikiData(sheetName, data) {
         if (currentItem) {
             if (profileSection) {
                 currentProfileSection = profileSection;
-                if (!currentItem.profileTable[currentProfileSection]) {
+                if (!currentItem.profileTable[currentProfileSection])
                     currentItem.profileTable[currentProfileSection] = [];
-                }
             }
-
             if (currentProfileSection && profileDescriptor && profileDescription) {
                 currentItem.profileTable[currentProfileSection].push({
-                    descriptor: profileDescriptor,
-                    description: profileDescription
+                    descriptor: profileDescriptor, description: profileDescription
                 });
             }
-
             if (pageSection) {
-                const existingPage = currentItem.pageSections.find(ps => ps.sectionName === pageSection);
-                if (!existingPage) {
+                const existing = currentItem.pageSections.find(p => p.sectionName === pageSection);
+                if (!existing) {
                     currentItem.pageSections.push({
                         sectionName: pageSection,
                         details: [{ descriptor: pageDescriptor || '', description: pageDescription || '' }]
                     });
                 } else {
-                    existingPage.details.push({ descriptor: pageDescriptor || '', description: pageDescription || '' });
+                    existing.details.push({ descriptor: pageDescriptor || '', description: pageDescription || '' });
                 }
             }
-
             if (artworkSection) {
-                const existingArtwork = currentItem.artworkSections.find(as => as.sectionName === artworkSection);
-                if (!existingArtwork) {
+                const existing = currentItem.artworkSections.find(a => a.sectionName === artworkSection);
+                if (!existing) {
                     currentItem.artworkSections.push({
                         sectionName: artworkSection,
                         details: [{ descriptor: artworkDescriptor || '', link: artworkLink || '', description: artworkDescription || '' }]
                     });
                 } else {
-                    existingArtwork.details.push({ descriptor: artworkDescriptor || '', link: artworkLink || '', description: artworkDescription || '' });
+                    existing.details.push({ descriptor: artworkDescriptor || '', link: artworkLink || '', description: artworkDescription || '' });
                 }
             }
         }
@@ -174,65 +126,270 @@ function processWikiData(sheetName, data) {
     if (currentItem) campaigns[sheetName].items.push(currentItem);
 }
 
-function renderWikiData(sheetName) {
-    const container = document.getElementById('wiki-container');
+// ── Views ──────────────────────────────────────────────────────────────────
 
-    const campaign = campaigns[sheetName]?.items;
-    if (!campaign || campaign.length === 0) {
-        container.innerHTML += `<p style="color: red;">No data found for campaign: ${escapeHTML(sheetName)}</p>`;
+async function showCampaignList() {
+    const container = document.getElementById('wiki-container');
+    try {
+        const response = await fetch(SHEET_NAMES_URL);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        const sheetNames = await response.json();
+
+        container.innerHTML = `
+            <input type="text" id="search-campaigns" placeholder="Search campaigns…" />
+            <h3 style="color:#f4f4f4;border-bottom:unset;padding-bottom:unset;margin-bottom:-15px;">
+                Select a Campaign:
+            </h3>
+            <ul id="sheet-list"></ul>
+        `;
+
+        const list = document.getElementById('sheet-list');
+
+        function render(filter = '') {
+            list.innerHTML = '';
+            sheetNames
+                .filter(n => n.toLowerCase().includes(filter.toLowerCase()))
+                .forEach(sheetName => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}"
+                        data-sheet="${escapeHTML(sheetName)}">${escapeHTML(sheetName)}</a>`;
+                    list.appendChild(li);
+                });
+            list.querySelectorAll('[data-sheet]').forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    const name = e.target.getAttribute('data-sheet');
+                    history.pushState(null, '', `?campaign=${encodeURIComponent(name)}`);
+                    showCategoryList(name);
+                });
+            });
+        }
+
+        render();
+        document.getElementById('search-campaigns').addEventListener('input', e => render(e.target.value));
+    } catch (err) {
+        console.error('Error fetching sheet names:', err);
+        container.innerHTML = `<p style="color:red;">Error loading campaigns. Please try again later.</p>`;
+    }
+}
+
+async function showCategoryList(sheetName) {
+    const container = document.getElementById('wiki-container');
+    try {
+        await ensureSheetData(sheetName);
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = `<p style="color:red;">Error loading ${escapeHTML(sheetName)}.</p>`;
         return;
     }
 
-    campaign.forEach(item => {
-        const section = document.createElement('section');
-        section.innerHTML = `
-            <h2>${escapeHTML(item.name)}</h2>
-            <p><strong>Category:</strong> ${escapeHTML(item.category)}</p>
-            <div style="display: flex;">
-                <div style="flex: 3;">
-                    ${item.pageSections.map(pageSection => `
-                        <h3>${escapeHTML(pageSection.sectionName)}</h3>
-                        ${pageSection.details.map(detail => `
-                            <h4>${escapeHTML(detail.descriptor)}</h4>
-                            <p>${escapeHTML(detail.description)}</p>
-                        `).join('')}
-                    `).join('')}
-                    ${item.artworkSections.map(artworkSection => `
-                        <h3>${escapeHTML(artworkSection.sectionName)}</h3>
-                        ${artworkSection.details.map(detail => `
-                            <h4>${escapeHTML(detail.descriptor)}</h4>
-                            <img src="${safeURL(detail.link)}" alt="${escapeHTML(detail.descriptor)}" style="max-width: 100%; margin-bottom: 0.5rem;">
-                            <p style="font-style: italic;">${escapeHTML(detail.description)}</p>
-                        `).join('')}
-                    `).join('')}
-                </div>
-                <div style="flex: 1; text-align: center; padding-left: 20px;">
-                    <h3>${escapeHTML(item.name)}</h3>
-                    ${item.profilePicture ? `<img src="${safeURL(item.profilePicture)}" alt="${escapeHTML(item.name)} Image" style="max-width: 100%; margin-bottom: 1rem;">` : ''}
-                    ${Object.entries(item.profileTable).map(([sectionName, descriptors]) => `
-                        <h3>${escapeHTML(sectionName)}</h3>
-                        <table style="width: 100%; border: 1px solid #ccc; text-align: left; margin-bottom: 1rem; table-layout: fixed;">
-                            ${descriptors.map(row => `
-                                <tr>
-                                    <td style="width: 50%; font-weight: bold;">${escapeHTML(row.descriptor)}</td>
-                                    <td>${escapeHTML(row.description)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        container.appendChild(section);
+    const goToCampaigns = () => {
+        history.pushState(null, '', window.location.pathname);
+        showCampaignList();
+    };
+
+    const categories = [...new Set(
+        campaigns[sheetName].items.map(i => i.category).filter(Boolean)
+    )];
+
+    container.innerHTML = '';
+    container.appendChild(makeBreadcrumb([
+        { label: 'Campaigns', onClick: goToCampaigns },
+        { label: sheetName }
+    ]));
+    container.appendChild(makeBackButton('← Back to Campaigns', goToCampaigns));
+
+    const title = document.createElement('h1');
+    title.textContent = sheetName;
+    container.appendChild(title);
+
+    if (categories.length === 0) {
+        const msg = document.createElement('p');
+        msg.textContent = 'No categories found.';
+        container.appendChild(msg);
+        return;
+    }
+
+    const list = document.createElement('ul');
+    list.id = 'sheet-list';
+    categories.forEach(category => {
+        const count = campaigns[sheetName].items.filter(i => i.category === category).length;
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}&category=${encodeURIComponent(category)}"
+            data-category="${escapeHTML(category)}">${escapeHTML(category)}
+            <span class="wiki-count">(${count})</span></a>`;
+        list.appendChild(li);
+    });
+    container.appendChild(list);
+
+    list.querySelectorAll('[data-category]').forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            const cat = e.target.closest('[data-category]').getAttribute('data-category');
+            history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}&category=${encodeURIComponent(cat)}`);
+            showNameList(sheetName, cat);
+        });
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const campaignName = getURLParameter('campaign');
+async function showNameList(sheetName, category) {
+    const container = document.getElementById('wiki-container');
+    try {
+        await ensureSheetData(sheetName);
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = `<p style="color:red;">Error loading ${escapeHTML(sheetName)}.</p>`;
+        return;
+    }
 
-    if (campaignName) {
-        fetchSheetData(campaignName);
+    const goToCampaigns = () => {
+        history.pushState(null, '', window.location.pathname);
+        showCampaignList();
+    };
+    const goToCategories = () => {
+        history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}`);
+        showCategoryList(sheetName);
+    };
+
+    const items = campaigns[sheetName].items.filter(i => i.category === category);
+
+    container.innerHTML = '';
+    container.appendChild(makeBreadcrumb([
+        { label: 'Campaigns', onClick: goToCampaigns },
+        { label: sheetName, onClick: goToCategories },
+        { label: category }
+    ]));
+    container.appendChild(makeBackButton(`← Back to ${sheetName}`, goToCategories));
+
+    const title = document.createElement('h1');
+    title.textContent = category;
+    container.appendChild(title);
+
+    if (items.length === 0) {
+        const msg = document.createElement('p');
+        msg.textContent = `No entries found in ${category}.`;
+        container.appendChild(msg);
+        return;
+    }
+
+    const list = document.createElement('ul');
+    list.id = 'sheet-list';
+    items.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="?campaign=${encodeURIComponent(sheetName)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(item.name)}"
+            data-entry="${escapeHTML(item.name)}">${escapeHTML(item.name)}</a>`;
+        list.appendChild(li);
+    });
+    container.appendChild(list);
+
+    list.querySelectorAll('[data-entry]').forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            const entry = e.target.getAttribute('data-entry');
+            history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(entry)}`);
+            showItemDetail(sheetName, category, entry);
+        });
+    });
+}
+
+async function showItemDetail(sheetName, category, itemName) {
+    const container = document.getElementById('wiki-container');
+    try {
+        await ensureSheetData(sheetName);
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = `<p style="color:red;">Error loading ${escapeHTML(sheetName)}.</p>`;
+        return;
+    }
+
+    const goToCampaigns = () => {
+        history.pushState(null, '', window.location.pathname);
+        showCampaignList();
+    };
+    const goToCategories = () => {
+        history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}`);
+        showCategoryList(sheetName);
+    };
+    const goToNames = () => {
+        history.pushState(null, '', `?campaign=${encodeURIComponent(sheetName)}&category=${encodeURIComponent(category)}`);
+        showNameList(sheetName, category);
+    };
+
+    const item = campaigns[sheetName].items.find(i => i.name === itemName);
+
+    container.innerHTML = '';
+    container.appendChild(makeBreadcrumb([
+        { label: 'Campaigns', onClick: goToCampaigns },
+        { label: sheetName, onClick: goToCategories },
+        { label: category, onClick: goToNames },
+        { label: itemName }
+    ]));
+    container.appendChild(makeBackButton(`← Back to ${category}`, goToNames));
+
+    if (!item) {
+        const msg = document.createElement('p');
+        msg.style.color = 'red';
+        msg.textContent = `Entry not found: ${itemName}`;
+        container.appendChild(msg);
+        return;
+    }
+
+    const section = document.createElement('section');
+    section.innerHTML = `
+        <h2>${escapeHTML(item.name)}</h2>
+        <p><strong>Category:</strong> ${escapeHTML(item.category)}</p>
+        <div style="display:flex;">
+            <div style="flex:3;">
+                ${item.pageSections.map(ps => `
+                    <h3>${escapeHTML(ps.sectionName)}</h3>
+                    ${ps.details.map(d => `
+                        <h4>${escapeHTML(d.descriptor)}</h4>
+                        <p>${escapeHTML(d.description)}</p>
+                    `).join('')}
+                `).join('')}
+                ${item.artworkSections.map(as => `
+                    <h3>${escapeHTML(as.sectionName)}</h3>
+                    ${as.details.map(d => `
+                        <h4>${escapeHTML(d.descriptor)}</h4>
+                        <img src="${safeURL(d.link)}" alt="${escapeHTML(d.descriptor)}" style="max-width:100%;margin-bottom:0.5rem;">
+                        <p style="font-style:italic;">${escapeHTML(d.description)}</p>
+                    `).join('')}
+                `).join('')}
+            </div>
+            <div style="flex:1;text-align:center;padding-left:20px;">
+                <h3>${escapeHTML(item.name)}</h3>
+                ${item.profilePicture ? `<img src="${safeURL(item.profilePicture)}" alt="${escapeHTML(item.name)}" style="max-width:100%;margin-bottom:1rem;">` : ''}
+                ${Object.entries(item.profileTable).map(([sectionName, rows]) => `
+                    <h3>${escapeHTML(sectionName)}</h3>
+                    <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;">
+                        ${rows.map(row => `
+                            <tr>
+                                <td style="width:50%;font-weight:bold;">${escapeHTML(row.descriptor)}</td>
+                                <td>${escapeHTML(row.description)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    container.appendChild(section);
+}
+
+// ── Router ─────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+    const campaign = getURLParameter('campaign');
+    const category = getURLParameter('category');
+    const entry    = getURLParameter('entry');
+
+    if (campaign && category && entry) {
+        showItemDetail(campaign, category, entry);
+    } else if (campaign && category) {
+        showNameList(campaign, category);
+    } else if (campaign) {
+        showCategoryList(campaign);
     } else {
-        fetchSheetNames();
+        showCampaignList();
     }
 });
