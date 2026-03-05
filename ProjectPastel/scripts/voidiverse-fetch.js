@@ -54,8 +54,11 @@ function makeBreadcrumb(crumbs) {
 
 async function ensureSheetData(sheetName) {
     if (campaigns[sheetName]) return;
-    document.getElementById('wiki-container').innerHTML =
-        `<p>Loading ${escapeHTML(sheetName)}…</p>`;
+    document.getElementById('wiki-container').innerHTML = `
+        <div class="wiki-loading">
+            <div class="wiki-spinner"></div>
+            <p>Loading ${escapeHTML(sheetName)}…</p>
+        </div>`;
     const response = await fetch(`${SHEET_DATA_URL}?sheetName=${encodeURIComponent(sheetName)}`);
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
     processWikiData(sheetName, await response.json());
