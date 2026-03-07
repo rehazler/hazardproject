@@ -550,6 +550,334 @@ body.wiki-page h4 {
     font-style: italic;
 }
 
+/* ── Music player & character prompt ─────────────────────────────────── */
+
+/* Prompt container — fixed bottom-right, stacks bubble → tail → character */
+#music-prompt {
+    position: fixed;
+    bottom: 0;
+    right: 20px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    animation: musicPromptIn 0.5s ease 0.8s both;
+    pointer-events: none; /* let clicks pass through the gaps */
+}
+
+#music-prompt > * {
+    pointer-events: auto;
+}
+
+#music-prompt.music-hide {
+    animation: musicPromptOut 0.4s ease forwards;
+    pointer-events: none;
+}
+
+@keyframes musicPromptIn {
+    from { opacity: 0; transform: translateY(40px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes musicPromptOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(40px); }
+}
+
+/* Speech bubble */
+.music-bubble {
+    background: #2e1d32;
+    border: 2px solid #d3b3e7;
+    border-radius: 16px;
+    padding: 16px 20px;
+    max-width: 280px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    transition: opacity 0.25s ease;
+}
+
+.music-bubble p {
+    margin: 0 0 12px;
+    color: #f4f4f4;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.music-bubble-btns {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Yes / No buttons — override global button sizing */
+.music-bubble-btns button {
+    padding: 6px 14px;
+    font-size: 0.88rem;
+}
+
+#music-yes {
+    background: rgba(152, 230, 214, 0.15);
+    border-color: #98e6d6;
+    color: #98e6d6;
+}
+
+#music-yes:hover {
+    background: #98e6d6;
+    border-color: #98e6d6;
+    color: #1d1d1d;
+}
+
+#music-no {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: #555;
+    color: #aaa;
+}
+
+#music-no:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #888;
+    color: #f4f4f4;
+}
+
+/* Bubble tail — bordered triangle pointing down toward the character */
+.music-bubble-tail {
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 14px solid #d3b3e7;
+    margin-right: 64px; /* offset toward character's head */
+    position: relative;
+}
+
+.music-bubble-tail::after {
+    content: '';
+    position: absolute;
+    top: -17px;
+    left: -9px;
+    width: 0;
+    height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-top: 11px solid #2e1d32;
+}
+
+/* Character image */
+.music-char {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Override wiki-page global img styles on wiki pages */
+body.wiki-page #music-prompt .music-char {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    max-width: none;
+}
+
+.music-char-placeholder {
+    width: 300px;
+    height: 80px; /* keeps tail positioned naturally if no image is set */
+}
+
+/* Floating player pill */
+#music-player {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 300;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    border-radius: 30px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    animation: musicPlayerIn 0.4s ease forwards;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#music-player.music-playing {
+    border-color: #98e6d6;
+    box-shadow: 0 4px 20px rgba(152, 230, 214, 0.2);
+}
+
+@keyframes musicPlayerIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.music-title {
+    font-size: 0.85rem;
+    color: #d3b3e7;
+    white-space: nowrap;
+    font-family: 'Spectral', serif;
+}
+
+.music-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Player buttons — reset global button styles */
+.music-btn {
+    background: none;
+    border: none;
+    color: #f4f4f4;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 1rem;
+    line-height: 1;
+    min-width: unset;
+    transition: color 0.2s, background 0.2s;
+}
+
+.music-btn:hover {
+    background: rgba(152, 230, 214, 0.15);
+    border-color: transparent;
+    color: #98e6d6;
+}
+
+#music-volume {
+    width: 60px;
+    accent-color: #98e6d6;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* Mobile music player */
+@media (max-width: 700px) {
+    #music-prompt {
+        right: 10px;
+    }
+
+    .music-bubble {
+        max-width: 210px;
+    }
+
+    .music-char,
+    .music-char-placeholder {
+        width: 180px;
+        height: 180px;
+    }
+
+    .music-bubble-tail {
+        margin-right: 40px;
+    }
+
+    #music-player {
+        bottom: 12px;
+        right: 10px;
+        left: 10px;
+        border-radius: 20px;
+        justify-content: space-between;
+    }
+
+    #music-volume {
+        width: 80px;
+    }
+}
+
+/* ── Twitch PiP player ────────────────────────────────────────────────── */
+
+#twitch-pip {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 320px;
+    background: #1a0b1e;
+    border: 1px solid #98e6d6;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+    z-index: 1001;
+    overflow: hidden;
+    animation: pipIn 0.3s ease forwards;
+}
+
+.pip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #2e1d32;
+    cursor: grab;
+    user-select: none;
+}
+
+.pip-header:active {
+    cursor: grabbing;
+}
+
+.pip-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.pip-title {
+    font-size: 0.8rem;
+    color: #98e6d6;
+    font-family: 'Cinzel', serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pip-popout,
+.pip-close {
+    background: none;
+    border: none;
+    color: #d3b3e7;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 3px;
+    line-height: 1;
+    min-width: unset;
+}
+
+.pip-popout:hover {
+    color: #98e6d6;
+    background: none;
+    border-color: transparent;
+}
+
+.pip-close:hover {
+    color: #f3b0c3;
+    background: none;
+    border-color: transparent;
+}
+
+#twitch-pip iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: none;
+}
+
+@keyframes pipIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes pipOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.9); }
+}
+
+@media (max-width: 700px) {
+    #twitch-pip {
+        width: calc(100vw - 20px);
+        right: 10px;
+        bottom: 80px;
+    }
+}
+
 /* ── Wiki entry layout (main content + profile sidebar) ───────────────── */
 
 .wiki-entry-layout {
@@ -566,6 +894,41 @@ body.wiki-page h4 {
     flex: 1;
     text-align: center;
     padding-left: 20px;
+}
+
+/* ── Navbar live badge ────────────────────────────────────────────────── */
+
+.nav-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 50, 50, 0.12);
+    border: 1px solid rgba(255, 80, 80, 0.45);
+    color: #ff6b6b;
+    font-size: 0.6rem;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.08em;
+    padding: 1px 6px 1px 4px;
+    border-radius: 10px;
+    margin-left: 7px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+
+.nav-live::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff4444;
+    animation: livePulse 1.5s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1;   box-shadow: 0 0 0   0   rgba(255, 68, 68, 0.4); }
+    50%       { opacity: 0.6; box-shadow: 0 0 0   4px rgba(255, 68, 68, 0);  }
 }
 
 /* ── Hamburger nav button (hidden on desktop) ─────────────────────────── */
