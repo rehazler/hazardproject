@@ -568,14 +568,14 @@ async function showEntryDetail(campaign, category, entryId, entryName) {
         const section = document.createElement('section');
         section.innerHTML = `
             <h2>${escapeHTML(entry.name)}</h2>
-            <div style="display:flex;gap:20px;">
-                <div style="flex:3;">
+            <div class="wiki-entry-layout">
+                <div class="wiki-entry-main">
                     ${entry.blocks?.length
                         ? renderBlocks(entry.blocks)
                         : '<p style="color:#aaa;font-style:italic;">No content yet.</p>'}
                 </div>
                 ${hasProfile ? `
-                <div style="flex:1;text-align:center;padding-left:20px;">
+                <div class="wiki-entry-sidebar">
                     <h3>${escapeHTML(entry.name)}</h3>
                     ${entry.profileImage
                         ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" style="max-width:100%;margin-bottom:1rem;">`

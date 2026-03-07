@@ -550,6 +550,149 @@ body.wiki-page h4 {
     font-style: italic;
 }
 
+/* ── Wiki entry layout (main content + profile sidebar) ───────────────── */
+
+.wiki-entry-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.wiki-entry-main {
+    flex: 3;
+    min-width: 0; /* prevents flex children from overflowing */
+}
+
+.wiki-entry-sidebar {
+    flex: 1;
+    text-align: center;
+    padding-left: 20px;
+}
+
+/* ── Hamburger nav button (hidden on desktop) ─────────────────────────── */
+
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.nav-toggle span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: #f4f4f4;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+/* Animate hamburger into × when open */
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Mobile styles ────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+
+    /* Typography */
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.4rem; }
+    h3 { font-size: 1.2rem; }
+    body.wiki-page h2 { font-size: 1.4rem; }
+    body.wiki-page h3 { font-size: 1.2rem; }
+
+    /* Sections */
+    section { padding: 14px; }
+
+    /* Wiki container */
+    body.wiki-page #wiki-container {
+        margin: 10px;
+        padding: 14px;
+    }
+
+    /* Hamburger visible, nav becomes a dropdown */
+    nav {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        position: relative;
+        padding: 10px 16px;
+    }
+
+    .nav-toggle {
+        display: flex;
+    }
+
+    .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #2b1b2e;
+        border-top: 1px solid #503554;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        padding: 6px 0;
+        margin: 0;
+    }
+
+    .nav-links.nav-open {
+        display: flex;
+    }
+
+    .nav-links li {
+        margin: 0;
+        width: 100%;
+    }
+
+    .nav-links li a {
+        display: block;
+        padding: 12px 20px;
+        font-size: 1.1rem;
+        border-bottom: 1px solid rgba(80, 53, 84, 0.4);
+    }
+
+    .nav-links li:last-child a {
+        border-bottom: none;
+    }
+
+    /* Wiki entry: stack sidebar above content on mobile */
+    .wiki-entry-layout {
+        flex-direction: column;
+    }
+
+    .wiki-entry-sidebar {
+        padding-left: 0;
+        order: -1; /* profile shown first on mobile */
+    }
+
+    /* Notion columns: stack vertically */
+    .notion-columns {
+        flex-direction: column;
+    }
+
+    /* Tables: allow horizontal scroll rather than overflowing */
+    .notion-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Search input full width */
+    #search-campaigns {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
 /* Wiki Images */
 body.wiki-page img {
     display: block;

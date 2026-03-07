@@ -341,8 +341,8 @@ async function showItemDetail(sheetName, category, itemName) {
     section.innerHTML = `
         <h2>${escapeHTML(item.name)}</h2>
         <p><strong>Category:</strong> ${escapeHTML(item.category)}</p>
-        <div style="display:flex;">
-            <div style="flex:3;">
+        <div class="wiki-entry-layout">
+            <div class="wiki-entry-main">
                 ${item.pageSections.map(ps => `
                     <h3>${escapeHTML(ps.sectionName)}</h3>
                     ${ps.details.map(d => `
@@ -359,7 +359,7 @@ async function showItemDetail(sheetName, category, itemName) {
                     `).join('')}
                 `).join('')}
             </div>
-            <div style="flex:1;text-align:center;padding-left:20px;">
+            <div class="wiki-entry-sidebar">
                 <h3>${escapeHTML(item.name)}</h3>
                 ${item.profilePicture ? `<img src="${safeURL(item.profilePicture)}" alt="${escapeHTML(item.name)}" style="max-width:100%;margin-bottom:1rem;">` : ''}
                 ${Object.entries(item.profileTable).map(([sectionName, rows]) => `

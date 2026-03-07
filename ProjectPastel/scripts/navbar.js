@@ -1,7 +1,10 @@
 function loadNavbar() {
     const nav = document.createElement('nav');
     nav.innerHTML = `
-        <ul>
+        <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <ul class="nav-links">
             <li><a href="index.html">Home</a></li>
             <li><a href="about.html">About Me</a></li>
             <li><a href="livestreams.html">Livestreams &amp; Playlists</a></li>
@@ -12,5 +15,21 @@ function loadNavbar() {
         </ul>
     `;
     document.getElementById('navbar-placeholder').appendChild(nav);
+
+    const toggle = nav.querySelector('.nav-toggle');
+    const links  = nav.querySelector('.nav-links');
+
+    toggle.addEventListener('click', () => {
+        const open = links.classList.toggle('nav-open');
+        toggle.setAttribute('aria-expanded', open);
+    });
+
+    // Close menu when any link is clicked
+    links.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+            links.classList.remove('nav-open');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    });
 }
 document.addEventListener('DOMContentLoaded', loadNavbar);
