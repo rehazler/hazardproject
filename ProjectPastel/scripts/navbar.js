@@ -6,7 +6,9 @@ function loadNavbar() {
             <li><a href="about.html">About Me</a></li>
             <li><a href="livestreams.html">Livestreams &amp; Playlists</a></li>
             <li><a href="wiki.html">Wiki</a></li>
+            <li><a href="wiki-notion.html">Wiki (Notion)</a></li>
             <li><a href="forms.html">Forms</a></li>
+            <li><a href="editor-guide.html">Editor Guide</a></li>
         </ul>
     `;
     document.getElementById('navbar-placeholder').appendChild(nav);
