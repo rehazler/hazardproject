@@ -32,4 +32,9 @@ function loadNavbar() {
         });
     });
 }
-document.addEventListener('DOMContentLoaded', loadNavbar);
+document.addEventListener('DOMContentLoaded', () => {
+    loadNavbar();
+    const s = document.createElement('script');
+    s.src = 'scripts/music-player.js';
+    document.body.appendChild(s);
+});
