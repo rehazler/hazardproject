@@ -6,7 +6,7 @@
 // CHAR_IMAGE:        direct URL to your 300×300 character image
 const TWITCH_WORKER_URL = 'https://old-bush-385d.hazardousmadness.workers.dev';
 const TWITCH_CHANNEL = 'voiddoll';
-const MUSIC_SRC      = '/audio/song.m4a';
+const MUSIC_SRC      = 'audio/song.m4a';
 const MUSIC_TITLE    = 'Site Theme';
 const CHAR_IMAGE     = 'https://media.discordapp.net/stickers/1090496358840029254.webp?size=300&quality=lossless';
 
@@ -112,7 +112,14 @@ function buildPip() {
 
     pip.querySelector('.pip-close').addEventListener('click', () => {
         pip.style.animation = 'pipOut 0.25s ease forwards';
-        setTimeout(() => { pip.remove(); setPipOpen(false); }, 260);
+        setTimeout(() => {
+            pip.remove();
+            setPipOpen(false);
+            // If no music player is visible yet, offer music now
+            if (MUSIC_SRC && !document.getElementById('music-player')) {
+                buildPrompt(false);
+            }
+        }, 260);
     });
     setPipOpen(true);
 }
