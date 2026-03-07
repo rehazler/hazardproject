@@ -406,6 +406,150 @@ body.wiki-page h4 {
     margin-top: 10px;
 }
 
+/* ── Notion block styles ──────────────────────────────────────────────── */
+
+.notion-callout {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 3px solid #98e6d6;
+    border-radius: 4px;
+    margin: 0.75rem 0;
+}
+
+.notion-callout-icon {
+    font-size: 1.2em;
+    flex-shrink: 0;
+}
+
+.notion-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.notion-table th,
+.notion-table td {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.notion-table th {
+    background: rgba(255, 255, 255, 0.08);
+    font-weight: bold;
+    color: #d3b3e7;
+}
+
+.notion-columns {
+    display: flex;
+    gap: 20px;
+    margin: 0.5rem 0;
+}
+
+.notion-column {
+    flex: 1;
+}
+
+/* Toggles */
+.notion-toggle {
+    margin: 0.5rem 0;
+    border-left: 2px solid rgba(211, 179, 231, 0.3);
+    padding-left: 12px;
+}
+
+.notion-toggle summary {
+    cursor: pointer;
+    list-style: none;
+    color: #d3b3e7;
+    font-weight: bold;
+    padding: 4px 0;
+    user-select: none;
+}
+
+.notion-toggle summary::-webkit-details-marker { display: none; }
+
+.notion-toggle summary::before {
+    content: '▶ ';
+    font-size: 0.7em;
+    opacity: 0.7;
+    transition: transform 0.15s;
+    display: inline-block;
+}
+
+.notion-toggle[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.notion-toggle-content {
+    padding: 8px 0 4px 12px;
+}
+
+.notion-toggle-h2 summary h2,
+.notion-toggle-h3 summary h3,
+.notion-toggle-h4 summary h4 {
+    display: inline;
+    margin: 0;
+}
+
+/* Audio */
+.notion-audio {
+    margin: 1rem 0;
+}
+
+.notion-audio audio {
+    width: 100%;
+    border-radius: 4px;
+    accent-color: #98e6d6;
+}
+
+/* Video / Embed */
+.notion-video,
+.notion-embed {
+    margin: 1rem 0;
+}
+
+.notion-video figcaption,
+.notion-audio figcaption,
+.notion-embed figcaption {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.9em;
+    color: #aaa;
+    margin-top: 6px;
+}
+
+/* Bookmarks */
+.notion-bookmark {
+    margin: 0.75rem 0;
+    padding: 10px 14px;
+    border: 1px solid rgba(152, 230, 214, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.notion-bookmark a {
+    word-break: break-all;
+}
+
+.wiki-error {
+    padding: 2rem;
+    text-align: center;
+}
+
+.wiki-error p {
+    color: #f3b0c3;
+    font-size: 1.1rem;
+}
+
+.wiki-error-hint {
+    color: #aaa;
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
 /* Wiki Images */
 body.wiki-page img {
     display: block;

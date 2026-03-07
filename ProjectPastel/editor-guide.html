@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voidverse Wiki — Editor Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .guide-container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+        .guide-section {
+            background: #2e1d32;
+            border-radius: 8px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+        }
+        .guide-section h2 {
+            font-size: 1.6rem;
+            border-bottom: 1px solid rgba(211, 179, 231, 0.3);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+        .guide-section h3 {
+            font-size: 1.2rem;
+            color: #98e6d6;
+            margin-top: 1.5rem;
+            margin-bottom: 0.4rem;
+        }
+        .guide-section p,
+        .guide-section li {
+            color: #ddd;
+            line-height: 1.7;
+        }
+        .guide-section ul,
+        .guide-section ol {
+            padding-left: 1.4rem;
+        }
+        .guide-section li {
+            margin-bottom: 0.4rem;
+        }
+        .prop-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.75rem;
+        }
+        .prop-table th {
+            background: rgba(255,255,255,0.08);
+            color: #d3b3e7;
+            text-align: left;
+            padding: 8px 12px;
+            font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .prop-table td {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ddd;
+            vertical-align: top;
+        }
+        .prop-table tr:nth-child(even) td {
+            background: rgba(255,255,255,0.03);
+        }
+        .tag {
+            display: inline-block;
+            background: rgba(152, 230, 214, 0.15);
+            color: #98e6d6;
+            border: 1px solid rgba(152, 230, 214, 0.3);
+            border-radius: 4px;
+            padding: 1px 8px;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .tag-pink {
+            background: rgba(243, 176, 195, 0.15);
+            color: #f3b0c3;
+            border-color: rgba(243, 176, 195, 0.3);
+        }
+        .tip {
+            background: rgba(152, 230, 214, 0.08);
+            border-left: 3px solid #98e6d6;
+            border-radius: 0 4px 4px 0;
+            padding: 10px 14px;
+            margin: 1rem 0;
+            color: #ccc;
+            font-size: 0.95em;
+        }
+        .tip strong { color: #98e6d6; }
+        .step {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+        .step-num {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            background: rgba(211, 179, 231, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #d3b3e7;
+            font-size: 0.9em;
+        }
+        .step-body { padding-top: 3px; }
+        code {
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.9em;
+            color: #f3b0c3;
+        }
+        .toc {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0.5rem 0 0;
+        }
+        .toc a {
+            font-weight: normal;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body class="wiki-page">
+    <div id="navbar-placeholder"></div>
+    <script src="scripts/navbar.js"></script>
+
+    <header>
+        <h1>Wiki Editor Guide</h1>
+        <p style="text-align:center;color:#aaa;margin-top:-10px;">How to manage the Voidverse wiki in Notion</p>
+    </header>
+
+    <main>
+        <div class="guide-container">
+
+            <div class="guide-section">
+                <h2>Quick Navigation</h2>
+                <ul class="toc">
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#new-entry">Creating a New Entry</a></li>
+                    <li><a href="#properties">Database Properties</a></li>
+                    <li><a href="#page-body">Page Body &amp; Blocks</a></li>
+                    <li><a href="#use-cases">Common Use Cases</a></li>
+                    <li><a href="#campaigns-categories">Campaigns &amp; Categories</a></li>
+                    <li><a href="#images">Images &amp; Media</a></li>
+                </ul>
+            </div>
+
+            <!-- HOW IT WORKS -->
+            <div class="guide-section" id="how-it-works">
+                <h2>How It Works</h2>
+                <p>The wiki is powered by a <strong>Notion database</strong>. Every row in the database becomes one page on the wiki. There are two parts to each entry:</p>
+                <ul>
+                    <li><strong>Properties</strong> — the structured fields on the right side panel (name, category, stats, etc.). These appear in the profile sidebar on the wiki.</li>
+                    <li><strong>Page body</strong> — the open writing area inside the entry page. You can add anything here: backstory, images, audio clips, tables, and more. This becomes the main content area of the wiki page.</li>
+                </ul>
+                <div class="tip"><strong>Tip:</strong> Think of properties as the character sheet, and the page body as a free-form notebook page attached to it.</div>
+            </div>
+
+            <!-- CREATING A NEW ENTRY -->
+            <div class="guide-section" id="new-entry">
+                <h2>Creating a New Entry</h2>
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">Open the Voidverse Wiki database in Notion.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">Click <strong>+ New</strong> at the bottom of the table, or the blue <strong>New</strong> button in the top right.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">Fill in the <strong>Name</strong> field — this is the title that appears on the wiki.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-body">Set <strong>Campaign</strong> and <strong>Category</strong> so the wiki knows where to list this entry.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">5</div>
+                    <div class="step-body">Optionally add a <strong>Profile Image</strong> URL and any stat fields.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">6</div>
+                    <div class="step-body">Click the entry to <strong>open the page</strong>, then write the main content in the body area below the properties.</div>
+                </div>
+                <div class="tip"><strong>Tip:</strong> Changes appear on the wiki immediately — just refresh the wiki page after saving in Notion.</div>
+            </div>
+
+            <!-- DATABASE PROPERTIES -->
+            <div class="guide-section" id="properties">
+                <h2>Database Properties</h2>
+                <p>These fields are visible when you click on an entry's row. They appear in the <strong>profile sidebar</strong> on the right side of the wiki page.</p>
+
+                <table class="prop-table">
+                    <thead>
+                        <tr>
+                            <th>Property</th>
+                            <th>Type</th>
+                            <th>What it does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Name</strong></td>
+                            <td><span class="tag">Title</span></td>
+                            <td>The entry's name as it appears on the wiki. Required.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Campaign</strong></td>
+                            <td><span class="tag">Select</span></td>
+                            <td>Which campaign this entry belongs to. Used to group entries on the wiki's campaign list.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Category</strong></td>
+                            <td><span class="tag">Select</span></td>
+                            <td>The type of entry — e.g. NPCs, Locations, Items, Factions. Used to group entries within a campaign.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Profile Image</strong></td>
+                            <td><span class="tag">URL</span></td>
+                            <td>A direct link to the entry's profile picture. Paste a full image URL (must start with <code>https://</code>). See the <a href="#images">Images section</a> for tips.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Any other property</strong></td>
+                            <td><span class="tag">Any</span></td>
+                            <td>Any additional property you add (Race, Class, Affiliation, Pronouns, Status, etc.) will <strong>automatically appear</strong> in the profile sidebar table. No setup needed.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Adding Custom Stat Fields</h3>
+                <p>To add a stat like "Race" or "Affiliation":</p>
+                <ol>
+                    <li>Click the <strong>+</strong> button at the end of the property list in the database.</li>
+                    <li>Choose a type — <span class="tag">Text</span> for freeform values, <span class="tag">Select</span> for a fixed list of options, <span class="tag">Checkbox</span> for yes/no.</li>
+                    <li>Name it and it will appear in every entry's sidebar automatically.</li>
+                </ol>
+                <div class="tip"><strong>Tip:</strong> Properties you leave blank for a specific entry won't show up in that entry's sidebar — only filled-in values are displayed.</div>
+            </div>
+
+            <!-- PAGE BODY & BLOCKS -->
+            <div class="guide-section" id="page-body">
+                <h2>Page Body &amp; Blocks</h2>
+                <p>When you <strong>open an entry</strong> (click to expand it into a full page), the area below the properties panel is the <strong>page body</strong>. You can add any content here — it becomes the main section of the wiki page.</p>
+                <p>Every piece of content you add is called a <strong>block</strong>. To add a block, click into the page and start typing, or press <strong>/</strong> to open the block menu and search for a type.</p>
+
+                <h3>Text &amp; Structure</h3>
+                <table class="prop-table">
+                    <thead>
+                        <tr><th>Block</th><th>How to add it</th><th>What it does</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Heading 1 / 2 / 3</strong></td>
+                            <td>Type <code>#</code>, <code>##</code>, or <code>###</code> then space — or use <code>/heading</code></td>
+                            <td>Section headers. Makes the page easy to scan.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Text (Paragraph)</strong></td>
+                            <td>Just start typing</td>
+                            <td>Regular body text. Supports <strong>bold</strong>, <em>italic</em>, underline, strikethrough, and inline links.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bulleted List</strong></td>
+                            <td>Type <code>-</code> then space — or <code>/bullet</code></td>
+                            <td>An unordered list of items.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Numbered List</strong></td>
+                            <td>Type <code>1.</code> then space — or <code>/numbered</code></td>
+                            <td>A numbered list of steps or items.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Toggle</strong></td>
+                            <td>Type <code>&gt;</code> then space — or <code>/toggle</code></td>
+                            <td>A collapsible section. Readers click to expand. Great for backstory, spoilers, or long lore sections.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Toggle Heading</strong></td>
+                            <td>Add a heading, then click the <strong>⋮⋮</strong> handle → Turn into → Toggle Heading</td>
+                            <td>A section header that can be collapsed. Keeps long pages tidy.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Quote</strong></td>
+                            <td>Type <code>"</code> then space — or <code>/quote</code></td>
+                            <td>A styled indented quote. Good for in-character dialogue or notable lines.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Callout</strong></td>
+                            <td><code>/callout</code></td>
+                            <td>A highlighted box with an optional emoji icon. Good for DM notes, warnings, or important lore flags.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Divider</strong></td>
+                            <td>Type <code>---</code> — or <code>/divider</code></td>
+                            <td>A horizontal line to separate sections visually.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Table</strong></td>
+                            <td><code>/table</code></td>
+                            <td>A data table. Good for spell lists, item stats, relationship grids, etc.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Columns</strong></td>
+                            <td><code>/columns</code></td>
+                            <td>Side-by-side layout. Drag blocks into columns to arrange them.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Media</h3>
+                <table class="prop-table">
+                    <thead>
+                        <tr><th>Block</th><th>How to add it</th><th>What it does</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Image</strong></td>
+                            <td><code>/image</code></td>
+                            <td>Displays an image. You can upload a file or paste a URL. Add a caption below for artist credit or context. See the <a href="#images">Images section</a> for tips on URLs.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Audio</strong></td>
+                            <td><code>/audio</code></td>
+                            <td>An audio player. Paste a direct link to a hosted <code>.mp3</code> or <code>.ogg</code> file. Great for voicelines or ambient sounds.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Video</strong></td>
+                            <td><code>/video</code></td>
+                            <td>Paste a YouTube link and it will embed as a player on the wiki. Also works with direct video file URLs.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Embed</strong></td>
+                            <td><code>/embed</code></td>
+                            <td>Embed content from external services — YouTube, Spotify, SoundCloud, and more. Paste the URL.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bookmark</strong></td>
+                            <td><code>/bookmark</code></td>
+                            <td>A styled link block. Good for artist portfolio links, social media pages, or external references. Add a caption to label it.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Text Formatting Inside a Block</h3>
+                <p>Select any text inside a paragraph or heading to see the formatting toolbar. You can:</p>
+                <ul>
+                    <li>Make text <strong>bold</strong> (<code>Ctrl+B</code>), <em>italic</em> (<code>Ctrl+I</code>), or underlined (<code>Ctrl+U</code>)</li>
+                    <li>Add a <a href="#">link</a> to any selected text (<code>Ctrl+K</code>)</li>
+                    <li>Use inline <code>code</code> style for things like item names or game terms</li>
+                </ul>
+            </div>
+
+            <!-- COMMON USE CASES -->
+            <div class="guide-section" id="use-cases">
+                <h2>Common Use Cases</h2>
+
+                <h3>Character Backstory</h3>
+                <p>Use a <strong>Toggle Heading</strong> labelled "Backstory" so readers can choose to expand it. Keeps the page clean for people who want to avoid spoilers.</p>
+
+                <h3>Notable Session Events</h3>
+                <p>Create a <strong>Toggle Heading</strong> for each session (e.g. "Session 12 — The Bridge Encounter"). Write what happened inside. Readers can browse without spoiling future sessions.</p>
+
+                <h3>Voicelines</h3>
+                <p>Use an <strong>Audio</strong> block. The audio file needs to be hosted somewhere accessible (not just saved on your computer). Options:</p>
+                <ul>
+                    <li>Upload to a file hosting service and paste the direct <code>.mp3</code> link</li>
+                    <li>If the voiceline is a YouTube clip, use a <strong>Video</strong> or <strong>Embed</strong> block instead</li>
+                </ul>
+
+                <h3>Artwork &amp; Artist Credits</h3>
+                <p>Use an <strong>Image</strong> block and fill in the caption with the artist's name and a link to their portfolio. If you want multiple pieces side by side, use a <strong>Columns</strong> layout with an Image in each column.</p>
+                <p>For linking directly to an artist's page, use a <strong>Bookmark</strong> block — it creates a clearly labelled link card.</p>
+
+                <h3>Campaign Description / Overview</h3>
+                <p>Create a special entry in your campaign's database with Category set to something like "Overview". Use the page body for a full description, session zero notes, tone, themes, etc.</p>
+
+                <h3>Relationship Maps / Connection Lists</h3>
+                <p>Use a <strong>Table</strong> block or a <strong>Bulleted List</strong> with bold names and descriptions to list a character's relationships.</p>
+
+                <h3>Keeping Long Pages Readable</h3>
+                <p>For entries with a lot of content, use <strong>Toggle Headings</strong> for each major section. Readers can collapse sections they've already read or don't want spoiled.</p>
+            </div>
+
+            <!-- CAMPAIGNS & CATEGORIES -->
+            <div class="guide-section" id="campaigns-categories">
+                <h2>Adding Campaigns &amp; Categories</h2>
+                <p>You don't need to do any setup before creating a new campaign or category — just type the name when creating an entry.</p>
+
+                <h3>New Campaign</h3>
+                <ol>
+                    <li>Create or open any entry in the database.</li>
+                    <li>Click the <strong>Campaign</strong> field.</li>
+                    <li>Type the new campaign name and select <strong>Create [name]</strong>.</li>
+                </ol>
+                <p>The new campaign will immediately appear in the wiki's campaign list.</p>
+
+                <h3>New Category</h3>
+                <ol>
+                    <li>Same process — click the <strong>Category</strong> field on any entry and type a new name.</li>
+                    <li>The new category appears under its campaign automatically once at least one entry has it set.</li>
+                </ol>
+
+                <div class="tip"><strong>Tip:</strong> Keep category names consistent — <span class="tag tag-pink">NPC</span> and <span class="tag tag-pink">NPCs</span> will show up as two separate categories on the wiki. Decide on a naming convention (plural is usually clearest) and stick to it.</div>
+            </div>
+
+            <!-- IMAGES -->
+            <div class="guide-section" id="images">
+                <h2>Images &amp; Media Tips</h2>
+
+                <h3>Profile Image (property)</h3>
+                <p>The <strong>Profile Image</strong> property expects a <strong>direct image URL</strong> — a link that ends in <code>.jpg</code>, <code>.png</code>, <code>.webp</code>, or similar, and starts with <code>https://</code>.</p>
+                <p>Good sources for permanent image links:</p>
+                <ul>
+                    <li><strong>Imgur</strong> — right-click an image → Copy image address</li>
+                    <li><strong>Discord</strong> — upload the image to a channel, right-click → Copy link (note: Discord CDN links may expire)</li>
+                    <li><strong>Any direct image host</strong> — the URL must point directly to the image file, not a webpage containing it</li>
+                </ul>
+                <div class="tip"><strong>Tip:</strong> If you paste the URL into a browser address bar and you see only the image (nothing else on the page), it's a valid direct image URL.</div>
+
+                <h3>Images in the Page Body</h3>
+                <p>For images <em>inside</em> the page body (not the profile picture), you can either:</p>
+                <ul>
+                    <li><strong>Upload directly to Notion</strong> — easiest, but Notion-hosted image URLs expire after ~1 hour. Fine for viewing, but the wiki may show broken images after a while if you use direct Notion uploads.</li>
+                    <li><strong>Use "Embed link"</strong> when adding the image block — paste an external URL. This won't expire.</li>
+                </ul>
+                <p>For artwork that needs to stay reliably visible, host it externally (Imgur, etc.) and paste the link.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 VoidDoll. All rights reserved.</p>
+    </footer>
+</body>
+</html>
