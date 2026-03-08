@@ -878,6 +878,127 @@ body.wiki-page #music-prompt .music-char {
     }
 }
 
+/* ── Social cards (About page) ────────────────────────────────────────── */
+
+.social-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.social-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    border-radius: 12px;
+    padding: 16px 18px;
+    text-decoration: none;
+    color: #f4f4f4;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.social-card:hover {
+    transform: translateY(-3px);
+    text-decoration: none;
+    color: #f4f4f4;
+}
+
+.social-icon-wrap {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.social-card:hover .social-icon-wrap {
+    transform: scale(1.08);
+}
+
+.social-icon-wrap svg {
+    width: 22px;
+    height: 22px;
+    fill: #fff;
+}
+
+.social-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.social-platform {
+    font-family: 'Cinzel', serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f4f4f4;
+}
+
+.social-handle {
+    font-size: 0.78rem;
+    color: #a08ab0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.social-arrow {
+    font-size: 1.1rem;
+    color: #503554;
+    flex-shrink: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.social-card:hover .social-arrow {
+    transform: translateX(4px);
+}
+
+/* Platform icon backgrounds */
+.social-youtube   .social-icon-wrap { background: #FF0000; }
+.social-twitch    .social-icon-wrap { background: #9146FF; }
+.social-bluesky   .social-icon-wrap { background: #0085ff; }
+.social-twitter   .social-icon-wrap { background: #111; border: 1px solid #333; }
+.social-instagram .social-icon-wrap { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.social-tiktok    .social-icon-wrap { background: #010101; border: 1px solid #333; }
+.social-etsy      .social-icon-wrap { background: #F16521; }
+.social-discord   .social-icon-wrap { background: #5865F2; }
+.social-throne    .social-icon-wrap { background: #7C4DFF; }
+
+/* Platform hover glow + arrow tint */
+.social-youtube:hover   { border-color: #FF0000; box-shadow: 0 6px 24px rgba(255, 0, 0, 0.18); }
+.social-twitch:hover    { border-color: #9146FF; box-shadow: 0 6px 24px rgba(145, 70, 255, 0.2); }
+.social-bluesky:hover   { border-color: #0085ff; box-shadow: 0 6px 24px rgba(0, 133, 255, 0.2); }
+.social-twitter:hover   { border-color: #aaa;    box-shadow: 0 6px 24px rgba(200, 200, 200, 0.1); }
+.social-instagram:hover { border-color: #e6683c; box-shadow: 0 6px 24px rgba(220, 39, 67, 0.2); }
+.social-tiktok:hover    { border-color: #aaa;    box-shadow: 0 6px 24px rgba(200, 200, 200, 0.1); }
+.social-etsy:hover      { border-color: #F16521; box-shadow: 0 6px 24px rgba(241, 101, 33, 0.2); }
+.social-discord:hover   { border-color: #5865F2; box-shadow: 0 6px 24px rgba(88, 101, 242, 0.25); }
+.social-throne:hover    { border-color: #7C4DFF; box-shadow: 0 6px 24px rgba(124, 77, 255, 0.2); }
+
+.social-youtube:hover   .social-arrow { color: #FF0000; }
+.social-twitch:hover    .social-arrow { color: #9146FF; }
+.social-bluesky:hover   .social-arrow { color: #0085ff; }
+.social-twitter:hover   .social-arrow { color: #aaa; }
+.social-instagram:hover .social-arrow { color: #e6683c; }
+.social-tiktok:hover    .social-arrow { color: #aaa; }
+.social-etsy:hover      .social-arrow { color: #F16521; }
+.social-discord:hover   .social-arrow { color: #5865F2; }
+.social-throne:hover    .social-arrow { color: #7C4DFF; }
+
+@media (max-width: 600px) {
+    .social-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ── Wiki entry layout (main content + profile sidebar) ───────────────── */
 
 .wiki-entry-layout {
