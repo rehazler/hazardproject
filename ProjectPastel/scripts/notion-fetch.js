@@ -120,6 +120,43 @@ function getParam(name) {
     return new URLSearchParams(window.location.search).get(name);
 }
 
+// ── Recently Viewed ────────────────────────────────────────────────────────
+
+const RV_KEY = 'notion-wiki-recently-viewed';
+const RV_MAX = 5;
+
+function getRecentlyViewed() {
+    try { return JSON.parse(localStorage.getItem(RV_KEY) ?? '[]'); } catch { return []; }
+}
+
+function addRecentlyViewed(campaign, category, id, name) {
+    const items = getRecentlyViewed().filter(x => x.id !== id);
+    items.unshift({ campaign, category, id, name });
+    try { localStorage.setItem(RV_KEY, JSON.stringify(items.slice(0, RV_MAX))); } catch {}
+}
+
+// ── Category icons ─────────────────────────────────────────────────────────
+
+const CAT_ICONS = {
+    npcs: '👤', npc: '👤', characters: '👤', character: '👤',
+    locations: '🗺️', location: '🗺️', places: '🗺️',
+    lore: '📖', history: '📖',
+    factions: '⚔️', faction: '⚔️', guilds: '⚔️', organisations: '⚔️', organizations: '⚔️',
+    items: '💎', item: '💎', artifacts: '💎', equipment: '💎',
+    monsters: '👹', monster: '👹', creatures: '👹', bestiary: '👹',
+    gods: '✨', deities: '✨', religion: '✨',
+    sessions: '📜', session: '📜', recaps: '📜', recap: '📜',
+    players: '🎲', player: '🎲', pcs: '🎲',
+    quests: '📋', quest: '📋', missions: '📋',
+    magic: '🔮', spells: '🔮',
+    world: '🌍', planes: '🌍',
+};
+
+function getCatIcon(name) {
+    const key = name.toLowerCase().replace(/[^a-z]/g, '');
+    return CAT_ICONS[key] ?? '◆';
+}
+
 // ── Notion block renderer ──────────────────────────────────────────────────
 
 function renderRichText(richText) {
@@ -397,6 +434,46 @@ function showError(msg, isRateLimit = false) {
         </div>`;
 }
 
+// ── Stat block renderer ────────────────────────────────────────────────────
+
+function renderStatBlock(entry, category) {
+    const props    = Object.entries(entry.extraProps ?? {});
+    const attrRows = props.slice(0, 3);
+    const bodyRows = props.slice(3);
+
+    const attrsHtml = attrRows.length ? `
+        <div class="stat-attrs">
+            ${attrRows.map(([k, v]) =>
+                `<div><span>${escapeHTML(k.toUpperCase())}</span><strong>${escapeHTML(String(v))}</strong></div>`
+            ).join('')}
+        </div>
+        <hr class="stat-rule">
+    ` : '';
+
+    const bodyHtml = bodyRows.map(([k, v]) =>
+        `<p><strong>${escapeHTML(k)}:</strong> ${escapeHTML(String(v))}</p>`
+    ).join('');
+
+    const blocksHtml = entry.blocks?.length
+        ? `<hr class="stat-rule">${renderBlocks(entry.blocks)}`
+        : '';
+
+    const imgHtml = entry.profileImage
+        ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}"
+               style="max-width:120px;float:right;margin:0 0 12px 16px;border-radius:6px;">`
+        : '';
+
+    return `<div class="stat-block">
+        ${imgHtml}
+        <h3 class="stat-block-name">${escapeHTML(entry.name)}</h3>
+        <p class="stat-block-type">${escapeHTML(category)}</p>
+        <hr class="stat-rule">
+        ${attrsHtml}
+        ${bodyHtml}
+        ${blocksHtml}
+    </div>`;
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 
 async function showCampaignList() {
@@ -404,36 +481,80 @@ async function showCampaignList() {
     const container = document.getElementById('wiki-container');
     try {
         const campaigns = await fetchCampaigns();
-        container.innerHTML = `
-            <input type="text" id="search-campaigns" placeholder="Search campaigns…" />
-            <h3 style="color:#f4f4f4;border-bottom:unset;padding-bottom:unset;margin-bottom:-15px;">
-                Select a Campaign:
-            </h3>
-            <ul id="sheet-list"></ul>
-        `;
-        const list = document.getElementById('sheet-list');
+        container.innerHTML = '';
 
-        function render(filter = '') {
-            list.innerHTML = '';
-            campaigns
-                .filter(n => n.toLowerCase().includes(filter.toLowerCase()))
-                .forEach(name => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<a href="?campaign=${encodeURIComponent(name)}" data-campaign="${escapeHTML(name)}">${escapeHTML(name)}</a>`;
-                    list.appendChild(li);
-                });
-            list.querySelectorAll('[data-campaign]').forEach(link => {
+        // Global search button
+        const gsBtn = document.createElement('button');
+        gsBtn.className = 'wiki-global-search-btn';
+        gsBtn.textContent = '🔍 Search All Campaigns';
+        gsBtn.addEventListener('click', () => { history.pushState(null, '', '?search=1'); showGlobalSearch(); });
+        container.appendChild(gsBtn);
+
+        // Recently viewed
+        const rv = getRecentlyViewed();
+        if (rv.length) {
+            const rvSection = document.createElement('div');
+            rvSection.className = 'wiki-recently-viewed';
+            rvSection.innerHTML = '<h3>Recently Viewed</h3>';
+            const rvList = document.createElement('ul');
+            rv.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="?campaign=${encodeURIComponent(item.campaign)}&category=${encodeURIComponent(item.category)}&entry=${encodeURIComponent(item.id)}"
+                    data-id="${escapeHTML(item.id)}" data-campaign="${escapeHTML(item.campaign)}"
+                    data-category="${escapeHTML(item.category)}" data-name="${escapeHTML(item.name)}">
+                    <span class="rv-name">${escapeHTML(item.name)}</span>
+                    <span class="rv-path">${escapeHTML(item.campaign)} › ${escapeHTML(item.category)}</span>
+                </a>`;
+                rvList.appendChild(li);
+            });
+            rvSection.appendChild(rvList);
+            container.appendChild(rvSection);
+            rvSection.querySelectorAll('[data-id]').forEach(link => {
                 link.addEventListener('click', e => {
                     e.preventDefault();
-                    const c = e.target.getAttribute('data-campaign');
-                    history.pushState(null, '', `?campaign=${encodeURIComponent(c)}`);
-                    showCategoryList(c);
+                    const a = e.target.closest('[data-id]');
+                    history.pushState(null, '', `?campaign=${encodeURIComponent(a.dataset.campaign)}&category=${encodeURIComponent(a.dataset.category)}&entry=${encodeURIComponent(a.dataset.id)}`);
+                    showEntryDetail(a.dataset.campaign, a.dataset.category, a.dataset.id, a.dataset.name);
                 });
             });
         }
 
-        render();
-        document.getElementById('search-campaigns').addEventListener('input', e => render(e.target.value));
+        const sectionTitle = document.createElement('h3');
+        sectionTitle.className = 'wiki-section-title';
+        sectionTitle.textContent = 'Select a Campaign';
+        container.appendChild(sectionTitle);
+
+        const grid = document.createElement('div');
+        grid.className = 'wiki-campaign-cards';
+        container.appendChild(grid);
+
+        campaigns.forEach(name => {
+            const card = document.createElement('a');
+            card.className = 'wiki-campaign-card';
+            card.href = `?campaign=${encodeURIComponent(name)}`;
+            card.innerHTML = `
+                <span class="quest-rank">◆</span>
+                <div class="quest-info">
+                    <span class="quest-title">${escapeHTML(name)}</span>
+                    <span class="quest-desc wiki-cat-count" data-campaign="${escapeHTML(name)}">Loading…</span>
+                </div>
+                <span class="quest-arrow">→</span>
+            `;
+            card.addEventListener('click', e => {
+                e.preventDefault();
+                history.pushState(null, '', `?campaign=${encodeURIComponent(name)}`);
+                showCategoryList(name);
+            });
+            grid.appendChild(card);
+        });
+
+        // Lazy-load category counts
+        grid.querySelectorAll('.wiki-cat-count').forEach(async el => {
+            try {
+                const cats = await fetchCategories(el.dataset.campaign);
+                el.textContent = `${cats.length} ${cats.length === 1 ? 'category' : 'categories'}`;
+            } catch { el.textContent = ''; }
+        });
     } catch (err) {
         showError(err.message, err instanceof RateLimitError);
     }
@@ -467,22 +588,32 @@ async function showCategoryList(campaign) {
             return;
         }
 
-        const list = document.createElement('ul');
-        list.id = 'sheet-list';
+        const grid = document.createElement('div');
+        grid.className = 'wiki-cat-grid';
         categories.forEach(cat => {
-            const li = document.createElement('li');
-            li.innerHTML = `<a href="?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(cat)}" data-category="${escapeHTML(cat)}">${escapeHTML(cat)}</a>`;
-            list.appendChild(li);
-        });
-        container.appendChild(list);
-
-        list.querySelectorAll('[data-category]').forEach(link => {
-            link.addEventListener('click', e => {
+            const pill = document.createElement('a');
+            pill.className = 'wiki-cat-pill';
+            pill.href = `?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(cat)}`;
+            pill.innerHTML = `
+                <span class="wiki-cat-icon">${getCatIcon(cat)}</span>
+                <span class="wiki-cat-name">${escapeHTML(cat)}</span>
+                <span class="wiki-cat-count-badge" data-campaign="${escapeHTML(campaign)}" data-category="${escapeHTML(cat)}"></span>
+            `;
+            pill.addEventListener('click', e => {
                 e.preventDefault();
-                const cat = e.target.getAttribute('data-category');
                 history.pushState(null, '', `?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(cat)}`);
                 showEntryList(campaign, cat);
             });
+            grid.appendChild(pill);
+        });
+        container.appendChild(grid);
+
+        // Lazy-load entry counts
+        grid.querySelectorAll('.wiki-cat-count-badge').forEach(async badge => {
+            try {
+                const entries = await fetchEntries(badge.dataset.campaign, badge.dataset.category);
+                badge.textContent = entries.length;
+            } catch { badge.textContent = ''; }
         });
     } catch (err) {
         showError(err.message, err instanceof RateLimitError);
@@ -516,25 +647,45 @@ async function showEntryList(campaign, category) {
             return;
         }
 
+        // Search bar
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'wiki-search-bar';
+        searchInput.placeholder = `🔍 Search ${category}…`;
+        searchInput.dataset.wikiSearch = '1';
+        container.appendChild(searchInput);
+
         const list = document.createElement('ul');
         list.id = 'sheet-list';
-        entries.forEach(entry => {
-            const li = document.createElement('li');
-            li.innerHTML = `<a href="?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(entry.id)}" data-id="${escapeHTML(entry.id)}" data-name="${escapeHTML(entry.name)}">${escapeHTML(entry.name)}</a>`;
-            list.appendChild(li);
-        });
         container.appendChild(list);
 
-        list.querySelectorAll('[data-id]').forEach(link => {
-            link.addEventListener('click', e => {
-                e.preventDefault();
-                const a    = e.target.closest('[data-id]');
-                const id   = a.getAttribute('data-id');
-                const name = a.getAttribute('data-name');
-                history.pushState(null, '', `?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(id)}`);
-                showEntryDetail(campaign, category, id, name);
+        function render(filter = '') {
+            list.innerHTML = '';
+            entries
+                .filter(e => e.name.toLowerCase().includes(filter.toLowerCase()))
+                .forEach(entry => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(entry.id)}"
+                        data-id="${escapeHTML(entry.id)}" data-name="${escapeHTML(entry.name)}">
+                        ${entry.profileImage ? `<img class="wiki-entry-thumb" src="${escapeHTML(safeURL(entry.profileImage))}" alt="">` : ''}
+                        <span>${escapeHTML(entry.name)}</span>
+                    </a>`;
+                    list.appendChild(li);
+                });
+            list.querySelectorAll('[data-id]').forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    const a    = e.target.closest('[data-id]');
+                    const id   = a.getAttribute('data-id');
+                    const name = a.getAttribute('data-name');
+                    history.pushState(null, '', `?campaign=${encodeURIComponent(campaign)}&category=${encodeURIComponent(category)}&entry=${encodeURIComponent(id)}`);
+                    showEntryDetail(campaign, category, id, name);
+                });
             });
-        });
+        }
+
+        render();
+        searchInput.addEventListener('input', e => render(e.target.value));
     } catch (err) {
         showError(err.message, err instanceof RateLimitError);
     }
@@ -554,6 +705,7 @@ async function showEntryDetail(campaign, category, entryId, entryName) {
 
     try {
         const entry = await fetchEntry(entryId);
+        addRecentlyViewed(campaign, category, entryId, entry.name);
         const hasProfile = entry.profileImage || Object.keys(entry.extraProps ?? {}).length > 0;
 
         container.innerHTML = '';
@@ -563,39 +715,176 @@ async function showEntryDetail(campaign, category, entryId, entryName) {
             { label: category,    onClick: goToEntries },
             { label: entry.name },
         ]));
-        container.appendChild(makeBackButton(`← Back to ${category}`, goToEntries));
+        // Back + toggle row
+        let statView = false;
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'wiki-view-btn';
+        toggleBtn.textContent = '◆ Stat Block View';
 
-        const section = document.createElement('section');
-        section.innerHTML = `
-            <h2>${escapeHTML(entry.name)}</h2>
-            <div class="wiki-entry-layout">
-                <div class="wiki-entry-main">
-                    ${entry.blocks?.length
-                        ? renderBlocks(entry.blocks)
-                        : '<p style="color:#aaa;font-style:italic;">No content yet.</p>'}
-                </div>
-                ${hasProfile ? `
-                <div class="wiki-entry-sidebar">
-                    <h3>${escapeHTML(entry.name)}</h3>
-                    ${entry.profileImage
-                        ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" style="max-width:100%;margin-bottom:1rem;">`
-                        : ''}
-                    ${Object.keys(entry.extraProps ?? {}).length ? `
-                        <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;">
-                            ${Object.entries(entry.extraProps).map(([k, v]) => `
-                                <tr>
-                                    <td style="width:50%;font-weight:bold;">${escapeHTML(k)}</td>
-                                    <td>${escapeHTML(v)}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                    ` : ''}
-                </div>` : ''}
-            </div>
-        `;
-        container.appendChild(section);
+        const btnRow = document.createElement('div');
+        btnRow.className = 'wiki-entry-btns';
+        btnRow.appendChild(makeBackButton(`← Back to ${category}`, goToEntries));
+        btnRow.appendChild(toggleBtn);
+        container.appendChild(btnRow);
+
+        let currentSection = null;
+
+        function buildSection() {
+            if (currentSection) currentSection.remove();
+            currentSection = document.createElement('section');
+            if (statView) {
+                currentSection.innerHTML = `
+                    <h2>${escapeHTML(entry.name)}</h2>
+                    ${renderStatBlock(entry, category)}
+                `;
+            } else {
+                currentSection.innerHTML = `
+                    <h2>${escapeHTML(entry.name)}</h2>
+                    <div class="wiki-entry-layout">
+                        <div class="wiki-entry-main">
+                            ${entry.blocks?.length
+                                ? renderBlocks(entry.blocks)
+                                : '<p style="color:#aaa;font-style:italic;">No content yet.</p>'}
+                        </div>
+                        ${hasProfile ? `
+                        <div class="wiki-entry-sidebar">
+                            <h3>${escapeHTML(entry.name)}</h3>
+                            ${entry.profileImage
+                                ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" style="max-width:100%;margin-bottom:1rem;">`
+                                : ''}
+                            ${Object.keys(entry.extraProps ?? {}).length ? `
+                                <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;">
+                                    ${Object.entries(entry.extraProps).map(([k, v]) => `
+                                        <tr>
+                                            <td style="width:50%;font-weight:bold;">${escapeHTML(k)}</td>
+                                            <td>${escapeHTML(v)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </table>
+                            ` : ''}
+                        </div>` : ''}
+                    </div>
+                `;
+            }
+            container.appendChild(currentSection);
+        }
+
+        buildSection();
+
+        toggleBtn.addEventListener('click', () => {
+            statView = !statView;
+            toggleBtn.textContent = statView ? '◆ Normal View' : '◆ Stat Block View';
+            toggleBtn.classList.toggle('active', statView);
+            buildSection();
+        });
     } catch (err) {
         showError(err.message, err instanceof RateLimitError);
+    }
+}
+
+// ── Global Search ──────────────────────────────────────────────────────────
+
+async function showGlobalSearch() {
+    const container = document.getElementById('wiki-container');
+    const goToCampaigns = () => {
+        history.pushState(null, '', window.location.pathname);
+        showCampaignList();
+    };
+
+    container.innerHTML = '';
+    container.appendChild(makeBackButton('← Back to Campaigns', goToCampaigns));
+
+    const title = document.createElement('h2');
+    title.textContent = 'Search All Campaigns';
+    container.appendChild(title);
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'wiki-search-bar';
+    searchInput.placeholder = '🔍 Search across all campaigns…';
+    searchInput.dataset.wikiSearch = '1';
+    container.appendChild(searchInput);
+
+    const resultsEl = document.createElement('div');
+    resultsEl.id = 'global-search-results';
+    resultsEl.innerHTML = '<p style="color:#aaa;font-style:italic;">Type at least 2 characters to search…</p>';
+    container.appendChild(resultsEl);
+
+    let debounceTimer = null;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const q = searchInput.value.trim();
+        if (q.length < 2) {
+            resultsEl.innerHTML = '<p style="color:#aaa;font-style:italic;">Type at least 2 characters to search…</p>';
+            return;
+        }
+        resultsEl.innerHTML = '<p style="color:#aaa;font-style:italic;">Searching…</p>';
+        debounceTimer = setTimeout(() => doGlobalSearch(q, resultsEl), 400);
+    });
+
+    searchInput.focus();
+}
+
+async function doGlobalSearch(query, resultsEl) {
+    try {
+        const campaigns = await fetchCampaigns();
+        const q = query.toLowerCase();
+        const catsByC = await Promise.all(
+            campaigns.map(c =>
+                fetchCategories(c).then(cats => ({ campaign: c, cats })).catch(() => ({ campaign: c, cats: [] }))
+            )
+        );
+        const allEntries = [];
+        await Promise.all(
+            catsByC.map(({ campaign, cats }) =>
+                Promise.all(
+                    cats.map(cat =>
+                        fetchEntries(campaign, cat)
+                            .then(entries => entries.forEach(e => allEntries.push({ ...e, campaign, category: cat })))
+                            .catch(() => {})
+                    )
+                )
+            )
+        );
+        const matches = allEntries.filter(e => e.name.toLowerCase().includes(q));
+
+        if (!matches.length) {
+            resultsEl.innerHTML = `<p style="color:#aaa;font-style:italic;">No results for "${escapeHTML(query)}".</p>`;
+            return;
+        }
+
+        const countEl = document.createElement('p');
+        countEl.style.cssText = 'color:#98e6d6;margin-bottom:8px;';
+        countEl.textContent = `${matches.length} result${matches.length !== 1 ? 's' : ''}`;
+
+        const list = document.createElement('ul');
+        list.id = 'sheet-list';
+        matches.forEach(entry => {
+            const li = document.createElement('li');
+            li.innerHTML = `<a href="?campaign=${encodeURIComponent(entry.campaign)}&category=${encodeURIComponent(entry.category)}&entry=${encodeURIComponent(entry.id)}"
+                data-id="${escapeHTML(entry.id)}" data-name="${escapeHTML(entry.name)}"
+                data-campaign="${escapeHTML(entry.campaign)}" data-category="${escapeHTML(entry.category)}">
+                ${entry.profileImage ? `<img class="wiki-entry-thumb" src="${escapeHTML(safeURL(entry.profileImage))}" alt="">` : ''}
+                <span>${escapeHTML(entry.name)}</span>
+                <span class="rv-path">${escapeHTML(entry.campaign)} › ${escapeHTML(entry.category)}</span>
+            </a>`;
+            list.appendChild(li);
+        });
+
+        resultsEl.innerHTML = '';
+        resultsEl.appendChild(countEl);
+        resultsEl.appendChild(list);
+
+        list.querySelectorAll('[data-id]').forEach(link => {
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                const a = e.target.closest('[data-id]');
+                history.pushState(null, '', `?campaign=${encodeURIComponent(a.dataset.campaign)}&category=${encodeURIComponent(a.dataset.category)}&entry=${encodeURIComponent(a.dataset.id)}`);
+                showEntryDetail(a.dataset.campaign, a.dataset.category, a.dataset.id, a.dataset.name);
+            });
+        });
+    } catch (err) {
+        resultsEl.innerHTML = `<p style="color:#f3b0c3;">Error: ${escapeHTML(err.message)}</p>`;
     }
 }
 
@@ -605,12 +894,21 @@ function route() {
     const campaign = getParam('campaign');
     const category = getParam('category');
     const entry    = getParam('entry');
+    const search   = getParam('search');
 
     if (campaign && category && entry) showEntryDetail(campaign, category, entry);
     else if (campaign && category)     showEntryList(campaign, category);
     else if (campaign)                 showCategoryList(campaign);
+    else if (search)                   showGlobalSearch();
     else                               showCampaignList();
 }
 
 document.addEventListener('DOMContentLoaded', route);
 window.addEventListener('popstate', route);
+
+// ── Keyboard shortcut: / focuses the active search bar ────────────────────
+document.addEventListener('keydown', e => {
+    if (e.key !== '/' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const bar = document.querySelector('[data-wiki-search="1"]');
+    if (bar) { e.preventDefault(); bar.focus(); }
+});

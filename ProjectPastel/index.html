@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voidverse</title>
+    <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,20 +17,67 @@
     <main>
         <section>
             <h2>Hello, Adventurers!</h2>
-            <p>Welcome to the Voidverse — the home of VoidDoll, your Dungeon Master for immersive tabletop RPG campaigns. Explore campaign lore, catch live streams, and join the adventure.</p>
+            <p>Welcome to the Void and the home of VoidDoll, your Dungeon Master for immersive tabletop RPG campaigns. Here you'll find campaign lore, live sessions, player resources, and everything else that makes up this corner of the multiverse. Whether you're a seasoned adventurer or stepping through the portal for the first time, there's a seat at the table for you.</p>
+            <div class="feature-badges">
+                <span class="feature-badge">🎲 Live Campaigns</span>
+                <span class="feature-badge">📜 Campaign Wiki</span>
+                <span class="feature-badge">⚔ Community</span>
+            </div>
         </section>
         <section>
-            <h2>Explore</h2>
-            <ul>
-                <li><a href="about.html">About Me</a> — Learn about your DM</li>
-                <li><a href="livestreams.html">Livestreams &amp; Playlists</a> — Watch live or catch up on past sessions</li>
-                <li><a href="wiki.html">Campaign Wiki</a> — Dive into campaign lore, NPCs, and locations</li>
-                <li><a href="forms.html">Player Forms</a> — Sign up to join a campaign</li>
-            </ul>
+            <h2>Quest Board</h2>
+            <div class="quest-board">
+                <a class="quest-item" href="about.html">
+                    <span class="quest-rank">◆</span>
+                    <div class="quest-info">
+                        <span class="quest-title">Seek the Dungeon Master</span>
+                        <span class="quest-desc">Learn who guides your journey through the Voidverse</span>
+                    </div>
+                    <span class="quest-arrow">→</span>
+                </a>
+                <a class="quest-item" href="livestreams.html">
+                    <span class="quest-rank">◆</span>
+                    <div class="quest-info">
+                        <span class="quest-title">Attend the Live Sessions</span>
+                        <span class="quest-desc">Watch streams live or catch up on past campaign sessions</span>
+                    </div>
+                    <span class="quest-arrow">→</span>
+                </a>
+                <a class="quest-item" href="wiki.html">
+                    <span class="quest-rank">◆</span>
+                    <div class="quest-info">
+                        <span class="quest-title">Consult the Campaign Wiki</span>
+                        <span class="quest-desc">Dive into lore, NPCs, locations, and the history of the Voidverse</span>
+                    </div>
+                    <span class="quest-arrow">→</span>
+                </a>
+                <a class="quest-item" href="forms.html">
+                    <span class="quest-rank">◆</span>
+                    <div class="quest-info">
+                        <span class="quest-title">Answer the Call to Adventure</span>
+                        <span class="quest-desc">Sign up to join a campaign and take your place at the table</span>
+                    </div>
+                    <span class="quest-arrow">→</span>
+                </a>
+            </div>
         </section>
     </main>
     <footer>
         <p>&copy; 2025 VoidDoll. All rights reserved.</p>
     </footer>
+    <script>
+    (function(){
+        const h1 = document.querySelector('header h1');
+        if (!h1) return;
+        const text = h1.textContent.trim();
+        h1.textContent = '';
+        h1.style.borderRight = '2px solid #d3b3e7';
+        let i = 0;
+        const t = setInterval(() => {
+            h1.textContent += text[i++];
+            if (i >= text.length) { clearInterval(t); setTimeout(() => h1.style.borderRight = 'none', 900); }
+        }, 75);
+    })();
+    </script>
 </body>
 </html>

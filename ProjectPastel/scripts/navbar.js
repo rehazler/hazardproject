@@ -37,4 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = document.createElement('script');
     s.src = 'scripts/music-player.js';
     document.body.appendChild(s);
+    const fx = document.createElement('script');
+    fx.src = 'scripts/ttrpg-fx.js';
+    document.body.appendChild(fx);
 });
