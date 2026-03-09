@@ -149,6 +149,7 @@
                     <li><a href="#how-it-works">How It Works</a></li>
                     <li><a href="#new-entry">Creating a New Entry</a></li>
                     <li><a href="#properties">Database Properties</a></li>
+                    <li><a href="#property-naming">Property Naming &amp; Display</a></li>
                     <li><a href="#page-body">Page Body &amp; Blocks</a></li>
                     <li><a href="#use-cases">Common Use Cases</a></li>
                     <li><a href="#campaigns-categories">Campaigns &amp; Categories</a></li>
@@ -234,7 +235,7 @@
                         <tr>
                             <td><strong>Any other property</strong></td>
                             <td><span class="tag">Any</span></td>
-                            <td>Any additional property you add (Race, Class, Affiliation, Pronouns, Status, etc.) will <strong>automatically appear</strong> in the profile sidebar table. No setup needed.</td>
+                            <td>Any additional property you add automatically appears in the profile sidebar. Use ALL CAPS names for compact stat attribute boxes, mixed case for body rows. Prefix with a number to control sort order. See <a href="#property-naming">Property Naming &amp; Display</a> for the full guide.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -247,6 +248,70 @@
                     <li>Name it and it will appear in every entry's sidebar automatically.</li>
                 </ol>
                 <div class="tip"><strong>Tip:</strong> Properties you leave blank for a specific entry won't show up in that entry's sidebar — only filled-in values are displayed.</div>
+            </div>
+
+            <!-- PROPERTY NAMING & DISPLAY -->
+            <div class="guide-section" id="property-naming">
+                <h2>Property Naming &amp; Display</h2>
+                <p>Any property you add beyond the four reserved ones (<strong>Name</strong>, <strong>Campaign</strong>, <strong>Category</strong>, <strong>Profile Image</strong>) shows up in the entry's sidebar. The wiki uses the <strong>property name</strong> to decide how and where to display it.</p>
+
+                <h3>Two display sections</h3>
+                <p>The sidebar has two distinct areas:</p>
+                <ul>
+                    <li><strong>Stat attribute boxes</strong> — a compact row of labelled value boxes at the top, like a character sheet. Best for short, important values: race, class, HP, AC.</li>
+                    <li><strong>Body rows</strong> — a simple key: value table below the stat boxes. Best for longer or less critical details: alignment, hometown, pronouns, status.</li>
+                </ul>
+                <p>This same split applies in both the normal sidebar view <em>and</em> the Stat Block toggle view on each entry page.</p>
+
+                <h3>Rule 1 — ALL CAPS name → stat attribute box</h3>
+                <p>If a property name contains <strong>no lowercase letters</strong>, it is treated as a stat attribute and placed in the compact top row.</p>
+                <table class="prop-table">
+                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Goes into</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>RACE</code></td><td>RACE</td><td>Stat attribute box</td></tr>
+                        <tr><td><code>CLASS</code></td><td>CLASS</td><td>Stat attribute box</td></tr>
+                        <tr><td><code>HP</code></td><td>HP</td><td>Stat attribute box</td></tr>
+                        <tr><td><code>AC</code></td><td>AC</td><td>Stat attribute box</td></tr>
+                        <tr><td><code>Alignment</code></td><td>Alignment</td><td>Body row</td></tr>
+                        <tr><td><code>Hometown</code></td><td>Hometown</td><td>Body row</td></tr>
+                        <tr><td><code>Pronouns</code></td><td>Pronouns</td><td>Body row</td></tr>
+                    </tbody>
+                </table>
+                <div class="tip"><strong>Tip:</strong> Numbers, slashes, and spaces are allowed in ALL CAPS names — <code>HP/MAX</code>, <code>CR</code>, and <code>SAVE DC</code> all count as stat attributes.</div>
+
+                <h3>Rule 2 — Numeric prefix → sort order (stripped on display)</h3>
+                <p>The Notion API does not return properties in column order, so reordering columns in Notion has no effect on the wiki. Instead, prefix the property name with a number followed by a space to set its position explicitly. The number is stripped from the display label.</p>
+                <table class="prop-table">
+                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Sort position</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>01 RACE</code></td><td>RACE</td><td>1st stat attribute</td></tr>
+                        <tr><td><code>02 CLASS</code></td><td>CLASS</td><td>2nd stat attribute</td></tr>
+                        <tr><td><code>03 HP</code></td><td>HP</td><td>3rd stat attribute</td></tr>
+                        <tr><td><code>01 Alignment</code></td><td>Alignment</td><td>1st body row</td></tr>
+                        <tr><td><code>02 Hometown</code></td><td>Hometown</td><td>2nd body row</td></tr>
+                        <tr><td><code>Status</code></td><td>Status</td><td>After numbered rows, alphabetically</td></tr>
+                    </tbody>
+                </table>
+                <div class="tip"><strong>Tip:</strong> Numbering is per-section — stat attributes and body rows each have their own sort order. You can start both at <code>01</code>.</div>
+                <div class="tip"><strong>Tip:</strong> Properties without a number prefix always appear <em>after</em> all numbered ones in their section, sorted alphabetically.</div>
+
+                <h3>Full example</h3>
+                <p>Here is how a fully-named NPC database might look in Notion and how it renders on the wiki:</p>
+                <table class="prop-table">
+                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Location on wiki</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Name</code></td><td><em>(entry title)</em></td><td>Page heading</td></tr>
+                        <tr><td><code>Campaign</code></td><td><em>(hidden)</em></td><td>Used for routing only</td></tr>
+                        <tr><td><code>Category</code></td><td><em>(hidden)</em></td><td>Used for routing only</td></tr>
+                        <tr><td><code>Profile Image</code></td><td><em>(image)</em></td><td>Sidebar portrait</td></tr>
+                        <tr><td><code>01 RACE</code></td><td>RACE</td><td>Stat attribute box 1</td></tr>
+                        <tr><td><code>02 CLASS</code></td><td>CLASS</td><td>Stat attribute box 2</td></tr>
+                        <tr><td><code>03 STATUS</code></td><td>STATUS</td><td>Stat attribute box 3</td></tr>
+                        <tr><td><code>01 Alignment</code></td><td>Alignment</td><td>Body row 1</td></tr>
+                        <tr><td><code>02 Affiliation</code></td><td>Affiliation</td><td>Body row 2</td></tr>
+                        <tr><td><code>03 Pronouns</code></td><td>Pronouns</td><td>Body row 3</td></tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- PAGE BODY & BLOCKS -->

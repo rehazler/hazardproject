@@ -794,6 +794,10 @@ body.wiki-page #music-prompt .music-char {
     #music-volume {
         width: 80px;
     }
+
+    #ttrpg-d20 {
+        bottom: 55px !important;
+    }
 }
 
 /* ── Twitch PiP player ────────────────────────────────────────────────── */
@@ -1370,6 +1374,7 @@ section > h2::after {
     color: #d3b3e7;
     margin: 0 0 4px;
     text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+    overflow: hidden;
 }
 
 .stat-block-type {
@@ -1650,6 +1655,34 @@ section > h2::after {
 }
 
 /* ── Entry list thumbnail ────────────────────────────────────────────────── */
+
+/* ── Image lightbox ──────────────────────────────────────────────────────── */
+
+#wiki-lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+
+#wiki-lightbox.open {
+    display: flex;
+}
+
+#wiki-lightbox img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 2px solid #d3b3e7;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
+    margin: 0;
+    cursor: default;
+}
 
 body.wiki-page img.wiki-entry-thumb {
     display: inline-block;
