@@ -753,11 +753,11 @@ async function showEntryDetail(campaign, category, entryId, entryName) {
                                 ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" style="max-width:100%;margin-bottom:1rem;">`
                                 : ''}
                             ${Object.keys(entry.extraProps ?? {}).length ? `
-                                <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;">
+                                <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;word-break:break-word;overflow-wrap:break-word;">
                                     ${Object.entries(entry.extraProps).map(([k, v]) => `
                                         <tr>
-                                            <td style="width:50%;font-weight:bold;">${escapeHTML(k)}</td>
-                                            <td>${escapeHTML(v)}</td>
+                                            <td style="width:40%;font-weight:bold;padding:4px 6px;vertical-align:top;">${escapeHTML(k)}</td>
+                                            <td style="padding:4px 6px;vertical-align:top;">${escapeHTML(v)}</td>
                                         </tr>
                                     `).join('')}
                                 </table>
