@@ -434,24 +434,49 @@ function showError(msg, isRateLimit = false) {
         </div>`;
 }
 
+// ── Extra props processor ──────────────────────────────────────────────────
+// Naming convention (set in Notion):
+//   • ALL CAPS name (no lowercase letters) → stat attribute box  e.g. RACE, HP, AC
+//   • Mixed/lowercase name                 → body key-value row  e.g. Alignment, Height
+//   • Optional numeric prefix for sort order (stripped on display):
+//       "01 RACE", "02 CLASS", "01 Alignment", "02 Background"
+//     Unprefixed properties sort alphabetically after all numbered ones.
+
+const PROP_PREFIX_RE = /^(\d+)\s+(.+)$/;
+
+function processExtraProps(extraProps) {
+    const entries = Object.entries(extraProps ?? {}).map(([rawKey, value]) => {
+        const m     = PROP_PREFIX_RE.exec(rawKey);
+        const order = m ? parseInt(m[1], 10) : Infinity;
+        const key   = m ? m[2] : rawKey;
+        const isStat = /^[^a-z]+$/.test(key); // no lowercase → stat attr
+        return { order, key, value, isStat };
+    });
+    entries.sort((a, b) =>
+        a.order !== b.order ? a.order - b.order : a.key.localeCompare(b.key)
+    );
+    return {
+        stats: entries.filter(e => e.isStat),
+        body:  entries.filter(e => !e.isStat),
+    };
+}
+
 // ── Stat block renderer ────────────────────────────────────────────────────
 
 function renderStatBlock(entry, category) {
-    const props    = Object.entries(entry.extraProps ?? {});
-    const attrRows = props.slice(0, 3);
-    const bodyRows = props.slice(3);
+    const { stats, body } = processExtraProps(entry.extraProps);
 
-    const attrsHtml = attrRows.length ? `
+    const attrsHtml = stats.length ? `
         <div class="stat-attrs">
-            ${attrRows.map(([k, v]) =>
-                `<div><span>${escapeHTML(k.toUpperCase())}</span><strong>${escapeHTML(String(v))}</strong></div>`
+            ${stats.map(({ key, value }) =>
+                `<div><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>`
             ).join('')}
         </div>
         <hr class="stat-rule">
     ` : '';
 
-    const bodyHtml = bodyRows.map(([k, v]) =>
-        `<p><strong>${escapeHTML(k)}:</strong> ${escapeHTML(String(v))}</p>`
+    const bodyHtml = body.map(({ key, value }) =>
+        `<p><strong>${escapeHTML(key)}:</strong> ${escapeHTML(String(value))}</p>`
     ).join('');
 
     const blocksHtml = entry.blocks?.length
@@ -460,7 +485,7 @@ function renderStatBlock(entry, category) {
 
     const imgHtml = entry.profileImage
         ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}"
-               style="max-width:120px;float:right;margin:0 0 12px 16px;border-radius:6px;">`
+               class="wiki-zoomable" style="max-width:140px;float:right;margin:0 0 12px 16px;border-radius:6px;cursor:zoom-in;">`
         : '';
 
     return `<div class="stat-block">
@@ -750,18 +775,20 @@ async function showEntryDetail(campaign, category, entryId, entryName) {
                         <div class="wiki-entry-sidebar">
                             <h3>${escapeHTML(entry.name)}</h3>
                             ${entry.profileImage
-                                ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" style="max-width:100%;margin-bottom:1rem;">`
+                                ? `<img src="${escapeHTML(safeURL(entry.profileImage))}" alt="${escapeHTML(entry.name)}" class="wiki-zoomable" style="max-width:100%;margin-bottom:1rem;cursor:zoom-in;">`
                                 : ''}
-                            ${Object.keys(entry.extraProps ?? {}).length ? `
-                                <table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;word-break:break-word;overflow-wrap:break-word;">
-                                    ${Object.entries(entry.extraProps).map(([k, v]) => `
+                            ${Object.keys(entry.extraProps ?? {}).length ? (() => {
+                                const { stats, body } = processExtraProps(entry.extraProps);
+                                const all = [...stats, ...body];
+                                return `<table style="width:100%;border:1px solid #ccc;text-align:left;margin-bottom:1rem;table-layout:fixed;word-break:break-word;overflow-wrap:break-word;">
+                                    ${all.map(({ key, value }) => `
                                         <tr>
-                                            <td style="width:40%;font-weight:bold;padding:4px 6px;vertical-align:top;">${escapeHTML(k)}</td>
-                                            <td style="padding:4px 6px;vertical-align:top;">${escapeHTML(v)}</td>
+                                            <td style="width:40%;font-weight:bold;padding:4px 6px;vertical-align:top;">${escapeHTML(key)}</td>
+                                            <td style="padding:4px 6px;vertical-align:top;">${escapeHTML(String(value))}</td>
                                         </tr>
                                     `).join('')}
-                                </table>
-                            ` : ''}
+                                </table>`;
+                            })() : ''}
                         </div>` : ''}
                     </div>
                 `;
@@ -888,6 +915,34 @@ async function doGlobalSearch(query, resultsEl) {
     }
 }
 
+// ── Lightbox ───────────────────────────────────────────────────────────────
+
+let _lightbox = null;
+
+function getLightbox() {
+    if (_lightbox) return _lightbox;
+    _lightbox = document.createElement('div');
+    _lightbox.id = 'wiki-lightbox';
+    const img = document.createElement('img');
+    _lightbox.appendChild(img);
+    // Click overlay to close; click image itself does nothing (stop propagation)
+    _lightbox.addEventListener('click', () => _lightbox.classList.remove('open'));
+    img.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') _lightbox.classList.remove('open');
+    });
+    document.body.appendChild(_lightbox);
+    return _lightbox;
+}
+
+function openLightbox(src, alt) {
+    const lb  = getLightbox();
+    const img = lb.querySelector('img');
+    img.src = src;
+    img.alt = alt;
+    lb.classList.add('open');
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 
 function route() {
@@ -903,7 +958,13 @@ function route() {
     else                               showCampaignList();
 }
 
-document.addEventListener('DOMContentLoaded', route);
+document.addEventListener('DOMContentLoaded', () => {
+    route();
+    document.getElementById('wiki-container')?.addEventListener('click', e => {
+        const img = e.target.closest('img.wiki-zoomable');
+        if (img) { e.preventDefault(); openLightbox(img.src, img.alt); }
+    });
+});
 window.addEventListener('popstate', route);
 
 // ── Keyboard shortcut: / focuses the active search bar ────────────────────
