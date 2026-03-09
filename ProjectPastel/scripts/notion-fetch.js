@@ -265,7 +265,7 @@ function renderBlocks(blocks) {
             // Toggles — collapsible sections (great for backstory, spoilers, etc.)
             case 'toggle': {
                 const summary = renderRichText(block.toggle.rich_text);
-                html += `<details class="notion-toggle">
+                html += `<details class="notion-toggle" open>
                     <summary>${summary}</summary>
                     <div class="notion-toggle-content">${renderBlocks(block.children ?? [])}</div>
                 </details>`;
@@ -275,7 +275,7 @@ function renderBlocks(blocks) {
             // Heading toggles (Notion lets headings be toggleable)
             case 'heading_1':
                 if (block.heading_1.is_toggleable) {
-                    html += `<details class="notion-toggle notion-toggle-h2">
+                    html += `<details class="notion-toggle notion-toggle-h2" open>
                         <summary><h2>${renderRichText(block.heading_1.rich_text)}</h2></summary>
                         <div class="notion-toggle-content">${renderBlocks(block.children ?? [])}</div>
                     </details>`;
@@ -286,7 +286,7 @@ function renderBlocks(blocks) {
 
             case 'heading_2':
                 if (block.heading_2.is_toggleable) {
-                    html += `<details class="notion-toggle notion-toggle-h3">
+                    html += `<details class="notion-toggle notion-toggle-h3" open>
                         <summary><h3>${renderRichText(block.heading_2.rich_text)}</h3></summary>
                         <div class="notion-toggle-content">${renderBlocks(block.children ?? [])}</div>
                     </details>`;
@@ -297,7 +297,7 @@ function renderBlocks(blocks) {
 
             case 'heading_3':
                 if (block.heading_3.is_toggleable) {
-                    html += `<details class="notion-toggle notion-toggle-h4">
+                    html += `<details class="notion-toggle notion-toggle-h4" open>
                         <summary><h4>${renderRichText(block.heading_3.rich_text)}</h4></summary>
                         <div class="notion-toggle-content">${renderBlocks(block.children ?? [])}</div>
                     </details>`;
