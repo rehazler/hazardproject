@@ -25,6 +25,14 @@ h1 {
     text-align: center;
 }
 
+header h1 {
+    text-shadow:
+        0 0 12px rgba(10, 4, 15, 1),
+        0 0 24px rgba(10, 4, 15, 0.95),
+        0 2px 6px rgba(0, 0, 0, 1),
+        0 4px 16px rgba(0, 0, 0, 0.9);
+}
+
 h2 {
     font-size: 2rem;
     margin-top: 20px;
@@ -49,7 +57,7 @@ a:hover {
 
 /* Navigation Bar */
 nav {
-    background-color: #2b1b2e; /* Dark purple */
+    background-color: rgba(43, 27, 46, 0.88); /* Dark purple, semi-transparent */
     padding: 10px;
     border-bottom: 2px solid #503554;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -79,7 +87,7 @@ nav ul li a:hover {
 
 /* Section Containers */
 section {
-    background: #2e1d32; /* Dark purple background */
+    background: rgba(46, 29, 50, 0.82);
     color: #f4f4f4;
     padding: 20px;
     margin: 20px auto;
@@ -292,7 +300,7 @@ main {
 /* Footer */
 footer {
     text-align: center;
-    background: #2b1b2e; /* Dark purple */
+    background: rgba(43, 27, 46, 0.88);
     color: #f4f4f4;
     padding: 10px 0;
     font-size: 0.9rem;
@@ -359,6 +367,8 @@ body.wiki-page {
 }
 
 body.wiki-page #wiki-container {
+    position: relative;
+    z-index: 1;
     max-width: 1000px;
     margin: 20px auto;
     padding: 20px;
@@ -388,7 +398,7 @@ body.wiki-page h3 {
 
 /* Navbar (General) */
 nav {
-    background-color: #2b1b2e;
+    background-color: rgba(43, 27, 46, 0.88);
     padding: 10px;
     border-bottom: 2px solid #503554;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -1199,7 +1209,7 @@ body.wiki-page #music-prompt .music-char {
 }
 
 /* Wiki Images */
-body.wiki-page img {
+body.wiki-page img:not(.wiki-search-icon) {
     display: block;
     max-width: 100%;
     margin: 0 auto;
@@ -1260,14 +1270,13 @@ section > h2::before {
 }
 
 section > h2::after {
-    content: '\2726';
+    content: url('Assets/TransparentIcons/Moon_18x18.png');
     position: absolute;
-    bottom: -1px; left: 50%;
+    bottom: -8px; left: 50%;
     transform: translateX(-50%);
-    color: #98e6d6;
-    font-size: 0.8rem;
     background: #2e1d32;
     padding: 0 8px;
+    line-height: 0;
 }
 
 /* ── Quest Board ─────────────────────────────────────────────────────── */
@@ -1301,14 +1310,18 @@ section > h2::after {
 }
 
 .quest-rank {
-    font-size: 1.4rem;
-    color: #d3b3e7;
     flex-shrink: 0;
-    transition: color 0.2s;
+    width: 36px;
+    height: 36px;
+    background: url('Assets/TransparentIcons/Potion_36x36.png') center / contain no-repeat;
+    font-size: 0;
+    color: transparent;
+    transition: filter 0.2s, opacity 0.2s;
 }
 
-.quest-item:hover .quest-rank {
-    color: #98e6d6;
+.quest-item:hover .quest-rank,
+.wiki-campaign-card:hover .quest-rank {
+    filter: brightness(1.4);
 }
 
 .quest-info {
@@ -1459,28 +1472,46 @@ section > h2::after {
 
 /* ── Wiki search bar ─────────────────────────────────────────────────────── */
 
+.wiki-search-wrap {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.wiki-search-wrap img.wiki-search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    display: block;
+}
+
 .wiki-search-bar {
     display: block;
     width: 100%;
     box-sizing: border-box;
-    padding: 10px 14px;
-    margin-bottom: 16px;
-    background: rgba(255,255,255,0.05);
+    padding: 10px 14px 10px 40px;
+    background-color: rgba(255,255,255,0.05);
     border: 1px solid #503554;
     border-radius: 24px;
     color: #f4f4f4;
     font-family: 'Spectral', serif;
     font-size: 0.9rem;
-    transition: border-color 0.2s, background 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
     outline: none;
 }
 
-.wiki-search-bar::placeholder { color: #806a8a; }
-
 .wiki-search-bar:focus {
     border-color: #d3b3e7;
-    background: rgba(255,255,255,0.08);
+    background-color: rgba(255,255,255,0.08);
 }
+
+.wiki-search-bar::placeholder { color: #806a8a; }
 
 /* ── Global search button ────────────────────────────────────────────────── */
 
@@ -1602,7 +1633,7 @@ section > h2::after {
     color: #f4f4f4;
 }
 
-.wiki-campaign-card:hover .quest-rank { color: #98e6d6; }
+
 
 /* ── Category pill grid ──────────────────────────────────────────────────── */
 
