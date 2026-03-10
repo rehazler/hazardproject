@@ -511,7 +511,7 @@ async function showCampaignList() {
         // Global search button
         const gsBtn = document.createElement('button');
         gsBtn.className = 'wiki-global-search-btn';
-        gsBtn.textContent = '🔍 Search All Campaigns';
+        gsBtn.innerHTML = '<img src="Assets/TransparentIcons/Crystal_Ball_18x18.png" alt="" class="wiki-search-icon" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;margin-bottom:2px;border:none;border-radius:0;"> Search All Campaigns';
         gsBtn.addEventListener('click', () => { history.pushState(null, '', '?search=1'); showGlobalSearch(); });
         container.appendChild(gsBtn);
 
@@ -673,12 +673,20 @@ async function showEntryList(campaign, category) {
         }
 
         // Search bar
+        const searchWrap = document.createElement('div');
+        searchWrap.className = 'wiki-search-wrap';
+        const searchIcon = new Image();
+        searchIcon.src = 'Assets/TransparentIcons/Crystal_Ball_18x18.png';
+        searchIcon.className = 'wiki-search-icon';
+        searchIcon.alt = '';
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.className = 'wiki-search-bar';
-        searchInput.placeholder = `🔍 Search ${category}…`;
+        searchInput.placeholder = `Search ${category}…`;
         searchInput.dataset.wikiSearch = '1';
-        container.appendChild(searchInput);
+        searchWrap.appendChild(searchIcon);
+        searchWrap.appendChild(searchInput);
+        container.appendChild(searchWrap);
 
         const list = document.createElement('ul');
         list.id = 'sheet-list';
@@ -825,12 +833,20 @@ async function showGlobalSearch() {
     title.textContent = 'Search All Campaigns';
     container.appendChild(title);
 
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'wiki-search-wrap';
+    const searchIcon = new Image();
+    searchIcon.src = 'Assets/TransparentIcons/Crystal_Ball_18x18.png';
+    searchIcon.className = 'wiki-search-icon';
+    searchIcon.alt = '';
     const searchInput = document.createElement('input');
     searchInput.type = 'text';
     searchInput.className = 'wiki-search-bar';
-    searchInput.placeholder = '🔍 Search across all campaigns…';
+    searchInput.placeholder = 'Search across all campaigns…';
     searchInput.dataset.wikiSearch = '1';
-    container.appendChild(searchInput);
+    searchWrap.appendChild(searchIcon);
+    searchWrap.appendChild(searchInput);
+    container.appendChild(searchWrap);
 
     const resultsEl = document.createElement('div');
     resultsEl.id = 'global-search-results';

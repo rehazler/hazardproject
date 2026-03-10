@@ -40,4 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fx = document.createElement('script');
     fx.src = 'scripts/ttrpg-fx.js';
     document.body.appendChild(fx);
+    const dec = document.createElement('script');
+    dec.src = 'scripts/decorations.js';
+    document.body.appendChild(dec);
 });
