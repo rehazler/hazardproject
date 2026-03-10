@@ -25,7 +25,8 @@ h1 {
     text-align: center;
 }
 
-header h1 {
+header h1,
+header p {
     text-shadow:
         0 0 12px rgba(10, 4, 15, 1),
         0 0 24px rgba(10, 4, 15, 0.95),
@@ -295,6 +296,8 @@ button:hover {
 /* Main content grows to push footer down */
 main {
     flex: 1;
+    position: relative;
+    z-index: 1;
 }
 
 /* Footer */
@@ -304,6 +307,8 @@ footer {
     color: #f4f4f4;
     padding: 10px 0;
     font-size: 0.9rem;
+    position: relative;
+    z-index: 1;
 }
 
 /* Decorative Elements (Stars and Sparkles) */
@@ -521,15 +526,45 @@ body.wiki-page h4 {
     margin: 0;
 }
 
-/* Audio */
-.notion-audio {
-    margin: 1rem 0;
+/* Audio — themed play button */
+.notion-audio-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0.75rem 0;
 }
 
-.notion-audio audio {
-    width: 100%;
-    border-radius: 4px;
-    accent-color: #98e6d6;
+.notion-audio-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(152, 230, 214, 0.08);
+    border: 1px solid rgba(152, 230, 214, 0.4);
+    color: #98e6d6;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.notion-audio-btn:hover {
+    background: rgba(152, 230, 214, 0.18);
+    border-color: #98e6d6;
+}
+
+.notion-audio-btn.playing {
+    background: rgba(243, 176, 195, 0.12);
+    border-color: rgba(243, 176, 195, 0.5);
+    color: #f3b0c3;
+}
+
+.notion-audio-caption {
+    font-size: 0.85rem;
+    color: #a08ab0;
+    font-style: italic;
 }
 
 /* Video / Embed */
@@ -539,7 +574,6 @@ body.wiki-page h4 {
 }
 
 .notion-video figcaption,
-.notion-audio figcaption,
 .notion-embed figcaption {
     text-align: center;
     font-style: italic;
@@ -1272,9 +1306,9 @@ section > h2::before {
 section > h2::after {
     content: url('Assets/TransparentIcons/Moon_18x18.png');
     position: absolute;
-    bottom: -8px; left: 50%;
+    bottom: -3px; left: 50%;
     transform: translateX(-50%);
-    background: #2e1d32;
+    background: transparent;
     padding: 0 8px;
     line-height: 0;
 }
