@@ -136,25 +136,38 @@ function addRecentlyViewed(campaign, category, id, name) {
 }
 
 // ── Category icons ─────────────────────────────────────────────────────────
+// Rules are checked top-to-bottom; first match wins.
+// Single-word keywords match whole words in the category name.
+// Multi-word keywords (containing a space) match as a substring of the full name.
+// Add rows here to cover new category naming conventions.
 
-const CAT_ICONS = {
-    npcs: '👤', npc: '👤', characters: '👤', character: '👤',
-    locations: '🗺️', location: '🗺️', places: '🗺️',
-    lore: '📖', history: '📖',
-    factions: '⚔️', faction: '⚔️', guilds: '⚔️', organisations: '⚔️', organizations: '⚔️',
-    items: '💎', item: '💎', artifacts: '💎', equipment: '💎',
-    monsters: '👹', monster: '👹', creatures: '👹', bestiary: '👹',
-    gods: '✨', deities: '✨', religion: '✨',
-    sessions: '📜', session: '📜', recaps: '📜', recap: '📜',
-    players: '🎲', player: '🎲', pcs: '🎲',
-    quests: '📋', quest: '📋', missions: '📋',
-    magic: '🔮', spells: '🔮',
-    world: '🌍', planes: '🌍',
-};
+const CAT_ICON_RULES = [
+    { keywords: ['player character', 'player characters'], icon: '🎲' },
+    { keywords: ['art', 'artwork', 'gallery'],             icon: '🎨' },
+    { keywords: ['npc', 'npcs', 'person', 'people'], icon: '👤' },
+    { keywords: ['location', 'locations', 'place', 'places', 'region', 'area'], icon: '🗺️' },
+    { keywords: ['event', 'events'],                       icon: '🎭' },
+    { keywords: ['recap', 'recaps', 'session', 'sessions'], icon: '📜' },
+    { keywords: ['lore', 'history'],                       icon: '📖' },
+    { keywords: ['faction', 'factions', 'guild', 'guilds', 'organisation', 'organisations', 'organization', 'organizations'], icon: '⚔️' },
+    { keywords: ['item', 'items', 'artifact', 'artifacts', 'equipment', 'relic', 'relics'], icon: '💎' },
+    { keywords: ['monster', 'monsters', 'creature', 'creatures', 'bestiary'], icon: '👹' },
+    { keywords: ['god', 'gods', 'deity', 'deities', 'religion'],              icon: '✨' },
+    { keywords: ['player', 'players', 'pc', 'pcs', 'character', 'characters' ],        icon: '🎲' },
+    { keywords: ['quest', 'quests', 'mission', 'missions'], icon: '📋' },
+    { keywords: ['magic', 'spell', 'spells'],               icon: '🔮' },
+    { keywords: ['world', 'plane', 'planes'],               icon: '🌍' },
+];
 
 function getCatIcon(name) {
-    const key = name.toLowerCase().replace(/[^a-z]/g, '');
-    return CAT_ICONS[key] ?? '◆';
+    const lower = name.toLowerCase();
+    const words = lower.split(/\W+/);
+    for (const rule of CAT_ICON_RULES) {
+        if (rule.keywords.some(kw =>
+            kw.includes(' ') ? lower.includes(kw) : words.includes(kw)
+        )) return rule.icon;
+    }
+    return '◆';
 }
 
 // ── Notion block renderer ──────────────────────────────────────────────────
@@ -315,10 +328,10 @@ function renderBlocks(blocks) {
                 );
                 const audioCap = renderRichText(block.audio.caption);
                 if (audioSrc) {
-                    html += `<figure class="notion-audio">
-                        <audio controls src="${escapeHTML(audioSrc)}" style="width:100%;"></audio>
-                        ${audioCap ? `<figcaption>${audioCap}</figcaption>` : ''}
-                    </figure>`;
+                    html += `<div class="notion-audio-player" data-src="${escapeHTML(audioSrc)}">
+                        <button class="notion-audio-btn" aria-label="Play audio">▶</button>
+                        ${audioCap ? `<span class="notion-audio-caption">${audioCap}</span>` : ''}
+                    </div>`;
                 }
                 break;
             }
@@ -511,7 +524,7 @@ async function showCampaignList() {
         // Global search button
         const gsBtn = document.createElement('button');
         gsBtn.className = 'wiki-global-search-btn';
-        gsBtn.innerHTML = '<img src="Assets/TransparentIcons/Crystal_Ball_18x18.png" alt="" class="wiki-search-icon" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;margin-bottom:2px;border:none;border-radius:0;"> Search All Campaigns';
+        gsBtn.innerHTML = '<img src="Assets/TransparentIcons/Crystal_Ball_18x18.png" alt="" class="wiki-search-icon" style="width:18px;height:18px;vertical-align:middle;;margin-bottom:3px;border:none;border-radius:0;"> Search All Campaigns';
         gsBtn.addEventListener('click', () => { history.pushState(null, '', '?search=1'); showGlobalSearch(); });
         container.appendChild(gsBtn);
 
@@ -977,8 +990,46 @@ function route() {
 document.addEventListener('DOMContentLoaded', () => {
     route();
     document.getElementById('wiki-container')?.addEventListener('click', e => {
+        // Lightbox
         const img = e.target.closest('img.wiki-zoomable');
         if (img) { e.preventDefault(); openLightbox(img.src, img.alt); }
+
+        // Themed audio player
+        const btn = e.target.closest('.notion-audio-btn');
+        if (!btn) return;
+        const player = btn.closest('.notion-audio-player');
+        const src = player?.dataset.src;
+        if (!src) return;
+
+        if (!player._audio) {
+            player._audio = new Audio(src);
+            player._audio.addEventListener('ended', () => {
+                const b = player.querySelector('.notion-audio-btn');
+                if (b) { b.textContent = '▶'; b.setAttribute('aria-label', 'Play audio'); b.classList.remove('playing'); }
+            });
+        }
+
+        const audio = player._audio;
+        if (audio.paused) {
+            // Stop any other playing snippet first
+            document.querySelectorAll('.notion-audio-player').forEach(p => {
+                if (p !== player && p._audio && !p._audio.paused) {
+                    p._audio.pause();
+                    const ob = p.querySelector('.notion-audio-btn');
+                    if (ob) { ob.textContent = '▶'; ob.setAttribute('aria-label', 'Play audio'); ob.classList.remove('playing'); }
+                }
+            });
+            audio.play().then(() => {
+                btn.textContent = '⏸';
+                btn.setAttribute('aria-label', 'Pause audio');
+                btn.classList.add('playing');
+            }).catch(() => {});
+        } else {
+            audio.pause();
+            btn.textContent = '▶';
+            btn.setAttribute('aria-label', 'Play audio');
+            btn.classList.remove('playing');
+        }
     });
 });
 window.addEventListener('popstate', route);
