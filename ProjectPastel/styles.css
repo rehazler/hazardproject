@@ -480,16 +480,20 @@ body.wiki-page h4 {
     font-weight: bold;
     padding: 4px 0;
     user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .notion-toggle summary::-webkit-details-marker { display: none; }
 
 .notion-toggle summary::before {
-    content: '▶ ';
+    content: '▶';
     font-size: 0.7em;
     opacity: 0.7;
     transition: transform 0.15s;
-    display: inline-block;
+    flex-shrink: 0;
+    transform-origin: center;
 }
 
 .notion-toggle[open] > summary::before {
@@ -503,7 +507,7 @@ body.wiki-page h4 {
 .notion-toggle-h2 summary h2,
 .notion-toggle-h3 summary h3,
 .notion-toggle-h4 summary h4 {
-    display: inline;
+    display: block;
     margin: 0;
 }
 
