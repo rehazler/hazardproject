@@ -159,7 +159,7 @@
                         scheduleBats();
                     }
                 }, 10000); // stop after 10 s
-            }, 10000 + Math.random() * 1000); // every 45–135 s
+            }, 45000 + Math.random() * 90000); // every 45–135 s
         }
 
         scheduleBats();
@@ -167,7 +167,7 @@
 
     if (!lowEnd) initBats();
 
-    // ── 4. Pause all decoration videos when the tab is hidden ────────────────
+    // ── 4. Pause all decoration videos when the tab is hidden 4────────────────
     document.addEventListener('visibilitychange', () => {
         document.querySelectorAll('video').forEach(v => {
             if (document.hidden) v.pause();
