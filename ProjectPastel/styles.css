@@ -1513,8 +1513,8 @@ section > h2::after {
 
 .wiki-search-wrap img.wiki-search-icon {
     position: absolute;
-    left: 13px;
-    top: 50%;
+    left: 15px;
+    top: 47%;
     transform: translateY(-50%);
     width: 18px;
     height: 18px;
