@@ -1,0 +1,2110 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// wiki-editor.js — Inline WYSIWYG editor for the Supabase wiki
+// Depends on: api-client.js, auth.js, supabase-fetch.js (WikiSB)
+//
+// Load order in wiki-supabase.html:
+//   1. api-client.js   2. auth.js   3. supabase-fetch.js   4. wiki-editor.js
+//
+// WikiSB is defined synchronously by supabase-fetch.js. By the time this
+// script runs, WikiSB exists and its async init hasn't fired yet, so hooks
+// registered here are in place before the first render.
+// ─────────────────────────────────────────────────────────────────────────────
+
+(function () {
+    'use strict';
+
+    // ── Toolbar ───────────────────────────────────────────────────────────────
+
+    const toolbar = document.createElement('div');
+    toolbar.id = 'wiki-edit-toolbar';
+    toolbar.style.display = 'none'; // hidden until auth confirmed by first hook call
+    toolbar.innerHTML = `
+        <span id="et-status" class="et-status"></span>
+        <div class="et-btn-row">
+            <button id="et-edit"      class="et-btn">✏ Edit</button>
+            <button id="et-save"      class="et-btn et-primary" style="display:none">✓ Save</button>
+            <button id="et-cancel"    class="et-btn"            style="display:none">✗ Cancel</button>
+            <button id="et-templates" class="et-btn">📋 Templates</button>
+            <button id="et-logout"    class="et-btn et-danger">⏻ Log out</button>
+        </div>`;
+    document.body.appendChild(toolbar);
+
+    const etEdit      = document.getElementById('et-edit');
+    const etSave      = document.getElementById('et-save');
+    const etCancel    = document.getElementById('et-cancel');
+    const etTemplates = document.getElementById('et-templates');
+    const etLogout    = document.getElementById('et-logout');
+    const etStatus    = document.getElementById('et-status');
+
+    function setStatus(msg, isErr) {
+        etStatus.textContent = msg;
+        etStatus.style.color = isErr ? '#f3b0c3' : '#a08ab0';
+    }
+
+    // Hide the "Edit" button when not on an entry detail view
+    function resetToolbar() {
+        etEdit.style.display   = 'none';
+        etSave.style.display   = 'none';
+        etCancel.style.display = 'none';
+        setStatus('');
+    }
+
+    etLogout.addEventListener('click', async () => {
+        await auth.signOut();
+        location.reload();
+    });
+
+    // ── Guard: only show editor UI to authenticated editors ───────────────────
+
+    function editorGuard() {
+        if (!auth.isEditor()) return false;
+        toolbar.style.display = '';
+        return true;
+    }
+
+    // ── Editor.js lazy loading ────────────────────────────────────────────────
+
+    const EDITORJS_CDNS = [
+        'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest',
+        'https://cdn.jsdelivr.net/npm/@editorjs/list@1',
+        'https://cdn.jsdelivr.net/npm/@editorjs/image@latest',
+        'https://cdn.jsdelivr.net/npm/@editorjs/quote@latest',
+        // @editorjs/delimiter replaced by local DelimiterTool below
+        'https://cdn.jsdelivr.net/npm/@editorjs/table@2',
+        'https://cdn.jsdelivr.net/npm/@editorjs/embed@2',
+    ];
+
+    let _editorJsReady = false;
+
+    async function ensureEditorJS() {
+        if (_editorJsReady) return;
+        for (const src of EDITORJS_CDNS) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Failed to load: ' + src));
+                document.head.appendChild(s);
+            });
+        }
+        _editorJsReady = true;
+    }
+
+    // ── Custom Editor.js tools ────────────────────────────────────────────────
+
+    // ── Custom heading tool (replaces @editorjs/header CDN) ─────────────────
+
+    class HeadingTool {
+        static get toolbox() {
+            return { title: 'Heading', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 20h-2v-7H4v7H2V4h2v7h7V4h2v16zm5.5-2.5 1.5 1.5-3.75 3.75L14.5 21l1.5-1.5 1 1 2.5-3z"/></svg>' };
+        }
+        static get sanitize() {
+            return { text: { b: true, i: true, em: true, strong: true, u: true, a: { href: true } } };
+        }
+        static get conversionConfig() { return { export: 'text', import: 'text' }; }
+        static get pasteConfig() { return { tags: ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'] }; }
+
+        constructor({ data }) {
+            this._data = {
+                text:    data.text    || '',
+                level:   data.level   || 2,
+                color:   data.color   || '',
+                align:   data.align   || '',
+                bold:    !!data.bold,
+                divider: data.divider || 'none',
+            };
+            this._wrap = null;
+            this._el   = null;
+        }
+
+        render() {
+            this._wrap = document.createElement('div');
+            this._wrap.className = 'ej-heading-wrap';
+            this._el = this._makeEl();
+            this._wrap.appendChild(this._el);
+            this._applyStyles();
+            return this._wrap;
+        }
+
+        _makeEl() {
+            const el = document.createElement(`h${this._data.level}`);
+            el.contentEditable = 'true';
+            el.className = 'ej-heading-el';
+            el.dataset.placeholder = `Heading ${this._data.level}`;
+            el.innerHTML = this._data.text;
+            return el;
+        }
+
+        _applyStyles() {
+            if (!this._el || !this._wrap) return;
+            this._el.style.color      = this._data.color || '';
+            this._el.style.textAlign  = this._data.align || '';
+            this._el.style.fontWeight = this._data.bold  ? 'bold' : '';
+            this._wrap.classList.toggle('ej-heading--divider-full', this._data.divider === 'full');
+            this._wrap.classList.toggle('ej-heading--divider-text', this._data.divider === 'text');
+        }
+
+        renderSettings() {
+            const root = document.createElement('div');
+
+            const sep = () => {
+                const s = document.createElement('div');
+                s.className = 'ce-popover-item-separator';
+                s.innerHTML = '<div class="ce-popover-item-separator__line"></div>';
+                return s;
+            };
+
+            const mkGroup = (defs) => {
+                const els = defs.map(({ icon, label, isActive, onSelect }) => {
+                    const el = document.createElement('div');
+                    el.className = 'ce-popover-item' + (isActive() ? ' ce-popover-item--active' : '');
+                    el.innerHTML = `<div class="ce-popover-item__icon">${icon}</div><div class="ce-popover-item__title">${label}</div>`;
+                    el.addEventListener('click', () => {
+                        els.forEach(e => e.classList.remove('ce-popover-item--active'));
+                        el.classList.add('ce-popover-item--active');
+                        onSelect();
+                    });
+                    return el;
+                });
+                return els;
+            };
+
+            const mkToggle = (icon, label, isActive, onToggle) => {
+                const el = document.createElement('div');
+                el.className = 'ce-popover-item' + (isActive() ? ' ce-popover-item--active' : '');
+                el.innerHTML = `<div class="ce-popover-item__icon">${icon}</div><div class="ce-popover-item__title">${label}</div>`;
+                el.addEventListener('click', () => {
+                    el.classList.toggle('ce-popover-item--active');
+                    onToggle();
+                });
+                return el;
+            };
+
+            // Level
+            mkGroup([
+                { icon: '<b>H2</b>', label: 'Heading 2', isActive: () => this._data.level === 2, onSelect: () => this._changeLevel(2) },
+                { icon: '<b>H3</b>', label: 'Heading 3', isActive: () => this._data.level === 3, onSelect: () => this._changeLevel(3) },
+                { icon: '<b>H4</b>', label: 'Heading 4', isActive: () => this._data.level === 4, onSelect: () => this._changeLevel(4) },
+            ]).forEach(el => root.appendChild(el));
+
+            root.appendChild(sep());
+
+            // Colour
+            const swatch = (col) => col
+                ? `<span style="width:12px;height:12px;border-radius:50%;background:${col};display:block;margin:auto"></span>`
+                : '<span style="font-size:10px;line-height:1">✕</span>';
+            mkGroup([
+                { icon: swatch(''),        label: 'Default',  isActive: () => this._data.color === '',        onSelect: () => { this._data.color = '';        this._applyStyles(); } },
+                { icon: swatch('#d3b3e7'), label: 'Lavender', isActive: () => this._data.color === '#d3b3e7', onSelect: () => { this._data.color = '#d3b3e7'; this._applyStyles(); } },
+                { icon: swatch('#98e6d6'), label: 'Mint',     isActive: () => this._data.color === '#98e6d6', onSelect: () => { this._data.color = '#98e6d6'; this._applyStyles(); } },
+                { icon: swatch('#f3b0c3'), label: 'Pink',     isActive: () => this._data.color === '#f3b0c3', onSelect: () => { this._data.color = '#f3b0c3'; this._applyStyles(); } },
+                { icon: swatch('#f4f4f4'), label: 'White',    isActive: () => this._data.color === '#f4f4f4', onSelect: () => { this._data.color = '#f4f4f4'; this._applyStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+
+            root.appendChild(sep());
+
+            // Alignment
+            mkGroup([
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/></svg>', label: 'Left',   isActive: () => this._data.align === '',       onSelect: () => { this._data.align = '';       this._applyStyles(); } },
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm3 4h12v2H6V9zm-3 4h18v2H3v-2zm3 4h12v2H6v-2z"/></svg>', label: 'Center', isActive: () => this._data.align === 'center', onSelect: () => { this._data.align = 'center'; this._applyStyles(); } },
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm6 4h12v2H9V9zm-6 4h18v2H3v-2zm6 4h12v2H9v-2z"/></svg>', label: 'Right',  isActive: () => this._data.align === 'right',  onSelect: () => { this._data.align = 'right';  this._applyStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+
+            root.appendChild(sep());
+
+            // Bold
+            root.appendChild(mkToggle('<b>B</b>', 'Bold', () => this._data.bold, () => { this._data.bold = !this._data.bold; this._applyStyles(); }));
+
+            root.appendChild(sep());
+
+            // Divider
+            mkGroup([
+                { icon: '✕',
+                  label: 'No divider',
+                  isActive: () => this._data.divider === 'none',
+                  onSelect: () => { this._data.divider = 'none'; this._applyStyles(); } },
+                { icon: '<svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor"><rect y="3" width="14" height="2"/></svg>',
+                  label: 'Full-width divider',
+                  isActive: () => this._data.divider === 'full',
+                  onSelect: () => { this._data.divider = 'full'; this._applyStyles(); } },
+                { icon: '<svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor"><rect y="3" width="7" height="2"/></svg>',
+                  label: 'Text-width divider',
+                  isActive: () => this._data.divider === 'text',
+                  onSelect: () => { this._data.divider = 'text'; this._applyStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+
+            return root;
+        }
+
+        _changeLevel(lvl) {
+            if (this._el) this._data.text = this._el.innerHTML; // preserve current content
+            this._data.level = lvl;
+            const newEl = this._makeEl();
+            this._wrap.replaceChild(newEl, this._el);
+            this._el = newEl;
+            this._applyStyles();
+        }
+
+        save(wrap) {
+            const el = wrap.querySelector('.ej-heading-el');
+            return {
+                text:    el ? el.innerHTML : '',
+                level:   this._data.level,
+                color:   this._data.color  || '',
+                align:   this._data.align  || '',
+                bold:    this._data.bold   || false,
+                divider: this._data.divider || 'none',
+            };
+        }
+    }
+
+    class AudioTool {
+        static get toolbox() {
+            return { title: 'Audio', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>' };
+        }
+        constructor({ data }) { this._data = data || {}; }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap';
+            const urlInp = document.createElement('input');
+            urlInp.className = 'ej-input'; urlInp.type = 'url';
+            urlInp.placeholder = 'Audio URL (.mp3, .ogg, .wav)';
+            urlInp.value = this._data.url || '';
+            const capInp = document.createElement('input');
+            capInp.className = 'ej-input'; capInp.type = 'text';
+            capInp.placeholder = 'Caption / label (optional)';
+            capInp.value = this._data.caption || '';
+            const labelInp = document.createElement('input');
+            labelInp.className = 'ej-input ej-label-input'; labelInp.type = 'text';
+            labelInp.placeholder = 'Section label (optional, e.g. "SOUNDTRACK")';
+            labelInp.value = this._data.label || '';
+            wrap.appendChild(urlInp); wrap.appendChild(capInp); wrap.appendChild(labelInp);
+            return wrap;
+        }
+        save(el) {
+            const [u, c] = el.querySelectorAll('input');
+            const label = el.querySelector('.ej-label-input')?.value.trim() || '';
+            return { url: u.value.trim(), caption: c.value.trim(), label };
+        }
+        validate(d) { return !!d.url; }
+    }
+
+    class CalloutTool {
+        static get toolbox() {
+            return { title: 'Callout', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' };
+        }
+        constructor({ data }) { this._data = data || {}; }
+        render() {
+            const _VARIANTS = [['info','💡 Info'],['warning','⚠️ Warning'],['danger','🔴 Danger'],['success','✅ Success']];
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap';
+            const topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;gap:6px;align-items:center';
+            const varSel = document.createElement('select');
+            varSel.className = 'ej-input ej-select'; varSel.style.width = 'auto';
+            _VARIANTS.forEach(([v, l]) => {
+                const opt = document.createElement('option');
+                opt.value = v; opt.textContent = l;
+                if (v === (this._data.variant || 'info')) opt.selected = true;
+                varSel.appendChild(opt);
+            });
+            const emojiInp = document.createElement('input');
+            emojiInp.className = 'ej-input ej-emoji'; emojiInp.type = 'text';
+            emojiInp.placeholder = '(emoji)'; emojiInp.maxLength = 4;
+            emojiInp.value = this._data.emoji || '';
+            topRow.appendChild(varSel); topRow.appendChild(emojiInp);
+            const textInp = document.createElement('input');
+            textInp.className = 'ej-input'; textInp.type = 'text';
+            textInp.placeholder = 'Callout text';
+            textInp.value = this._data.html || '';
+            wrap.appendChild(topRow); wrap.appendChild(textInp);
+            return wrap;
+        }
+        save(el) {
+            const varSel   = el.querySelector('select');
+            const [ei, ti] = el.querySelectorAll('input');
+            const defEmoji = { info:'💡', warning:'⚠️', danger:'🔴', success:'✅' };
+            const variant  = varSel.value;
+            return { variant, emoji: ei.value.trim() || defEmoji[variant], html: ti.value.trim() };
+        }
+        validate(d) { return !!d.html; }
+    }
+
+    class ColumnsTool {
+        static get toolbox() {
+            return { title: 'Columns', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5v14h8V5H3zm10 0v14h8V5h-8z"/></svg>' };
+        }
+
+        // Normalise any legacy item format to the new {blocks, width, style} shape
+        static _normaliseItem(item) {
+            if (Array.isArray(item)) return { blocks: item, width: 1, style: {} };
+            if (item && typeof item === 'object') {
+                return {
+                    blocks: Array.isArray(item.blocks) ? item.blocks : (Array.isArray(item) ? item : []),
+                    width:  item.width  || 1,
+                    style:  item.style  || {},
+                };
+            }
+            return { blocks: [], width: 1, style: {} };
+        }
+
+        constructor({ data, api }) {
+            this._api        = api;
+            this._subEditors = [];
+            this._colWrappers = []; // [{ wrapEl, holderEl, widthInp, borderSel, bgSel, padSel, radiusSel }]
+            this._grid       = null;
+            this._addColBtn  = null;
+            this._remColBtn  = null;
+            this._tools      = null;
+
+            const rawItems = data?.items?.length
+                ? data.items.map(ColumnsTool._normaliseItem)
+                : [{ blocks: [], width: 1, style: {} }, { blocks: [], width: 1, style: {} }];
+            this._data = { label: data?.label || '', items: rawItems };
+        }
+
+        _syncGrid() {
+            const tpl = this._colWrappers.map(c => `${Math.max(1, parseInt(c.widthInp.value) || 1)}fr`).join(' ');
+            this._grid.style.gridTemplateColumns = tpl;
+            this._addColBtn.disabled = this._colWrappers.length >= 6;
+            this._remColBtn.disabled = this._colWrappers.length <= 1;
+        }
+
+        _makeColWrap(itemData) {
+            const d = ColumnsTool._normaliseItem(itemData);
+            const s = d.style || {};
+
+            const wrapEl = document.createElement('div');
+            wrapEl.className = 'ej-col-wrap';
+
+            // ── Settings header ──────────────────────────────────────────────
+            const hdr = document.createElement('div');
+            hdr.className = 'ej-col-settings-hdr';
+
+            const toggle = document.createElement('button');
+            toggle.className = 'ej-col-settings-toggle';
+            toggle.type = 'button'; toggle.title = 'Column settings';
+            toggle.innerHTML = '⚙';
+            hdr.appendChild(toggle);
+
+            const panel = document.createElement('div');
+            panel.className = 'ej-col-settings-panel';
+
+            // Width
+            const widthInp = document.createElement('input');
+            widthInp.type = 'number'; widthInp.className = 'ej-input ej-col-width-inp';
+            widthInp.min = '1'; widthInp.max = '12'; widthInp.value = d.width || 1;
+            widthInp.title = 'Relative width (e.g. 1 = equal share, 2 = twice as wide)';
+            widthInp.addEventListener('input', () => this._syncGrid());
+
+            const widthRow = document.createElement('div');
+            widthRow.className = 'ej-col-settings-row';
+            widthRow.innerHTML = '<span>Width (fr):</span>';
+            widthRow.appendChild(widthInp);
+            panel.appendChild(widthRow);
+
+            // Style selects
+            const mkSel = (label, opts, current) => {
+                const row = document.createElement('div');
+                row.className = 'ej-col-settings-row';
+                row.innerHTML = `<span>${label}:</span>`;
+                const sel = document.createElement('select');
+                sel.className = 'ej-input ej-select ej-col-style-sel';
+                opts.forEach(([v, l]) => {
+                    const o = document.createElement('option');
+                    o.value = v; o.textContent = l;
+                    if (v === (current || 'none')) o.selected = true;
+                    sel.appendChild(o);
+                });
+                row.appendChild(sel);
+                panel.appendChild(row);
+                return sel;
+            };
+
+            const borderSel = mkSel('Border', [
+                ['none','None'], ['lavender','Lavender'], ['mint','Mint'],
+                ['pink','Pink'], ['subtle','Subtle'],
+            ], s.border);
+            const bgSel = mkSel('Background', [
+                ['none','None'], ['dark','Dark'], ['darker','Darker'],
+                ['lavender','Lavender tint'], ['mint','Mint tint'], ['pink','Pink tint'],
+            ], s.background);
+            const padSel = mkSel('Padding', [
+                ['none','None'], ['sm','Small'], ['md','Medium'], ['lg','Large'],
+            ], s.padding);
+            const radiusSel = mkSel('Radius', [
+                ['none','None'], ['sm','Small'], ['md','Medium'], ['lg','Large'],
+            ], s.radius);
+            const alignSel = mkSel('Align', [
+                ['','Default'], ['left','Left'], ['center','Center'], ['right','Right'], ['justify','Justify'],
+            ], s.align || '');
+
+            toggle.addEventListener('click', () => {
+                const open = panel.classList.toggle('ej-col-settings-panel--open');
+                toggle.classList.toggle('ej-col-settings-toggle--active', open);
+            });
+
+            wrapEl.appendChild(hdr);
+            wrapEl.appendChild(panel);
+
+            // ── EditorJS holder ──────────────────────────────────────────────
+            const holderEl = document.createElement('div');
+            holderEl.className = 'ej-col-holder';
+            holderEl.id = `ej-col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            wrapEl.appendChild(holderEl);
+
+            return { wrapEl, holderEl, widthInp, borderSel, bgSel, padSel, radiusSel, alignSel, blocks: d.blocks };
+        }
+
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap';
+
+            const labelInp = document.createElement('input');
+            labelInp.className = 'ej-input ej-label-input'; labelInp.type = 'text';
+            labelInp.placeholder = 'Section label (optional)';
+            labelInp.value = this._data.label || '';
+            wrap.appendChild(labelInp);
+
+            const hdr = document.createElement('div');
+            hdr.className = 'ej-cols-header';
+
+            this._addColBtn = document.createElement('button');
+            this._addColBtn.className = 'et-btn ej-cols-ctrl-btn'; this._addColBtn.type = 'button';
+            this._addColBtn.textContent = '+ Add column';
+            this._addColBtn.disabled = this._data.items.length >= 6;
+
+            this._remColBtn = document.createElement('button');
+            this._remColBtn.className = 'et-btn ej-cols-ctrl-btn'; this._remColBtn.type = 'button';
+            this._remColBtn.textContent = '− Remove last';
+            this._remColBtn.disabled = this._data.items.length <= 1;
+
+            hdr.appendChild(this._addColBtn);
+            hdr.appendChild(this._remColBtn);
+            wrap.appendChild(hdr);
+
+            this._grid = document.createElement('div');
+            this._grid.className = 'ej-cols-grid';
+            this._grid.style.gridTemplateColumns = this._data.items.map(it => `${it.width || 1}fr`).join(' ');
+
+            this._colWrappers = [];
+            for (const itemData of this._data.items) {
+                const colObj = this._makeColWrap(itemData);
+                this._colWrappers.push(colObj);
+                this._grid.appendChild(colObj.wrapEl);
+            }
+
+            wrap.appendChild(this._grid);
+            return wrap;
+        }
+
+        rendered() {
+            // Guard against re-initialization when EditorJS reorders blocks (DOM move + re-call)
+            if (this._subEditors.length > 0 && this._colWrappers.every(c => c.holderEl.isConnected)) {
+                return;
+            }
+            this._subEditors.forEach(ed => { try { ed.destroy(); } catch {} });
+            this._subEditors = [];
+
+            this._tools = {
+                header: { class: HeadingTool, inlineToolbar: true },
+                list:        { class: List,       inlineToolbar: true },
+                image:       { class: ImageTool,  config: { uploader: {
+                    uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
+                    uploadByFile()   { return Promise.resolve({ success: 0 }); },
+                } } },
+                quote:       { class: Quote,      inlineToolbar: true },
+                delimiter:   { class: DelimiterTool },
+                audio:       { class: AudioTool },
+                callout:     { class: CalloutTool },
+                toggle:      { class: ToggleTool, inlineToolbar: true },
+                bookmark:    { class: BookmarkTool },
+                spacer:      { class: SpacerTool },
+                props_block: { class: PropsBlockTool },
+                duplicate:   { class: DuplicateTune },
+            };
+
+            this._subEditors = this._colWrappers.map((colObj, i) => new EditorJS({
+                holder:      colObj.holderEl,
+                data:        blocksToEditorData(colObj.blocks || []),
+                placeholder: `Column ${i + 1}…`,
+                minHeight:   80,
+                tools:       this._tools,
+                tunes:       ['duplicate'],
+            }));
+
+            this._addColBtn.addEventListener('click', () => {
+                if (this._colWrappers.length >= 6) return;
+                const colObj = this._makeColWrap({ blocks: [], width: 1, style: {} });
+                this._colWrappers.push(colObj);
+                this._grid.appendChild(colObj.wrapEl);
+                this._subEditors.push(new EditorJS({
+                    holder:      colObj.holderEl,
+                    data:        { blocks: [] },
+                    placeholder: `Column ${this._colWrappers.length}…`,
+                    minHeight:   80,
+                    tools:       this._tools,
+                }));
+                this._syncGrid();
+            });
+
+            this._remColBtn.addEventListener('click', async () => {
+                if (this._colWrappers.length <= 1) return;
+                const lastEditor = this._subEditors[this._subEditors.length - 1];
+                try {
+                    await lastEditor.isReady;
+                    const saved = await lastEditor.save();
+                    const hasContent = (saved.blocks || []).some(b =>
+                        b.data?.text || b.data?.items?.length || b.data?.url || b.data?.rows?.length
+                    );
+                    if (hasContent && !confirm('Remove the last column? Its content will be lost.')) return;
+                    await lastEditor.destroy();
+                } catch {}
+                this._subEditors.pop();
+                this._colWrappers.pop().wrapEl.remove();
+                this._syncGrid();
+            });
+        }
+
+        async save(el) {
+            const label = el.querySelector('.ej-label-input')?.value.trim() || '';
+            const items = [];
+            for (let i = 0; i < this._subEditors.length; i++) {
+                const editor = this._subEditors[i];
+                const c = this._colWrappers[i];
+                let blocks = [];
+                try { await editor.isReady; blocks = editorDataToBlocks(await editor.save()); } catch {}
+                items.push({
+                    blocks,
+                    width: Math.max(1, parseInt(c.widthInp.value) || 1),
+                    style: {
+                        border:     c.borderSel.value,
+                        background: c.bgSel.value,
+                        padding:    c.padSel.value,
+                        radius:     c.radiusSel.value,
+                        align:      c.alignSel.value,
+                    },
+                });
+            }
+            return { items, label };
+        }
+        destroy() {
+            this._subEditors.forEach(ed => { try { ed.destroy(); } catch {} });
+            this._subEditors = [];
+        }
+        validate() { return true; }
+    }
+
+    class ToggleTool {
+        static get toolbox() {
+            return { title: 'Toggle', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>' };
+        }
+        static get sanitize() {
+            return { text: { b: true, i: true, em: true, strong: true, u: true, a: { href: true } } };
+        }
+
+        constructor({ data }) {
+            this._subEditor          = null;
+            this._wrapEl             = null;
+            this._holderEl           = null;
+            this._headEl             = null;
+            this._headWrap           = null;
+            this._openBtn            = null;
+            this._bodyWrap           = null;
+            this._closeOnOutsideClick = null;
+            this._border             = !!data?.border;
+            this._separator          = !!data?.separator;
+
+            const hRaw = data?.heading;
+            this._headData = (hRaw && typeof hRaw === 'object') ? {
+                html:    hRaw.html    || '',
+                level:   hRaw.level   || 2,
+                color:   hRaw.color   || '',
+                align:   hRaw.align   || '',
+                bold:    !!hRaw.bold,
+                divider: hRaw.divider || 'none',
+            } : {
+                html:    (typeof hRaw === 'string' ? hRaw : ''),
+                level:   2,
+                color:   '',
+                align:   '',
+                bold:    false,
+                divider: 'none',
+            };
+            // Backwards compat: old body string → single paragraph block
+            this._blocks = Array.isArray(data?.blocks) ? data.blocks
+                : (data?.body ? [{ type: 'paragraph', content: { html: data.body } }] : []);
+            this._open = true; // always open in editor
+        }
+
+        render() {
+            const wrap = document.createElement('div');
+            this._wrapEl = wrap;
+            wrap.className = 'ej-toggle-wrap';
+            if (this._border) wrap.classList.add('ej-toggle--bordered');
+
+            // ── Header row: chevron + editable heading ────────────────────
+            const headRow = document.createElement('div');
+            headRow.className = 'ej-toggle-head-row';
+
+            this._openBtn = document.createElement('button');
+            this._openBtn.type = 'button';
+            this._openBtn.className = 'ej-toggle-chevron';
+            if (this._open) this._openBtn.classList.add('ej-toggle-chevron--open');
+            this._openBtn.innerHTML = '▶';
+            this._openBtn.addEventListener('click', () => {
+                this._open = !this._open;
+                this._openBtn.classList.toggle('ej-toggle-chevron--open', this._open);
+                this._bodyWrap.classList.toggle('ej-toggle-body--open', this._open);
+                // Trigger resize so EditorJS recalculates toolbar positions after becoming visible
+                if (this._open) window.dispatchEvent(new Event('resize'));
+            });
+            headRow.appendChild(this._openBtn);
+
+            this._headWrap = document.createElement('div');
+            this._headWrap.className = 'ej-toggle-head-wrap ej-heading-wrap';
+            this._headEl = this._makeHeadEl();
+            this._headWrap.appendChild(this._headEl);
+            this._applyHeadStyles();
+            headRow.appendChild(this._headWrap);
+            wrap.appendChild(headRow);
+
+            // ── Body (nested EditorJS) ─────────────────────────────────────
+            this._bodyWrap = document.createElement('div');
+            this._bodyWrap.className = 'ej-toggle-body';
+            if (this._open)     this._bodyWrap.classList.add('ej-toggle-body--open');
+            if (this._separator) this._bodyWrap.classList.add('ej-toggle--separator');
+
+            this._holderEl = document.createElement('div');
+            this._holderEl.className = 'ej-col-holder ej-toggle-holder';
+            this._holderEl.id = `ej-toggle-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            this._bodyWrap.appendChild(this._holderEl);
+            wrap.appendChild(this._bodyWrap);
+
+            return wrap;
+        }
+
+        _makeHeadEl() {
+            const el = document.createElement(`h${this._headData.level}`);
+            el.contentEditable = 'true';
+            el.className = 'ej-heading-el ej-toggle-head-el';
+            el.dataset.placeholder = 'Toggle heading';
+            el.innerHTML = this._headData.html;
+            return el;
+        }
+
+        _applyHeadStyles() {
+            if (!this._headEl || !this._headWrap) return;
+            const h = this._headData;
+            this._headEl.style.color      = h.color || '';
+            this._headEl.style.textAlign  = h.align || '';
+            this._headEl.style.fontWeight = h.bold  ? 'bold' : '';
+            this._headWrap.classList.toggle('ej-heading--divider-full', h.divider === 'full');
+            this._headWrap.classList.toggle('ej-heading--divider-text', h.divider === 'text');
+        }
+
+        _changeLevel(lvl) {
+            if (this._headEl) this._headData.html = this._headEl.innerHTML; // preserve current content
+            this._headData.level = lvl;
+            const newEl = this._makeHeadEl();
+            this._headWrap.replaceChild(newEl, this._headEl);
+            this._headEl = newEl;
+            this._applyHeadStyles();
+        }
+
+        renderSettings() {
+            const root = document.createElement('div');
+            const sep = () => {
+                const s = document.createElement('div');
+                s.className = 'ce-popover-item-separator';
+                s.innerHTML = '<div class="ce-popover-item-separator__line"></div>';
+                return s;
+            };
+            const mkGroup = (defs) => {
+                const els = defs.map(({ icon, label, isActive, onSelect }) => {
+                    const el = document.createElement('div');
+                    el.className = 'ce-popover-item' + (isActive() ? ' ce-popover-item--active' : '');
+                    el.innerHTML = `<div class="ce-popover-item__icon">${icon}</div><div class="ce-popover-item__title">${label}</div>`;
+                    el.addEventListener('click', () => {
+                        els.forEach(e => e.classList.remove('ce-popover-item--active'));
+                        el.classList.add('ce-popover-item--active');
+                        onSelect();
+                    });
+                    return el;
+                });
+                return els;
+            };
+            const mkToggle = (icon, label, isActive, onToggle) => {
+                const el = document.createElement('div');
+                el.className = 'ce-popover-item' + (isActive() ? ' ce-popover-item--active' : '');
+                el.innerHTML = `<div class="ce-popover-item__icon">${icon}</div><div class="ce-popover-item__title">${label}</div>`;
+                el.addEventListener('click', () => { el.classList.toggle('ce-popover-item--active'); onToggle(); });
+                return el;
+            };
+
+            // Level
+            mkGroup([
+                { icon: '<b>H2</b>', label: 'Heading 2', isActive: () => this._headData.level === 2, onSelect: () => this._changeLevel(2) },
+                { icon: '<b>H3</b>', label: 'Heading 3', isActive: () => this._headData.level === 3, onSelect: () => this._changeLevel(3) },
+                { icon: '<b>H4</b>', label: 'Heading 4', isActive: () => this._headData.level === 4, onSelect: () => this._changeLevel(4) },
+            ]).forEach(el => root.appendChild(el));
+            root.appendChild(sep());
+
+            // Colour
+            const swatch = (col) => col
+                ? `<span style="width:12px;height:12px;border-radius:50%;background:${col};display:block;margin:auto"></span>`
+                : '<span style="font-size:10px;line-height:1">✕</span>';
+            mkGroup([
+                { icon: swatch(''),        label: 'Default',  isActive: () => this._headData.color === '',        onSelect: () => { this._headData.color = '';        this._applyHeadStyles(); } },
+                { icon: swatch('#d3b3e7'), label: 'Lavender', isActive: () => this._headData.color === '#d3b3e7', onSelect: () => { this._headData.color = '#d3b3e7'; this._applyHeadStyles(); } },
+                { icon: swatch('#98e6d6'), label: 'Mint',     isActive: () => this._headData.color === '#98e6d6', onSelect: () => { this._headData.color = '#98e6d6'; this._applyHeadStyles(); } },
+                { icon: swatch('#f3b0c3'), label: 'Pink',     isActive: () => this._headData.color === '#f3b0c3', onSelect: () => { this._headData.color = '#f3b0c3'; this._applyHeadStyles(); } },
+                { icon: swatch('#f4f4f4'), label: 'White',    isActive: () => this._headData.color === '#f4f4f4', onSelect: () => { this._headData.color = '#f4f4f4'; this._applyHeadStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+            root.appendChild(sep());
+
+            // Alignment
+            mkGroup([
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/></svg>', label: 'Left',   isActive: () => this._headData.align === '',       onSelect: () => { this._headData.align = '';       this._applyHeadStyles(); } },
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm3 4h12v2H6V9zm-3 4h18v2H3v-2zm3 4h12v2H6v-2z"/></svg>', label: 'Center', isActive: () => this._headData.align === 'center', onSelect: () => { this._headData.align = 'center'; this._applyHeadStyles(); } },
+                { icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm6 4h12v2H9V9zm-6 4h18v2H3v-2zm6 4h12v2H9v-2z"/></svg>', label: 'Right',  isActive: () => this._headData.align === 'right',  onSelect: () => { this._headData.align = 'right';  this._applyHeadStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+            root.appendChild(sep());
+
+            // Bold
+            root.appendChild(mkToggle('<b>B</b>', 'Bold', () => this._headData.bold, () => { this._headData.bold = !this._headData.bold; this._applyHeadStyles(); }));
+            root.appendChild(sep());
+
+            // Divider
+            mkGroup([
+                { icon: '✕',
+                  label: 'No divider',
+                  isActive: () => this._headData.divider === 'none',
+                  onSelect: () => { this._headData.divider = 'none'; this._applyHeadStyles(); } },
+                { icon: '<svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor"><rect y="3" width="14" height="2"/></svg>',
+                  label: 'Full-width divider',
+                  isActive: () => this._headData.divider === 'full',
+                  onSelect: () => { this._headData.divider = 'full'; this._applyHeadStyles(); } },
+                { icon: '<svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor"><rect y="3" width="7" height="2"/></svg>',
+                  label: 'Text-width divider',
+                  isActive: () => this._headData.divider === 'text',
+                  onSelect: () => { this._headData.divider = 'text'; this._applyHeadStyles(); } },
+            ]).forEach(el => root.appendChild(el));
+
+            root.appendChild(sep());
+
+            // Outer border
+            root.appendChild(mkToggle(
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+                'Outer border',
+                () => this._border,
+                () => {
+                    this._border = !this._border;
+                    if (this._wrapEl) this._wrapEl.classList.toggle('ej-toggle--bordered', this._border);
+                }
+            ));
+
+            // Separator between heading and body
+            root.appendChild(mkToggle(
+                '<svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor"><rect y="3" width="14" height="2"/></svg>',
+                'Separator line',
+                () => this._separator,
+                () => {
+                    this._separator = !this._separator;
+                    if (this._bodyWrap) this._bodyWrap.classList.toggle('ej-toggle--separator', this._separator);
+                }
+            ));
+
+            return root;
+        }
+
+        rendered() {
+            if (this._subEditor && this._holderEl.isConnected) return;
+            if (this._subEditor) { try { this._subEditor.destroy(); } catch {} this._subEditor = null; }
+
+            const tools = {
+                header:      { class: HeadingTool, inlineToolbar: true },
+                list:        { class: List,         inlineToolbar: true },
+                image:       { class: ImageTool, config: { uploader: {
+                    uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
+                    uploadByFile()   { return Promise.resolve({ success: 0 }); },
+                } } },
+                quote:       { class: Quote,        inlineToolbar: true },
+                delimiter:   { class: DelimiterTool },
+                audio:       { class: AudioTool },
+                callout:     { class: CalloutTool },
+                bookmark:    { class: BookmarkTool },
+                spacer:      { class: SpacerTool },
+                props_block: { class: PropsBlockTool },
+                duplicate:   { class: DuplicateTune },
+            };
+
+            // Briefly reveal body so EditorJS can measure the holder
+            const alreadyOpen = this._bodyWrap.classList.contains('ej-toggle-body--open');
+            if (!alreadyOpen) this._bodyWrap.classList.add('ej-toggle-body--init');
+
+            this._subEditor = new EditorJS({
+                holder:      this._holderEl,
+                data:        blocksToEditorData(this._blocks || []),
+                placeholder: 'Toggle body content…',
+                minHeight:   60,
+                tools,
+                tunes: ['duplicate'],
+            });
+
+            this._subEditor.isReady
+                .then(() => { if (!alreadyOpen) this._bodyWrap.classList.remove('ej-toggle-body--init'); })
+                .catch(() => { if (!alreadyOpen) this._bodyWrap.classList.remove('ej-toggle-body--init'); });
+
+            // Close inner editor toolbar/popover when clicking outside the toggle body.
+            // Uses capture phase so it fires before EditorJS's own document listeners.
+            if (this._closeOnOutsideClick) {
+                document.removeEventListener('mousedown', this._closeOnOutsideClick, true);
+            }
+            this._closeOnOutsideClick = (e) => {
+                if (!this._holderEl || this._holderEl.contains(e.target)) return;
+                try { this._subEditor.toolbar.close(); } catch {}
+                // Escape closes the block-picker popover (separate from toolbar in EditorJS v2)
+                try {
+                    this._holderEl.dispatchEvent(
+                        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+                    );
+                } catch {}
+            };
+            document.addEventListener('mousedown', this._closeOnOutsideClick, true);
+        }
+
+        async save(wrap) {
+            const headEl = wrap.querySelector('.ej-toggle-head-el');
+            let blocks = this._blocks;
+            try {
+                if (this._subEditor) {
+                    await this._subEditor.isReady;
+                    blocks = editorDataToBlocks(await this._subEditor.save());
+                }
+            } catch {}
+            return {
+                heading: {
+                    html:    headEl ? headEl.innerHTML : this._headData.html,
+                    level:   this._headData.level,
+                    color:   this._headData.color  || '',
+                    align:   this._headData.align  || '',
+                    bold:    this._headData.bold   || false,
+                    divider: this._headData.divider || 'none',
+                },
+                blocks,
+                open:      this._open,
+                border:    this._border,
+                separator: this._separator,
+            };
+        }
+
+        destroy() {
+            if (this._subEditor) { try { this._subEditor.destroy(); } catch {} this._subEditor = null; }
+            if (this._closeOnOutsideClick) {
+                document.removeEventListener('mousedown', this._closeOnOutsideClick, true);
+                this._closeOnOutsideClick = null;
+            }
+        }
+
+        validate(d) {
+            const h = d.heading;
+            return !!(h && typeof h === 'object' ? h.html : h);
+        }
+    }
+
+    class DuplicateTune {
+        static get isTune() { return true; }
+        constructor({ api }) { this._api = api; }
+        wrap(blockContent) { return blockContent; }
+        render() {
+            const btn = document.createElement('div');
+            btn.classList.add('ce-popover-item');
+            btn.innerHTML = `
+                <div class="ce-popover-item__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+                </div>
+                <div class="ce-popover-item__title">Duplicate</div>`;
+            btn.addEventListener('click', async () => {
+                const idx = this._api.blocks.getCurrentBlockIndex();
+                const { blocks } = await this._api.saver.save();
+                const target = blocks[idx];
+                if (target) this._api.blocks.insert(target.type, target.data, undefined, idx + 1, true);
+            });
+            return btn;
+        }
+        save() { return {}; }
+    }
+
+    class SpacerTool {
+        static get toolbox() {
+            return { title: 'Spacer', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 5h18v2H3V5zm0 12h18v2H3v-2zm7.5-9l1.5-2 1.5 2H13v8h1.5l-1.5 2-1.5-2H13V8h-1.5z"/></svg>' };
+        }
+        constructor({ data }) { this._height = (data && data.height) || 60; }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-spacer-wrap';
+            const visual = document.createElement('div');
+            visual.className = 'ej-spacer-visual';
+            visual.style.height = this._height + 'px';
+            const lbl = document.createElement('span');
+            lbl.className = 'ej-spacer-label';
+            lbl.textContent = '↕ ' + this._height + 'px';
+            visual.appendChild(lbl);
+            const ctrl = document.createElement('div');
+            ctrl.className = 'ej-spacer-ctrl';
+            ctrl.innerHTML = `<label class="ej-spacer-lbl">Height</label>
+                <input type="range" min="10" max="400" step="5" value="${this._height}" class="ej-spacer-range">
+                <span class="ej-spacer-val">${this._height}px</span>`;
+            wrap.appendChild(visual);
+            wrap.appendChild(ctrl);
+            const range  = ctrl.querySelector('.ej-spacer-range');
+            const valEl  = ctrl.querySelector('.ej-spacer-val');
+            range.addEventListener('input', () => {
+                this._height = parseInt(range.value);
+                const txt = this._height + 'px';
+                valEl.textContent   = txt;
+                lbl.textContent     = '↕ ' + txt;
+                visual.style.height = txt;
+            });
+            return wrap;
+        }
+        save() { return { height: this._height }; }
+    }
+
+    class PropsBlockTool {
+        static get toolbox() {
+            return { title: 'Properties', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>' };
+        }
+        constructor({ data }) { this._data = data || { mode: 'horizontal', align: 'left', rows: [], label: '' }; }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap';
+
+            const labelInp = document.createElement('input');
+            labelInp.className = 'ej-input ej-label-input'; labelInp.type = 'text';
+            labelInp.placeholder = 'Section label (optional, e.g. "Properties")';
+            labelInp.value = this._data.label || '';
+            wrap.appendChild(labelInp);
+
+            const topRow = document.createElement('div');
+            topRow.className = 'ej-props-display-row';
+
+            const displayGroup = document.createElement('div');
+            displayGroup.style.cssText = 'display:flex;flex-direction:column;flex:1 1 140px;gap:4px;min-width:0;overflow:hidden';
+            const displayLbl = document.createElement('span');
+            displayLbl.className = 'ej-props-display-label';
+            displayLbl.textContent = 'Display:';
+            displayGroup.appendChild(displayLbl);
+            const modeSel = document.createElement('select');
+            modeSel.className = 'ej-input ej-select ej-props-mode-sel';
+            [['horizontal','Horizontal (stat boxes)'],['vertical','Vertical (list)'],['stat-attrs','Stat Attributes'],['stat-block','Stat Block'],['class-wiki','Class Wiki Table']].forEach(([v, l]) => {
+                const o = document.createElement('option');
+                o.value = v; o.textContent = l;
+                if (v === (this._data.mode || 'horizontal')) o.selected = true;
+                modeSel.appendChild(o);
+            });
+            displayGroup.appendChild(modeSel);
+            topRow.appendChild(displayGroup);
+
+            const alignGroup = document.createElement('div');
+            alignGroup.style.cssText = 'display:flex;flex-direction:column;flex:1 1 140px;gap:4px';
+            const alignLbl = document.createElement('span');
+            alignLbl.className = 'ej-props-display-label';
+            alignLbl.textContent = 'Align:';
+            alignGroup.appendChild(alignLbl);
+            const alignSel = document.createElement('select');
+            alignSel.className = 'ej-input ej-select ej-props-align-sel';
+            [['left','Left'],['center','Center'],['right','Right']].forEach(([v, l]) => {
+                const o = document.createElement('option');
+                o.value = v; o.textContent = l;
+                if (v === (this._data.align || 'left')) o.selected = true;
+                alignSel.appendChild(o);
+            });
+            alignGroup.appendChild(alignSel);
+            topRow.appendChild(alignGroup);
+            wrap.appendChild(topRow);
+
+            const rowsDiv = document.createElement('div');
+            rowsDiv.className = 'ej-props-rows';
+
+            const mkRowBtn = (label, title) => {
+                const b = document.createElement('button');
+                b.className = 'pe-del'; b.type = 'button';
+                b.textContent = label; b.title = title;
+                return b;
+            };
+            const buildRow = (k, v) => {
+                const row = document.createElement('div');
+                row.className = 'ej-props-row';
+                const fields = document.createElement('div');
+                fields.className = 'ej-props-fields';
+                const keyInp = document.createElement('input');
+                keyInp.className = 'ej-input ej-props-key-inp'; keyInp.type = 'text';
+                keyInp.placeholder = 'Key'; keyInp.value = k || '';
+                const valInp = document.createElement('input');
+                valInp.className = 'ej-input ej-props-val-inp'; valInp.type = 'text';
+                valInp.placeholder = 'Value'; valInp.value = v || '';
+                fields.appendChild(keyInp); fields.appendChild(valInp);
+
+                const btns = document.createElement('div');
+                btns.className = 'ej-props-row-btns';
+                const upBtn  = mkRowBtn('↑', 'Move up');
+                const delBtn = mkRowBtn('✕', 'Remove row');
+                const dnBtn  = mkRowBtn('↓', 'Move down');
+                upBtn.addEventListener('click', () => {
+                    if (row.previousElementSibling) rowsDiv.insertBefore(row, row.previousElementSibling);
+                });
+                dnBtn.addEventListener('click', () => {
+                    if (row.nextElementSibling) rowsDiv.insertBefore(row.nextElementSibling, row);
+                });
+                delBtn.addEventListener('click', () => row.remove());
+                btns.appendChild(upBtn); btns.appendChild(delBtn); btns.appendChild(dnBtn);
+
+                row.appendChild(fields); row.appendChild(btns);
+                return row;
+            };
+
+            (this._data.rows || []).forEach(r => rowsDiv.appendChild(buildRow(r.key, r.value)));
+            wrap.appendChild(rowsDiv);
+
+            const addBtn = document.createElement('button');
+            addBtn.className = 'et-btn ej-props-add-btn'; addBtn.type = 'button'; addBtn.textContent = '+ Add Row';
+            addBtn.addEventListener('click', () => rowsDiv.appendChild(buildRow('', '')));
+            wrap.appendChild(addBtn);
+            return wrap;
+        }
+        save(el) {
+            const modeSel = el.querySelector('.ej-props-mode-sel');
+            const label   = el.querySelector('.ej-label-input')?.value.trim() || '';
+            const rows = [];
+            el.querySelectorAll('.ej-props-row').forEach(row => {
+                const k = row.querySelector('.ej-props-key-inp');
+                const v = row.querySelector('.ej-props-val-inp');
+                if (k?.value.trim()) rows.push({ key: k.value.trim(), value: v?.value.trim() || '' });
+            });
+            const alignSel = el.querySelector('.ej-props-align-sel');
+            return { mode: modeSel?.value || 'horizontal', align: alignSel?.value || 'left', rows, label };
+        }
+        validate(d) { return d.rows && d.rows.length > 0; }
+    }
+
+    class DelimiterTool {
+        static get toolbox() {
+            return { title: 'Divider', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 12h16v1H4z"/></svg>' };
+        }
+        static get colorMap() {
+            return { default: '#503554', lavender: '#d3b3e7', mint: '#98e6d6', pink: '#f3b0c3' };
+        }
+        constructor({ data }) { this._data = data || { style: 'line', thickness: '1', color: 'default' }; }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap ej-delimiter-wrap';
+
+            const topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap';
+
+            const mkGroup = (label, options, current) => {
+                const g = document.createElement('div');
+                g.style.cssText = 'display:flex;align-items:center;gap:6px';
+                g.innerHTML = `<span style="font-size:0.8rem;color:#a08ab0">${label}:</span>`;
+                const sel = document.createElement('select');
+                sel.className = 'ej-input ej-select'; sel.style.width = 'auto';
+                options.forEach(([v, l]) => {
+                    const o = document.createElement('option');
+                    o.value = v; o.textContent = l;
+                    if (v === current) o.selected = true;
+                    sel.appendChild(o);
+                });
+                g.appendChild(sel);
+                return { g, sel };
+            };
+
+            const { g: sg, sel: styleSel }  = mkGroup('Style',     [['line','Line'],['moon','Moon'],['moon-full','Moon (full)']],            this._data.style     || 'line');
+            const { g: tg, sel: thickSel }  = mkGroup('Thickness', [['1','Thin'],['2','Medium'],['3','Thick']],                               this._data.thickness || '1');
+            const { g: cg, sel: colorSel }  = mkGroup('Color',     [['default','Default'],['lavender','Lavender'],['mint','Mint'],['pink','Pink']], this._data.color || 'default');
+
+            topRow.appendChild(sg); topRow.appendChild(tg); topRow.appendChild(cg);
+            wrap.appendChild(topRow);
+
+            const preview = document.createElement('div');
+            preview.className = 'ej-delimiter-preview';
+            const updatePreview = () => {
+                const color = DelimiterTool.colorMap[colorSel.value] || '#503554';
+                const px    = thickSel.value + 'px';
+                const ls    = `height:${px};background:`;
+                if (styleSel.value === 'moon') {
+                    preview.innerHTML = `<div class="wiki-divider wiki-divider--moon">
+                        <div class="wiki-divider-line" style="${ls}linear-gradient(to right,transparent,${color})"></div>
+                        <img src="Assets/TransparentIcons/Moon_18x18.png" class="wiki-divider-icon" alt="">
+                        <div class="wiki-divider-line" style="${ls}linear-gradient(to left,transparent,${color})"></div>
+                    </div>`;
+                } else if (styleSel.value === 'moon-full') {
+                    preview.innerHTML = `<div class="wiki-divider wiki-divider--moon-full">
+                        <div class="wiki-divider-through-line" style="${ls}linear-gradient(to right,transparent,${color},transparent)"></div>
+                        <img src="Assets/TransparentIcons/Moon_18x18.png" class="wiki-divider-icon" alt="">
+                    </div>`;
+                } else {
+                    preview.innerHTML = `<hr style="border-top:${px} solid ${color};border-bottom:none;border-left:none;border-right:none;margin:8px 0">`;
+                }
+            };
+            [styleSel, thickSel, colorSel].forEach(s => s.addEventListener('change', updatePreview));
+            updatePreview();
+            wrap.appendChild(preview);
+            return wrap;
+        }
+        save(el) {
+            const [styleSel, thickSel, colorSel] = el.querySelectorAll('select');
+            return {
+                style:     styleSel ? styleSel.value : 'line',
+                thickness: thickSel ? thickSel.value : '1',
+                color:     colorSel ? colorSel.value : 'default',
+            };
+        }
+    }
+
+    class BookmarkTool {
+        static get toolbox() {
+            return { title: 'Bookmark', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>' };
+        }
+        constructor({ data }) { this._data = data || {}; }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap';
+            const urlInp = document.createElement('input');
+            urlInp.className = 'ej-input'; urlInp.type = 'url';
+            urlInp.placeholder = 'Link URL (https://…)';
+            urlInp.value = this._data.url || '';
+            const capInp = document.createElement('input');
+            capInp.className = 'ej-input'; capInp.type = 'text';
+            capInp.placeholder = 'Display label (optional — falls back to URL)';
+            capInp.value = this._data.caption || '';
+            const labelInp = document.createElement('input');
+            labelInp.className = 'ej-input ej-label-input'; labelInp.type = 'text';
+            labelInp.placeholder = 'Section label (optional, e.g. "REFERENCES")';
+            labelInp.value = this._data.label || '';
+            wrap.appendChild(urlInp); wrap.appendChild(capInp); wrap.appendChild(labelInp);
+            return wrap;
+        }
+        save(el) {
+            const [u, c] = el.querySelectorAll('input');
+            const label = el.querySelector('.ej-label-input')?.value.trim() || '';
+            return { url: u.value.trim(), caption: c.value.trim(), label };
+        }
+        validate(d) { return !!d.url; }
+    }
+
+    // ── Block format converters ───────────────────────────────────────────────
+
+    // Internal blocks → Editor.js data format
+    function blocksToEditorData(blocks) {
+        const out  = [];
+        let pending = null; // { type, items }
+
+        function flushList() {
+            if (!pending) return;
+            out.push({
+                type: 'list',
+                data: {
+                    style: pending.type === 'numbered_list' ? 'ordered' : 'unordered',
+                    items: pending.items.slice(),
+                },
+            });
+            pending = null;
+        }
+
+        for (const blk of (blocks || [])) {
+            const c      = blk.content || {};
+            const isList = blk.type === 'bulleted_list' || blk.type === 'numbered_list';
+
+            if (!isList)                                      flushList();
+            else if (pending && blk.type !== pending.type)   flushList();
+
+            switch (blk.type) {
+                case 'paragraph':
+                    out.push({ type: 'paragraph', data: { text: c.html || '' } });
+                    break;
+                case 'heading_2':
+                case 'heading_3':
+                case 'heading_4': {
+                    const _lvl = parseInt(blk.type.replace('heading_', ''));
+                    out.push({ type: 'header', data: {
+                        text:    c.html    || '',
+                        level:   _lvl,
+                        color:   c.color   || '',
+                        align:   c.align   || '',
+                        bold:    c.bold    || false,
+                        divider: c.divider !== undefined ? c.divider : (_lvl === 3 ? 'full' : 'none'),
+                    }});
+                    break;
+                }
+                case 'bulleted_list':
+                case 'numbered_list':
+                    if (!pending) pending = { type: blk.type, items: [] };
+                    (c.items || []).forEach(i => pending.items.push(i));
+                    break;
+                case 'image':
+                    out.push({ type: 'image', data: { file: { url: c.url || '' }, caption: c.caption || '' } });
+                    break;
+                case 'quote':
+                    out.push({ type: 'quote', data: { text: c.html || '', caption: '' } });
+                    break;
+                case 'divider':
+                    out.push({ type: 'delimiter', data: { style: c.style || 'line', thickness: c.thickness || '1', color: c.color || 'default' } });
+                    break;
+                case 'audio':
+                    out.push({ type: 'audio', data: { url: c.url || '', caption: c.caption || '', label: c.label || '' } });
+                    break;
+                case 'callout':
+                    out.push({ type: 'callout', data: { variant: c.variant || 'info', emoji: c.emoji || '💡', html: c.html || '' } });
+                    break;
+                case 'toggle': {
+                    const hRaw = c.heading;
+                    const heading = (hRaw && typeof hRaw === 'object')
+                        ? { html: hRaw.html || '', level: hRaw.level || 2, color: hRaw.color || '', align: hRaw.align || '', bold: !!hRaw.bold, divider: hRaw.divider || 'none' }
+                        : { html: (typeof hRaw === 'string' ? hRaw : ''), level: 2, color: '', align: '', bold: false, divider: 'none' };
+                    let tBlocks = Array.isArray(c.blocks) ? c.blocks : [];
+                    if (!tBlocks.length && c.body) tBlocks = [{ type: 'paragraph', content: { html: c.body } }];
+                    out.push({ type: 'toggle', data: { heading, blocks: tBlocks, open: c.open || false, border: c.border || false, separator: c.separator || false } });
+                    break;
+                }
+                case 'table':
+                    out.push({ type: 'table', data: { withHeadings: c.withHeadings || false, content: c.content || [['', '']] } });
+                    break;
+                case 'embed':
+                    out.push({ type: 'embed', data: { ...c } });
+                    break;
+                case 'bookmark':
+                    out.push({ type: 'bookmark', data: { url: c.url || '', caption: c.caption || '', label: c.label || '' } });
+                    break;
+                case 'columns': {
+                    const colItems = (c.items || []).map(ColumnsTool._normaliseItem);
+                    out.push({ type: 'columns', data: { items: colItems, label: c.label || '' } });
+                    break;
+                }
+                case 'props_block':
+                    out.push({ type: 'props_block', data: { mode: c.mode || 'horizontal', align: c.align || 'left', rows: c.rows || [], label: c.label || '' } });
+                    break;
+                case 'spacer':
+                    out.push({ type: 'spacer', data: { height: c.height || 60 } });
+                    break;
+                default:
+                    if (c.html) out.push({ type: 'paragraph', data: { text: c.html } });
+            }
+        }
+        flushList();
+        return { blocks: out };
+    }
+
+    // Editor.js output → internal block format
+    function editorDataToBlocks(editorData) {
+        const out = [];
+        for (const blk of (editorData.blocks || [])) {
+            switch (blk.type) {
+                case 'paragraph':
+                    out.push({ type: 'paragraph', content: { html: blk.data.text || '' } });
+                    break;
+                case 'header': {
+                    const _lvl = blk.data.level || 2;
+                    out.push({
+                        type:    `heading_${_lvl}`,
+                        content: {
+                            html:    blk.data.text    || '',
+                            color:   blk.data.color   || '',
+                            align:   blk.data.align   || '',
+                            bold:    blk.data.bold    || false,
+                            divider: blk.data.divider || 'none',
+                        },
+                    });
+                    break;
+                }
+                case 'list':
+                    if (blk.data.items && blk.data.items.length) {
+                        out.push({
+                            type:    blk.data.style === 'ordered' ? 'numbered_list' : 'bulleted_list',
+                            content: { items: blk.data.items },
+                        });
+                    }
+                    break;
+                case 'image':
+                    out.push({ type: 'image', content: { url: blk.data.file?.url || '', caption: blk.data.caption || '' } });
+                    break;
+                case 'quote':
+                    out.push({ type: 'quote', content: { html: blk.data.text || '' } });
+                    break;
+                case 'delimiter':
+                    out.push({ type: 'divider', content: { style: blk.data.style || 'line', thickness: blk.data.thickness || '1', color: blk.data.color || 'default' } });
+                    break;
+                case 'audio':
+                    out.push({ type: 'audio', content: { url: blk.data.url || '', caption: blk.data.caption || '', label: blk.data.label || '' } });
+                    break;
+                case 'callout':
+                    out.push({ type: 'callout', content: { variant: blk.data.variant || 'info', emoji: blk.data.emoji || '💡', html: blk.data.html || '' } });
+                    break;
+                case 'toggle':
+                    out.push({ type: 'toggle', content: { heading: blk.data.heading || {}, blocks: blk.data.blocks || [], open: blk.data.open || false, border: blk.data.border || false, separator: blk.data.separator || false } });
+                    break;
+                case 'table':
+                    out.push({ type: 'table', content: { withHeadings: blk.data.withHeadings || false, content: blk.data.content || [] } });
+                    break;
+                case 'embed':
+                    out.push({ type: 'embed', content: { ...blk.data } });
+                    break;
+                case 'bookmark':
+                    out.push({ type: 'bookmark', content: { url: blk.data.url || '', caption: blk.data.caption || '', label: blk.data.label || '' } });
+                    break;
+                case 'columns':
+                    out.push({ type: 'columns', content: { items: (blk.data.items || []).map(ColumnsTool._normaliseItem), label: blk.data.label || '' } });
+                    break;
+                case 'props_block':
+                    out.push({ type: 'props_block', content: { mode: blk.data.mode || 'horizontal', align: blk.data.align || 'left', rows: blk.data.rows || [], label: blk.data.label || '' } });
+                    break;
+                case 'spacer':
+                    out.push({ type: 'spacer', content: { height: blk.data.height || 60 } });
+                    break;
+                default:
+                    if (blk.data?.text) out.push({ type: 'paragraph', content: { html: blk.data.text } });
+            }
+        }
+        return out;
+    }
+
+    // ── Entry edit mode ───────────────────────────────────────────────────────
+
+    let _ejInstance   = null;
+    let _editingEntry = null;
+    let _isDirty      = false;  // true once the user makes any change in edit mode
+    let _origNavFns   = null;   // stashed nav functions restored on exit
+    let _navGuardFn   = null;   // document click guard — installed while in edit mode
+
+    function _beforeUnloadHandler(e) {
+        if (_isDirty) { e.preventDefault(); e.returnValue = ''; }
+    }
+
+    // Returns false (and blocks the action) if dirty and the user cancels.
+    // Exits edit mode automatically when the user confirms discard.
+    function _confirmDiscard() {
+        if (!_isDirty) return true;
+        if (!confirm('You have unsaved changes. Discard them and leave?')) return false;
+        _isDirty = false;
+        exitEditMode();
+        return true;
+    }
+
+    async function enterEditMode(entry) {
+        _editingEntry = entry;
+        etEdit.style.display   = 'none';
+        etSave.style.display   = '';
+        etCancel.style.display = '';
+
+        try {
+            setStatus('Loading editor…');
+            await ensureEditorJS();
+
+            // Replace blocks area with Editor.js holder
+            const blocksArea = document.getElementById('sb-blocks-area');
+            if (!blocksArea) throw new Error('Blocks area not found.');
+            blocksArea.innerHTML = '<div id="ej-holder" class="wiki-editor-holder"></div>';
+
+            _ejInstance = new EditorJS({
+                holder:      'ej-holder',
+                data:        blocksToEditorData(entry.blocks || []),
+                placeholder: 'Write something… (use the + button to add blocks)',
+                tools: {
+                    header: { class: HeadingTool, inlineToolbar: true },
+                    list: {
+                        class:         List,
+                        inlineToolbar: true,
+                    },
+                    image: {
+                        class:  ImageTool,
+                        config: {
+                            uploader: {
+                                // URL-only — no file upload support
+                                uploadByUrl(url) {
+                                    return Promise.resolve({ success: 1, file: { url } });
+                                },
+                                uploadByFile() {
+                                    return Promise.resolve({ success: 0 });
+                                },
+                            },
+                        },
+                    },
+                    quote:     { class: Quote,     inlineToolbar: true },
+                    delimiter: { class: DelimiterTool },
+                    table:     { class: Table, inlineToolbar: true },
+                    embed:     { class: Embed },
+                    audio:       { class: AudioTool },
+                    callout:     { class: CalloutTool },
+                    toggle:      { class: ToggleTool, inlineToolbar: true },
+                    bookmark:    { class: BookmarkTool },
+                    spacer:      { class: SpacerTool },
+                    columns:     { class: ColumnsTool },
+                    props_block: { class: PropsBlockTool },
+                    duplicate:   { class: DuplicateTune },
+                },
+                tunes: ['duplicate'],
+            });
+
+            // Wait for the editor to finish initialising before it is usable
+            await _ejInstance.isReady;
+            setStatus('Editing — save when done');
+            _isDirty = false;
+
+            // Any keystrokes inside the editor (including nested column editors
+            // whose input events bubble up) mark the entry as dirty.
+            document.getElementById('ej-holder')?.addEventListener(
+                'input', () => { _isDirty = true; }, { capture: true }
+            );
+
+            // ── Entry Settings panel ──────────────────────────────────────────
+            const mainArea   = document.getElementById('sb-entry-main');
+            const layout     = entry.layout || {};
+
+            const settingsEl = document.createElement('div');
+            settingsEl.id        = 'sb-entry-settings';
+            settingsEl.className = 'wiki-entry-settings';
+            settingsEl.innerHTML = `
+                <div class="wes-header"><span>Entry Settings</span></div>
+                <div class="wes-grid">
+                    <label>Subtitle</label>
+                    <input id="sb-subtitle" class="ej-input" type="text"
+                           placeholder="Optional subtitle / tagline"
+                           value="${(entry.subtitle || '').replace(/"/g,'&quot;')}">
+
+                    <label>Profile image URL</label>
+                    <input id="sb-img-url" class="ej-input" type="url"
+                           placeholder="https://…"
+                           value="${(entry.profile_image || '').replace(/"/g,'&quot;')}">
+
+                    <label>Banner image URL</label>
+                    <input id="sb-banner-url" class="ej-input" type="url"
+                           placeholder="https://… (wide header image)"
+                           value="${(entry.banner_image || '').replace(/"/g,'&quot;')}">
+
+                    <label>Accent colour</label>
+                    <input id="sb-accent-color" class="ej-input ej-color-input" type="color"
+                           value="${layout.accentColor || '#98e6d6'}">
+
+                    <label>Page style</label>
+                    <select id="sb-page-style" class="ej-input ej-select">
+                        <option value="full"    ${(layout.pageStyle||'full')==='full'    ? 'selected':''}>Full page (default)</option>
+                        <option value="section" ${layout.pageStyle==='section'           ? 'selected':''}>Section</option>
+                    </select>
+
+                    <label>Title divider</label>
+                    <select id="sb-title-divider" class="ej-input ej-select">
+                        <option value=""          ${!(layout.titleDivider||'').replace(/^moon$/,'moon-full')                    ? 'selected':''}>Default</option>
+                        <option value="moon-full" ${(layout.titleDivider==='moon-full'||layout.titleDivider==='moon') ? 'selected':''}>Moon (full)</option>
+                        <option value="moon-split"${layout.titleDivider==='moon-split'                                ? 'selected':''}>Moon (split)</option>
+                        <option value="line"      ${layout.titleDivider==='line'                                      ? 'selected':''}>Line only</option>
+                        <option value="none"      ${layout.titleDivider==='none'                                      ? 'selected':''}>None</option>
+                    </select>
+
+                    <label>Divider color</label>
+                    <select id="sb-divider-color" class="ej-input ej-select">
+                        <option value="default"  ${(layout.titleDividerColor||'default')==='default'  ? 'selected':''}>Default</option>
+                        <option value="lavender" ${layout.titleDividerColor==='lavender'              ? 'selected':''}>Lavender</option>
+                        <option value="mint"     ${layout.titleDividerColor==='mint'                  ? 'selected':''}>Mint</option>
+                        <option value="pink"     ${layout.titleDividerColor==='pink'                  ? 'selected':''}>Pink</option>
+                    </select>
+
+                    <label>Divider thickness</label>
+                    <select id="sb-divider-thickness" class="ej-input ej-select">
+                        <option value="1" ${(layout.titleDividerThickness||'1')==='1' ? 'selected':''}>Thin</option>
+                        <option value="2" ${layout.titleDividerThickness==='2'        ? 'selected':''}>Medium</option>
+                        <option value="3" ${layout.titleDividerThickness==='3'        ? 'selected':''}>Thick</option>
+                    </select>
+
+                    <label>Sidebar</label>
+                    <select id="sb-sidebar-pos" class="ej-input ej-select">
+                        <option value="right"        ${(layout.sidebar||'right')==='right'        ? 'selected':''}>Right (default)</option>
+                        <option value="left"         ${layout.sidebar==='left'                    ? 'selected':''}>Left</option>
+                        <option value="float-right"  ${layout.sidebar==='float-right'             ? 'selected':''}>Float right (content wraps under)</option>
+                        <option value="float-left"   ${layout.sidebar==='float-left'              ? 'selected':''}>Float left (content wraps under)</option>
+                        <option value="none"         ${layout.sidebar==='none'                    ? 'selected':''}>Hidden (full-width)</option>
+                    </select>
+                </div>`;
+            mainArea.insertBefore(settingsEl, mainArea.firstChild);
+
+            // Any change in the settings panel also marks dirty
+            settingsEl.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', () => { _isDirty = true; });
+            });
+
+            // ── Guard in-app navigation while dirty ───────────────────────────
+
+            // 1. Wrap WikiSB.nav functions for programmatic callers (e.g. logout).
+            //    supabase-fetch.js buttons call internal functions directly, so
+            //    these wrappers alone aren't enough — see click guard below.
+            const _navOrigList = WikiSB.nav.showCampaignList;
+            const _navOrigCamp = WikiSB.nav.showCampaign;
+            _origNavFns = { showCampaignList: _navOrigList, showCampaign: _navOrigCamp };
+
+            WikiSB.nav.showCampaignList = async (...a) => {
+                if (!_confirmDiscard()) return;
+                return _navOrigList(...a);
+            };
+            WikiSB.nav.showCampaign = async (...a) => {
+                if (!_confirmDiscard()) return;
+                return _navOrigCamp(...a);
+            };
+
+            // 2. Document-level capture-phase click guard.
+            //    Intercepts ALL navigation-causing clicks on the page:
+            //    — back/campaign/entry buttons (.wiki-back-btn, .wiki-cat-pill,
+            //      .wiki-campaign-card, .wiki-entry-link)
+            //    — navbar anchor links (a[href] that aren't plain "#")
+            //    This fires before the element's own listener, so we can block
+            //    the click or let it through after clearing edit state.
+            _navGuardFn = (e) => {
+                if (!_isDirty) return;
+                const navEl = e.target.closest(
+                    '.wiki-back-btn, .wiki-cat-pill, .wiki-campaign-card,' +
+                    '.wiki-entry-link, a[href]'
+                );
+                if (!navEl) return;
+                // Skip pure hash links (no real navigation)
+                if (navEl.tagName === 'A' &&
+                    (!navEl.getAttribute('href') || navEl.getAttribute('href') === '#')) return;
+
+                if (!confirm('You have unsaved changes. Discard them and leave?')) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return;
+                }
+
+                // User confirmed discard — clean up edit mode, then let the
+                // click proceed.  For in-app nav buttons the original handler
+                // will fire normally; for external <a> links the browser
+                // navigates away (beforeunload is already detached).
+                _isDirty = false;
+                exitEditMode();
+                // Don't stop propagation — let the original handler run.
+            };
+            document.addEventListener('click', _navGuardFn, true);
+
+            window.addEventListener('beforeunload', _beforeUnloadHandler);
+
+        } catch (e) {
+            setStatus('Editor failed to load: ' + e.message, true);
+            _ejInstance   = null;
+            _editingEntry = null;
+            etEdit.style.display   = '';
+            etSave.style.display   = 'none';
+            etCancel.style.display = 'none';
+        }
+    }
+
+    function _readEntrySettings() {
+        return {
+            sidebar:               (document.getElementById('sb-sidebar-pos')?.value        || 'right'),
+            accentColor:           (document.getElementById('sb-accent-color')?.value       || ''),
+            pageStyle:             (document.getElementById('sb-page-style')?.value         || 'full'),
+            titleDivider:          (document.getElementById('sb-title-divider')?.value      || ''),
+            titleDividerColor:     (document.getElementById('sb-divider-color')?.value      || 'default'),
+            titleDividerThickness: (document.getElementById('sb-divider-thickness')?.value  || '1'),
+        };
+    }
+
+    function _applyEntrySettings(layout) {
+        const sidebarSel    = document.getElementById('sb-sidebar-pos');
+        const accentInp     = document.getElementById('sb-accent-color');
+        const pageStyleSel  = document.getElementById('sb-page-style');
+        const titleDivSel   = document.getElementById('sb-title-divider');
+        const divColorSel   = document.getElementById('sb-divider-color');
+        const divThickSel   = document.getElementById('sb-divider-thickness');
+        if (sidebarSel)  sidebarSel.value   = layout.sidebar      || 'right';
+        if (accentInp && layout.accentColor) accentInp.value = layout.accentColor;
+        if (pageStyleSel) pageStyleSel.value = layout.pageStyle    || 'full';
+        // normalise legacy 'moon' → 'moon-full'
+        const _td = layout.titleDivider === 'moon' ? 'moon-full' : (layout.titleDivider || '');
+        if (titleDivSel) titleDivSel.value = _td;
+        if (divColorSel) divColorSel.value = layout.titleDividerColor     || 'default';
+        if (divThickSel) divThickSel.value = layout.titleDividerThickness || '1';
+    }
+
+    etSave.addEventListener('click', async () => {
+        if (!_editingEntry || !_ejInstance) {
+            setStatus('Editor not ready — click ✏ Edit again.', true);
+            return;
+        }
+        etSave.disabled = true;
+        setStatus('Saving…');
+
+        try {
+            const editorData    = await _ejInstance.save();
+            const blocks        = editorDataToBlocks(editorData);
+            const profile_image = document.getElementById('sb-img-url')?.value.trim()    ?? _editingEntry.profile_image;
+            const subtitle      = document.getElementById('sb-subtitle')?.value.trim()   ?? _editingEntry.subtitle;
+            const banner_image  = document.getElementById('sb-banner-url')?.value.trim() ?? _editingEntry.banner_image;
+            const layout        = _readEntrySettings();
+
+            // Always save blocks first (no migration dependency)
+            await API.saveBlocks(_editingEntry.id, blocks);
+
+            // Try full update; if schema cache error, fall back to core fields only
+            try {
+                await API.updateEntry(_editingEntry.id, { profile_image, subtitle, banner_image, layout });
+                setStatus('Saved!');
+            } catch (e2) {
+                const isMigration = e2.message.includes('schema cache') || e2.message.includes('column');
+                if (isMigration) {
+                    await API.updateEntry(_editingEntry.id, { profile_image });
+                    setStatus('Content saved. Run supabase-migration-v2.sql to enable subtitle/banner/layout.', true);
+                } else {
+                    throw e2;
+                }
+            }
+
+            const savedEntry = _editingEntry; // capture before exitEditMode nulls it
+            exitEditMode();
+            await WikiSB.nav.showEntry(savedEntry.id, savedEntry.name);
+        } catch (e) {
+            setStatus('Save failed: ' + e.message, true);
+        } finally {
+            etSave.disabled = false;
+        }
+    });
+
+    etCancel.addEventListener('click', async () => {
+        if (_isDirty && !confirm('You have unsaved changes. Discard them?')) return;
+        const entry = _editingEntry; // capture before exitEditMode nulls it
+        _isDirty = false;
+        exitEditMode();
+        if (WikiSB.nav.showEntry && entry) {
+            await WikiSB.nav.showEntry(entry.id, entry.name);
+        }
+    });
+
+    function exitEditMode() {
+        _isDirty = false;
+        if (_origNavFns) {
+            WikiSB.nav.showCampaignList = _origNavFns.showCampaignList;
+            WikiSB.nav.showCampaign     = _origNavFns.showCampaign;
+            _origNavFns = null;
+        }
+        if (_navGuardFn) {
+            document.removeEventListener('click', _navGuardFn, true);
+            _navGuardFn = null;
+        }
+        window.removeEventListener('beforeunload', _beforeUnloadHandler);
+        if (_ejInstance) {
+            try { _ejInstance.destroy(); } catch {}
+        }
+        _ejInstance   = null;
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow-y');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('top');
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('overflow-y');
+        _editingEntry = null;
+        etEdit.style.display   = '';
+        etSave.style.display   = 'none';
+        etCancel.style.display = 'none';
+        document.getElementById('sb-entry-settings')?.remove();
+        setStatus('');
+    }
+
+    // ── Lightweight overlay panel ─────────────────────────────────────────────
+
+    function _showPanel(title, bodyHTML, { onOk, okLabel = 'Save' } = {}) {
+        document.getElementById('wiki-settings-panel')?.remove();
+        const panel = document.createElement('div');
+        panel.id = 'wiki-settings-panel';
+        panel.className = 'wsp-overlay';
+        panel.innerHTML = `
+            <div class="wsp-backdrop"></div>
+            <div class="wsp-box">
+                <div class="wsp-header">
+                    <span>${title}</span>
+                    <button class="et-btn wsp-close">✕</button>
+                </div>
+                <div class="wsp-body">${bodyHTML}</div>
+                ${onOk ? `<div class="wsp-footer"><button class="et-btn et-primary wsp-ok">${okLabel}</button></div>` : ''}
+            </div>`;
+        document.body.appendChild(panel);
+        const close = () => panel.remove();
+        panel.querySelector('.wsp-backdrop').addEventListener('click', close);
+        panel.querySelector('.wsp-close').addEventListener('click', close);
+        if (onOk) panel.querySelector('.wsp-ok').addEventListener('click', () => { onOk(panel); close(); });
+        return panel;
+    }
+
+    // ── Template system ───────────────────────────────────────────────────────
+
+    async function _openTemplatePanel() {
+        let templates = [];
+        try { templates = await API.getTemplates(); } catch { /* empty */ }
+
+        const inEditMode = !!_ejInstance && !!_editingEntry;
+
+        const listHTML = templates.length
+            ? templates.map(t => `
+                <div class="wsp-template-row" data-id="${t.id}">
+                    <div class="wsp-template-info">
+                        <strong>${t.name.replace(/</g,'&lt;')}</strong>
+                        ${t.description ? `<span>${t.description.replace(/</g,'&lt;')}</span>` : ''}
+                    </div>
+                    <div class="wsp-template-btns">
+                        ${inEditMode ? `<button class="et-btn wsp-tpl-apply" data-id="${t.id}">Apply</button>` : ''}
+                        <button class="et-btn et-danger wsp-tpl-del" data-id="${t.id}">✕</button>
+                    </div>
+                </div>`).join('')
+            : '<p style="color:#a08ab0;margin:0">No templates saved yet.</p>';
+
+        const saveRow = inEditMode
+            ? `<div class="wsp-save-row">
+                <input id="wsp-tpl-name" class="ej-input" type="text" placeholder="Template name…">
+                <button class="et-btn et-primary" id="wsp-tpl-save">💾 Save current as template</button>
+               </div>`
+            : '';
+
+        const panel = _showPanel('📋 Templates', `${saveRow}<div id="wsp-tpl-list">${listHTML}</div>`);
+
+        // Save as template
+        const saveBtn = panel.querySelector('#wsp-tpl-save');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                const name = panel.querySelector('#wsp-tpl-name').value.trim();
+                if (!name) { alert('Please enter a template name.'); return; }
+                try {
+                    const editorData = await _ejInstance.save();
+                    const blocks     = editorDataToBlocks(editorData);
+                    const layout     = _readEntrySettings();
+                    await API.createTemplate({ name, blocks, layout });
+                    setStatus('Template saved!');
+                    panel.remove();
+                } catch (e) { setStatus('Template save failed: ' + e.message, true); }
+            });
+        }
+
+        // Apply / delete per template
+        panel.querySelectorAll('.wsp-tpl-apply').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tpl = templates.find(t => t.id === btn.dataset.id);
+                if (!tpl || !_ejInstance) return;
+                if (!confirm(`Apply template "${tpl.name}"? This replaces the current editor content.`)) return;
+                await _ejInstance.render(blocksToEditorData(tpl.blocks || []));
+                // Apply layout settings from template
+                if (tpl.layout) _applyEntrySettings(tpl.layout);
+                panel.remove();
+                setStatus('Template applied — edit and save when ready');
+            });
+        });
+
+        panel.querySelectorAll('.wsp-tpl-del').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tpl = templates.find(t => t.id === btn.dataset.id);
+                if (!tpl) return;
+                if (!confirm(`Delete template "${tpl.name}"?`)) return;
+                try {
+                    await API.deleteTemplate(tpl.id);
+                    btn.closest('.wsp-template-row').remove();
+                } catch (e) { setStatus('Delete failed: ' + e.message, true); }
+            });
+        });
+    }
+
+    etTemplates.addEventListener('click', _openTemplatePanel);
+
+    // ── CRUD helpers ──────────────────────────────────────────────────────────
+
+    const _ICON_RE = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u;
+    function _parseIcon(name) {
+        const m = (name || '').match(_ICON_RE);
+        if (m) return { icon: m[1], displayName: name.slice(m[0].length).trim() || name };
+        return { icon: '', displayName: name || '' };
+    }
+
+    function _typeToConfirm(name) {
+        const typed = prompt(
+            `This will permanently delete "${name}" and all its contents.\n\nType the name to confirm:`
+        );
+        return typed !== null && typed.trim() === name.trim();
+    }
+
+    function _addDeleteBtn(parentEl, label, onConfirm, strong = false) {
+        const btn = document.createElement('button');
+        btn.className   = 'wiki-crud-del';
+        btn.textContent = '✕';
+        btn.title       = 'Delete ' + label;
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            e.preventDefault();
+            const ok = strong
+                ? _typeToConfirm(label)
+                : confirm(`Delete "${label}"? This cannot be undone.`);
+            if (!ok) return;
+            try { await onConfirm(); }
+            catch (err) { setStatus('Delete failed: ' + err.message, true); }
+        });
+        parentEl.appendChild(btn);
+        return btn;
+    }
+
+    function _addRenameBtn(parentEl, currentName, onRename, inline = false) {
+        const btn = document.createElement('button');
+        btn.className   = inline ? 'wiki-crud-rename-inline' : 'wiki-crud-rename';
+        btn.textContent = '✎';
+        btn.title       = 'Rename';
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            e.preventDefault();
+            const newName = prompt('Rename to:', currentName);
+            if (!newName?.trim() || newName.trim() === currentName) return;
+            try { await onRename(newName.trim()); }
+            catch (err) { setStatus('Rename failed: ' + err.message, true); }
+        });
+        parentEl.appendChild(btn);
+        return btn;
+    }
+
+    // ── WikiSB lifecycle hooks ────────────────────────────────────────────────
+
+    // Campaign list: inject "+ New Campaign" button and delete buttons per card
+    WikiSB.onCampaignList = function (campaigns) {
+        if (!editorGuard()) return;
+        resetToolbar();
+
+        const ctrl = document.createElement('div');
+        ctrl.className = 'wiki-editor-ctrl';
+        ctrl.innerHTML = `<button class="et-btn" id="sb-add-camp">+ New Campaign</button>`;
+        document.getElementById('wiki-container').insertAdjacentElement('afterbegin', ctrl);
+
+        document.getElementById('sb-add-camp').addEventListener('click', async () => {
+            const name = prompt('Campaign name:');
+            if (!name?.trim()) return;
+            const slug = name.trim().toLowerCase()
+                .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            try {
+                await API.createCampaign({ name: name.trim(), slug });
+                await WikiSB.nav.showCampaignList();
+            } catch (e) { setStatus('Create failed: ' + e.message, true); }
+        });
+
+        // Settings + delete buttons on each campaign card (rename merged into settings)
+        const list = document.getElementById('sb-camp-list');
+        if (!list) return;
+        list.querySelectorAll('li').forEach((li, i) => {
+            const camp = campaigns[i];
+            if (!camp) return;
+            const cp = _parseIcon(camp.name);
+            const currentIcon = camp.icon || cp.icon || '';
+            const currentDisplayName = camp.icon != null ? camp.name : cp.displayName;
+
+            // Single ⚙ button — name, icon, description, accent, banner
+            const settBtn = document.createElement('button');
+            settBtn.className = 'wiki-crud-rename';
+            settBtn.textContent = '⚙';
+            settBtn.title = 'Campaign settings';
+            settBtn.addEventListener('click', async e => {
+                e.stopPropagation(); e.preventDefault();
+                _showPanel(`⚙ ${currentDisplayName || camp.name} — Settings`, `
+                    <div class="wes-grid">
+                        <label>Name</label>
+                        <input id="cst-name" class="ej-input" type="text"
+                               placeholder="Campaign name"
+                               value="${currentDisplayName.replace(/"/g,'&quot;')}">
+                        <label>Icon</label>
+                        <div>
+                            <input id="cst-icon" class="ej-input" type="text"
+                                   placeholder="🐉 or https://…/icon.png"
+                                   value="${currentIcon.replace(/"/g,'&quot;')}">
+                            <span class="wes-hint">Emoji or image URL. Recommended: 36 × 36 px</span>
+                        </div>
+                        <label>Description</label>
+                        <input id="cst-desc" class="ej-input" type="text"
+                               placeholder="Short campaign description"
+                               value="${(camp.description || '').replace(/"/g,'&quot;')}">
+                        <label>Accent colour</label>
+                        <input id="cst-accent" class="ej-input ej-color-input" type="color"
+                               value="${camp.accent_color || '#98e6d6'}">
+                        <label>Banner image URL</label>
+                        <div>
+                            <input id="cst-banner" class="ej-input" type="url"
+                                   placeholder="https://… (wide header image)"
+                                   value="${(camp.banner_image || '').replace(/"/g,'&quot;')}">
+                            <span class="wes-hint">Recommended: 1200 × 300 px</span>
+                        </div>
+                    </div>`, {
+                    onOk: async panel => {
+                        try {
+                            const displayName = panel.querySelector('#cst-name').value.trim();
+                            const icon = panel.querySelector('#cst-icon').value.trim();
+                            const slug = displayName.toLowerCase()
+                                .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                            await API.updateCampaign(camp.id, {
+                                name:         displayName,
+                                slug,
+                                icon:         icon || null,
+                                description:  panel.querySelector('#cst-desc').value.trim(),
+                                accent_color: panel.querySelector('#cst-accent').value,
+                                banner_image: panel.querySelector('#cst-banner').value.trim(),
+                            });
+                            await WikiSB.nav.showCampaignList();
+                        } catch (err) { setStatus('Save failed: ' + err.message, true); }
+                    },
+                });
+            });
+            li.appendChild(settBtn);
+
+            _addDeleteBtn(li, camp.name, async () => {
+                await API.deleteCampaign(camp.id);
+                await WikiSB.nav.showCampaignList();
+            }, true);
+        });
+    };
+
+    // Campaign view: inject "+ New Category" and delete per pill
+    WikiSB.onCampaign = function (campaignId, categories) {
+        if (!editorGuard()) return;
+        resetToolbar();
+
+        const pillsEl = document.getElementById('sb-cat-pills');
+        if (!pillsEl) return;
+
+        // Settings + delete buttons on existing pills (rename merged into settings)
+        pillsEl.querySelectorAll('.wiki-cat-pill').forEach((pill, i) => {
+            const cat = categories[i];
+            if (!cat) return;
+            const cp = _parseIcon(cat.name);
+            const currentCatIcon = cat.icon || cp.icon || '';
+            const currentCatName = cat.icon != null ? cat.name : cp.displayName;
+
+            const settBtn = document.createElement('button');
+            settBtn.className   = 'wiki-crud-rename-inline';
+            settBtn.textContent = '⚙';
+            settBtn.title       = 'Category settings';
+            settBtn.addEventListener('click', async e => {
+                e.stopPropagation();
+                _showPanel(`⚙ Category — ${currentCatName || cat.name}`, `
+                    <div class="wes-grid">
+                        <label>Name</label>
+                        <input id="ccat-name" class="ej-input" type="text"
+                               value="${currentCatName.replace(/"/g,'&quot;')}">
+                        <label>Icon</label>
+                        <div>
+                            <input id="ccat-icon" class="ej-input" type="text"
+                                   placeholder="🎲 or https://…/icon.png"
+                                   value="${currentCatIcon.replace(/"/g,'&quot;')}">
+                            <span class="wes-hint">Emoji or image URL. Recommended: 24 × 24 px</span>
+                        </div>
+                    </div>`, {
+                    onOk: async panel => {
+                        try {
+                            const displayName = panel.querySelector('#ccat-name').value.trim();
+                            const icon = panel.querySelector('#ccat-icon').value.trim();
+                            await API.updateCategory(cat.id, { name: displayName, icon: icon || null });
+                            await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
+                        } catch (err) { setStatus('Save failed: ' + err.message, true); }
+                    },
+                });
+            });
+            pill.appendChild(settBtn);
+
+            const del = document.createElement('button');
+            del.className   = 'wiki-crud-del-inline';
+            del.textContent = '✕';
+            del.title       = 'Delete category';
+            del.addEventListener('click', async e => {
+                e.stopPropagation();
+                if (!_typeToConfirm(cat.name)) return;
+                try {
+                    await API.deleteCategory(cat.id);
+                    await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
+                } catch (err) { setStatus('Delete failed: ' + err.message, true); }
+            });
+            pill.appendChild(del);
+        });
+
+        // "+ Category" pill
+        const addPill = document.createElement('button');
+        addPill.className   = 'wiki-cat-pill wiki-add-pill';
+        addPill.textContent = '+ Category';
+        addPill.addEventListener('click', async () => {
+            const name = prompt('Category name:');
+            if (!name?.trim()) return;
+            try {
+                await API.createCategory(campaignId, { name: name.trim() });
+                await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
+            } catch (e) { setStatus('Create failed: ' + e.message, true); }
+        });
+        pillsEl.appendChild(addPill);
+    };
+
+    // Entry list: inject "+ New Entry" and delete per entry
+    WikiSB.onEntries = function (categoryId, entries, area) {
+        if (!editorGuard()) return;
+
+        // Rename + delete buttons per entry row
+        const list = area.querySelector('#sb-entry-list');
+        if (list) {
+            list.querySelectorAll('li').forEach((li, i) => {
+                const entry = entries[i];
+                if (!entry) return;
+                _addRenameBtn(li, entry.name, async name => {
+                    await API.updateEntry(entry.id, { name });
+                    const activePill = document.querySelector('#sb-cat-pills .wiki-cat-pill.active');
+                    if (activePill) activePill.click();
+                });
+                _addDeleteBtn(li, entry.name, async () => {
+                    await API.deleteEntry(entry.id);
+                    const activePill = document.querySelector('#sb-cat-pills .wiki-cat-pill.active');
+                    if (activePill) activePill.click();
+                });
+            });
+        }
+
+        // "+ New Entry" button
+        const addBtn = document.createElement('button');
+        addBtn.className   = 'et-btn';
+        addBtn.style.marginTop = '12px';
+        addBtn.textContent = '+ New Entry';
+        addBtn.addEventListener('click', async () => {
+            const name = prompt('Entry name:');
+            if (!name?.trim()) return;
+            try {
+                const row = await API.createEntry(categoryId, { name: name.trim(), extra_props: {} });
+                // Navigate straight to the new entry so the editor can populate it
+                await WikiSB.nav.showEntry(row.id, row.name);
+            } catch (e) { setStatus('Create failed: ' + e.message, true); }
+        });
+        area.appendChild(addBtn);
+    };
+
+    // ── Toolbar scroll positioning ────────────────────────────────────────────
+    // When at the top of the page the toolbar drops below the navbar.
+    // Once the navbar scrolls out of view it rises to near the top edge.
+
+    function _updateToolbarTop() {
+        const nav = document.querySelector('nav');
+        const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
+        toolbar.style.top = Math.max(20, navBottom + 8) + 'px';
+    }
+
+    window.addEventListener('scroll', _updateToolbarTop, { passive: true });
+
+    // navbar.js injects <nav> on DOMContentLoaded — wait for that before
+    // measuring, then re-check on window load for any late layout shifts.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _updateToolbarTop);
+    } else {
+        // DOM already parsed; navbar.js may not have run yet — defer one frame
+        requestAnimationFrame(_updateToolbarTop);
+    }
+    window.addEventListener('load', _updateToolbarTop);
+
+    // ── Entry detail: show the Edit button wired to the current entry ─────────
+    WikiSB.onEntryDetail = function (entry) {
+        if (!editorGuard()) return;
+        etEdit.style.display = '';
+        // enterEditMode is async — attach a .catch so any unhandled rejection
+        // surfaces as a status message rather than a silent console error.
+        etEdit.onclick = () => {
+            enterEditMode(entry).catch(e => setStatus('Edit failed: ' + e.message, true));
+        };
+    };
+
+}());

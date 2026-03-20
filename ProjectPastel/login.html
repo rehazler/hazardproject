@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voidverse | Editor Login</title>
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Void entry animation: starts fully covering the screen, then retracts -->
+    <div id="void-portal" class="active" style="transition:none"></div>
+    <script>
+    (function () {
+        ['header', 'main', 'footer'].forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (el) el.classList.add('void-emerge');
+        });
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                var p = document.getElementById('void-portal');
+                p.style.transition = '';
+                p.classList.remove('active');
+                document.querySelectorAll('.void-emerge').forEach(function (el) {
+                    el.classList.add('visible');
+                });
+            });
+        });
+    }());
+    </script>
+
+    <div id="navbar-placeholder"></div>
+    <script src="scripts/navbar.js"></script>
+
+    <header>
+        <h1>Editor Login</h1>
+        <p>Wiki content management</p>
+    </header>
+
+    <main>
+        <section class="login-section">
+            <h2>Sign In</h2>
+            <form id="login-form" class="login-form" novalidate>
+                <div class="login-field">
+                    <label for="l-email">Email</label>
+                    <input id="l-email" type="email" autocomplete="email" required
+                           placeholder="editor@example.com">
+                </div>
+                <div class="login-field">
+                    <label for="l-pass">Password</label>
+                    <input id="l-pass" type="password" autocomplete="current-password" required
+                           placeholder="••••••••">
+                </div>
+                <p id="login-err" class="login-error" hidden></p>
+                <button type="submit" id="login-btn">Sign In</button>
+            </form>
+            <p class="login-back">
+                <a href="wiki-supabase.html">← Back to Wiki</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 VoidDoll. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script>
+    (async function () {
+        await auth.init();
+        // Already logged in — send straight to the wiki
+        if (auth.isEditor()) {
+            window.location.replace('wiki-supabase.html');
+            return;
+        }
+
+        const form  = document.getElementById('login-form');
+        const btn   = document.getElementById('login-btn');
+        const errEl = document.getElementById('login-err');
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            errEl.hidden = true;
+            btn.disabled = true;
+            btn.textContent = 'Signing in…';
+            try {
+                await auth.signIn(
+                    document.getElementById('l-email').value.trim(),
+                    document.getElementById('l-pass').value
+                );
+                window.location.replace('wiki-supabase.html');
+            } catch (err) {
+                errEl.textContent = err.message || 'Login failed. Check your credentials.';
+                errEl.hidden  = false;
+                btn.disabled  = false;
+                btn.textContent = 'Sign In';
+            }
+        });
+    }());
+    </script>
+</body>
+</html>

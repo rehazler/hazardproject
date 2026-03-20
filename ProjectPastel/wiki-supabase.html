@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voidverse | Campaign Wiki</title>
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="wiki-page">
+    <div id="navbar-placeholder"></div>
+    <script src="scripts/navbar.js"></script>
+
+    <header>
+        <h1>Campaign Wiki</h1>
+        <p>Explore the lore of the Voidverse</p>
+    </header>
+
+    <main>
+        <div id="wiki-container">
+            <!-- Content rendered by supabase-fetch.js -->
+            <div class="wiki-loading">
+                <div class="wiki-spinner"></div>
+                <p>Connecting…</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 VoidDoll. All rights reserved.</p>
+    </footer>
+
+    <!-- Supabase JS SDK must load before api-client.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Load order matters: api-client → auth → supabase-fetch → wiki-editor -->
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/supabase-fetch.js"></script>
+    <script src="scripts/wiki-editor.js"></script>
+</body>
+</html>

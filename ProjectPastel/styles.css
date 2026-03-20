@@ -27,6 +27,7 @@ h1 {
 
 header h1,
 header p {
+    text-align: center;
     text-shadow:
         0 0 12px rgba(10, 4, 15, 1),
         0 0 24px rgba(10, 4, 15, 0.95),
@@ -295,7 +296,7 @@ button:hover {
 
 /* Main content grows to push footer down */
 main {
-    flex: 1;
+    flex: 1 0 auto; /* grow, don't shrink, natural base size */
     position: relative;
     z-index: 1;
 }
@@ -309,6 +310,7 @@ footer {
     font-size: 0.9rem;
     position: relative;
     z-index: 1;
+    flex-shrink: 0; /* never compress — always full height at page bottom */
 }
 
 /* Decorative Elements (Stars and Sparkles) */
@@ -397,8 +399,32 @@ body.wiki-page h3 {
     font-size: 1.7rem;
     color: #98e6d6;
     margin-bottom: 15px;
+}
+
+body.wiki-page h4 {
+    font-family: 'Spectral', serif;
+    font-size: 1.3rem;
+    color: #f3b0c3;
+    margin-bottom: 10px;
+}
+
+/* ── Heading block dividers (viewer) ─────────────────────────────────────── */
+
+body.wiki-page .wiki-heading {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+body.wiki-page .wiki-heading--divider-full {
     border-bottom: 1px solid #503554;
     padding-bottom: 5px;
+}
+
+body.wiki-page .wiki-heading--divider-text {
+    text-decoration: underline;
+    text-decoration-color: #503554;
+    text-underline-offset: 6px;
+    text-decoration-thickness: 1px;
 }
 
 /* Navbar (General) */
@@ -1155,6 +1181,7 @@ body.wiki-page #music-prompt .music-char {
     h3 { font-size: 1.2rem; }
     body.wiki-page h2 { font-size: 1.4rem; }
     body.wiki-page h3 { font-size: 1.2rem; }
+    body.wiki-page h4 { font-size: 1.05rem; }
 
     /* Sections */
     section { padding: 14px; }
@@ -1243,7 +1270,7 @@ body.wiki-page #music-prompt .music-char {
 }
 
 /* Wiki Images */
-body.wiki-page img:not(.wiki-search-icon) {
+body.wiki-page img:not(.wiki-search-icon):not(.wiki-divider-icon):not(.wiki-entry-thumb) {
     display: block;
     max-width: 100%;
     margin: 0 auto;
@@ -1313,6 +1340,60 @@ section > h2::after {
     line-height: 0;
 }
 
+/* Suppress the CSS-default moon on section > h2 when an explicit divider is set */
+section.wiki-section--no-head-divider > h2 {
+    padding-bottom: 0;
+}
+section.wiki-section--no-head-divider > h2::before,
+section.wiki-section--no-head-divider > h2::after {
+    display: none;
+}
+
+/* ── Moon divider (wiki block) ───────────────────────────────────────── */
+
+.wiki-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.wiki-divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #503554);
+}
+
+.wiki-divider--moon .wiki-divider-line:last-child {
+    background: linear-gradient(to left, transparent, #503554);
+}
+
+/* Full-line moon variant — line runs through behind the icon */
+.wiki-divider--moon-full {
+    position: relative;
+    justify-content: center;
+}
+
+.wiki-divider--moon-full .wiki-divider-through-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+.wiki-divider--moon-full .wiki-divider-icon {
+    position: relative;
+    z-index: 1;
+}
+
+.wiki-divider-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: block;
+    background: transparent;
+    padding: 0 4px;
+}
+
 /* ── Quest Board ─────────────────────────────────────────────────────── */
 
 .quest-board {
@@ -1356,6 +1437,30 @@ section > h2::after {
 .quest-item:hover .quest-rank,
 .wiki-campaign-card:hover .quest-rank {
     filter: brightness(1.4);
+}
+
+/* Custom emoji icon overrides the default potion background */
+.quest-rank--emoji {
+    background: none;
+    font-size: 1.4rem;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.quest-rank--img {
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wiki-cat-icon--img {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
 }
 
 .quest-info {
@@ -1725,6 +1830,53 @@ section > h2::after {
 
 /* ── Entry list thumbnail ────────────────────────────────────────────────── */
 
+/* ── Vertical spacer ────────────────────────────────────────────────────── */
+
+.wiki-spacer { display: block; }
+
+.ej-spacer-wrap { padding: 2px 0; }
+
+.ej-spacer-visual {
+    border: 1px dashed rgba(211,179,231,0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 20px;
+    transition: height 0.1s;
+}
+
+.ej-spacer-label {
+    font-size: 0.72rem;
+    color: rgba(211,179,231,0.4);
+    pointer-events: none;
+    user-select: none;
+}
+
+.ej-spacer-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0 0;
+    font-size: 0.78rem;
+    color: #a08ab0;
+}
+
+.ej-spacer-lbl { flex-shrink: 0; }
+
+.ej-spacer-range { flex: 1; min-width: 60px; }
+
+.ej-spacer-val { flex-shrink: 0; min-width: 36px; text-align: right; }
+
+/* ── Zoomable images ────────────────────────────────────────────────────── */
+
+.wiki-zoomable { cursor: zoom-in; }
+
+.wiki-banner-clickable {
+    cursor: zoom-in;
+    position: relative;
+}
+
 /* ── Image lightbox ──────────────────────────────────────────────────────── */
 
 #wiki-lightbox {
@@ -1762,4 +1914,1758 @@ body.wiki-page img.wiki-entry-thumb {
     border: 2px solid #d3b3e7;
     flex-shrink: 0;
     margin: 0;
+}
+
+/* ── Supabase Wiki — shared navigation components ────────────────────────── */
+
+/* Back button (used in wiki-supabase.html) */
+.wiki-back-btn {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(243, 176, 195, 0.08);
+    color: #f3b0c3;
+    border: 1px solid rgba(243, 176, 195, 0.35);
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'Spectral', serif;
+    font-size: 0.82rem;
+    transition: background 0.2s, border-color 0.2s;
+    min-width: unset;
+}
+
+.wiki-back-btn:hover {
+    background: rgba(243, 176, 195, 0.18);
+    border-color: #f3b0c3;
+    color: #f3b0c3;
+}
+
+/* Campaign list (unstyled — items use .quest-item) */
+.wiki-campaign-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.wiki-campaign-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wiki-campaign-list li .wiki-campaign-card {
+    flex: 1;
+}
+
+/* Category pill row */
+.wiki-category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+/* Active pill state */
+.wiki-cat-pill.active {
+    background: rgba(211, 179, 231, 0.15);
+    border-color: #d3b3e7;
+    color: #d3b3e7;
+    box-shadow: 0 2px 10px rgba(211, 179, 231, 0.2);
+}
+
+/* "+ Category" add pill */
+.wiki-add-pill {
+    border-style: dashed;
+    color: #a08ab0;
+    font-size: 0.82rem;
+    padding: 8px 14px;
+}
+
+.wiki-add-pill:hover {
+    border-color: #98e6d6;
+    color: #98e6d6;
+}
+
+/* Entry list */
+.wiki-entry-list {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wiki-entry-list li {
+    display: flex;
+    align-items: center;
+}
+
+.wiki-entry-link {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #98e6d6;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+}
+
+.wiki-entry-link:hover {
+    background: rgba(152, 230, 214, 0.08);
+    color: #f3b0c3;
+    text-decoration: none;
+}
+
+/* Empty state */
+.wiki-empty {
+    color: #806a8a;
+    text-align: center;
+    padding: 1.5rem 0;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+/* Extra props (read mode) */
+.wiki-extra-props {
+    border-left: 2px solid rgba(152, 230, 214, 0.3);
+    padding-left: 14px;
+    margin-bottom: 18px;
+}
+
+.wiki-extra-props p {
+    margin: 4px 0;
+    font-size: 0.88rem;
+    color: #c8b0d8;
+}
+
+/* Profile image */
+.wiki-profile-img {
+    max-width: 100%;
+    border-radius: 10px;
+    border: 2px solid #d3b3e7;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Profile image floated inside a section-style entry
+   (higher specificity to beat body.wiki-page img:not(...) at 0,2,1) */
+body.wiki-page img.wiki-section-float-img {
+    float: right;
+    max-width: 200px;
+    width: 200px;
+    margin: 0 0 16px 20px;
+    display: block;
+}
+body.wiki-page img.wiki-section-float-img--left {
+    float: left;
+    max-width: 200px;
+    width: 200px;
+    margin: 0 20px 16px 0;
+    display: block;
+}
+
+/* ── Login page ───────────────────────────────────────────────────────────── */
+
+.login-section {
+    max-width: 420px;
+    margin: 40px auto;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.login-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.login-field label {
+    font-size: 0.82rem;
+    color: #a08ab0;
+    letter-spacing: 0.04em;
+}
+
+.login-field input {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 8px;
+    color: #f4f4f4;
+    font-family: 'Spectral', serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.login-field input:focus {
+    border-color: #d3b3e7;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.login-error {
+    color: #f3b0c3;
+    font-size: 0.88rem;
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(243, 176, 195, 0.08);
+    border-radius: 6px;
+    border-left: 2px solid #f3b0c3;
+}
+
+.login-back {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: #a08ab0;
+}
+
+/* ── Wiki editor toolbar ──────────────────────────────────────────────────── */
+
+#wiki-edit-toolbar {
+    position: fixed;
+    top: 65px;
+    right: 20px;
+    z-index: 400;
+    transition: top 0.15s ease;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    min-width: 160px;
+}
+
+.et-status {
+    font-size: 0.78rem;
+    min-height: 1em;
+    color: #a08ab0;
+    font-style: italic;
+}
+
+.et-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.et-btn {
+    padding: 5px 12px;
+    font-size: 0.82rem;
+    font-family: 'Spectral', serif;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 6px;
+    color: #d3b3e7;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    min-width: unset;
+}
+
+.et-btn:hover {
+    background: rgba(211, 179, 231, 0.15);
+    border-color: #d3b3e7;
+    color: #f4f4f4;
+}
+
+.et-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.et-primary {
+    background: rgba(152, 230, 214, 0.12);
+    border-color: rgba(152, 230, 214, 0.5);
+    color: #98e6d6;
+}
+
+.et-primary:hover {
+    background: rgba(152, 230, 214, 0.25);
+    border-color: #98e6d6;
+    color: #f4f4f4;
+}
+
+.et-danger {
+    background: rgba(243, 176, 195, 0.06);
+    border-color: rgba(243, 176, 195, 0.3);
+    color: #f3b0c3;
+}
+
+.et-danger:hover {
+    background: rgba(243, 176, 195, 0.15);
+    border-color: #f3b0c3;
+}
+
+/* CRUD inline controls */
+.wiki-editor-ctrl {
+    margin-bottom: 12px;
+}
+
+.wiki-crud-del {
+    background: none;
+    border: none;
+    color: rgba(243, 176, 195, 0.5);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0 0 0 8px;
+    margin-left: auto;
+    transition: color 0.2s;
+    min-width: unset;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.wiki-crud-del:hover {
+    color: #f3b0c3;
+    background: none;
+    border-color: transparent;
+}
+
+/* Inline delete on category pills */
+.wiki-crud-del-inline {
+    background: none;
+    border: none;
+    color: rgba(243, 176, 195, 0.4);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 0 0 0 6px;
+    margin-left: 4px;
+    transition: color 0.2s;
+    min-width: unset;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.wiki-crud-del-inline:hover {
+    color: #f3b0c3;
+    background: none;
+    border-color: transparent;
+}
+
+/* Inline rename button (campaigns, entries, category pills) */
+.wiki-crud-rename {
+    background: none;
+    border: none;
+    color: rgba(152, 230, 214, 0.45);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    min-width: unset;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.wiki-crud-rename:hover {
+    color: #98e6d6;
+    background: none;
+    border-color: transparent;
+}
+
+.wiki-crud-rename-inline {
+    background: none;
+    border: none;
+    color: rgba(152, 230, 214, 0.35);
+    font-size: 0.65rem;
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 3px;
+    min-width: unset;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.wiki-crud-rename-inline:hover {
+    color: #98e6d6;
+    background: none;
+    border-color: transparent;
+}
+
+/* ── Toggle block (viewer) ────────────────────────────────────────────────── */
+
+.wiki-toggle {
+    border-radius: 6px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.wiki-toggle.wiki-toggle--bordered { border: 1px solid rgba(211, 179, 231, 0.2); }
+
+.wiki-toggle-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.wiki-toggle-heading::before {
+    content: '▶';
+    font-size: 0.6rem;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    color: rgba(211, 179, 231, 0.5);
+}
+
+.wiki-toggle[open] > .wiki-toggle-heading::before {
+    transform: rotate(90deg);
+}
+
+/* Heading element inside toggle summary.
+   !important beats body.wiki-page h2 specificity (0,1,2) which sets margin-bottom:20px. */
+.wiki-toggle-heading h2,
+.wiki-toggle-heading h3,
+.wiki-toggle-heading h4 {
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.wiki-toggle-body {
+    padding: 0 16px 14px;
+    margin-top: -8px;
+}
+
+.wiki-toggle-body.wiki-toggle--separator { border-top: 1px solid rgba(211, 179, 231, 0.12); }
+
+.wiki-toggle-body p {
+    margin: 6px 0;
+}
+
+/* ── Toggle block (editor) ────────────────────────────────────────────────── */
+
+.ej-toggle-wrap {
+    position: relative;
+    z-index: 0;
+    border-radius: 6px;
+    overflow: visible;
+}
+
+.ej-toggle-wrap:focus-within { z-index: 100; }
+.ej-toggle-wrap.ej-toggle--bordered { border: 1px solid rgba(80, 53, 84, 0.5); }
+
+.ej-toggle-head-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(80, 53, 84, 0.12);
+    border-radius: 6px 6px 0 0;
+}
+
+.ej-toggle-chevron {
+    background: none;
+    border: none;
+    color: rgba(160, 138, 176, 0.5);
+    cursor: pointer;
+    font-size: 0.6rem;
+    padding: 2px 4px;
+    transition: transform 0.2s, color 0.15s;
+    flex-shrink: 0;
+    min-width: unset;
+    line-height: 1;
+}
+
+.ej-toggle-chevron:hover { color: #d3b3e7; }
+.ej-toggle-chevron--open { transform: rotate(90deg); }
+
+.ej-toggle-head-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.ej-toggle-head-el {
+    width: 100%;
+    display: block;
+}
+
+/* Override body.wiki-page h2/h3/h4 margins so heading stays vertically centred in the flex row */
+.ej-toggle-head-row .ej-toggle-head-el {
+    margin: 0;
+    line-height: 1.2;
+}
+
+.ej-toggle-body {
+    display: none;
+    padding: 4px;
+}
+
+.ej-toggle-body.ej-toggle--separator { border-top: 1px solid rgba(80, 53, 84, 0.3); }
+
+.ej-toggle-body--open { display: block; }
+
+/* Temporarily visible during EditorJS init (hidden but in layout) */
+.ej-toggle-body--init {
+    display: block;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.ej-toggle-holder {
+    min-height: 60px;
+}
+
+/* ── Table block ──────────────────────────────────────────────────────────── */
+
+.wiki-table-wrap {
+    overflow-x: auto;
+    margin: 12px 0;
+    border-radius: 6px;
+}
+
+.wiki-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.wiki-table th,
+.wiki-table td {
+    padding: 8px 12px;
+    border: 1px solid rgba(211, 179, 231, 0.18);
+    text-align: left;
+    vertical-align: top;
+}
+
+.wiki-table th {
+    background: rgba(211, 179, 231, 0.1);
+    color: #d3b3e7;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+}
+
+.wiki-table tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Embed block ──────────────────────────────────────────────────────────── */
+
+.wiki-embed {
+    margin: 12px 0;
+}
+
+.wiki-embed-frame {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 */
+    height: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #1a0b1e;
+}
+
+.wiki-embed-frame iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+    border-radius: 8px;
+}
+
+.wiki-embed-caption {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #a08ab0;
+    margin: 6px 0 0;
+}
+
+/* ── Bookmark block ───────────────────────────────────────────────────────── */
+
+.wiki-bookmark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    background: rgba(152, 230, 214, 0.06);
+    border: 1px solid rgba(152, 230, 214, 0.2);
+    border-radius: 8px;
+    text-decoration: none;
+    color: #98e6d6;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.wiki-bookmark:hover {
+    background: rgba(152, 230, 214, 0.1);
+    border-color: rgba(152, 230, 214, 0.4);
+    text-decoration: none;
+}
+
+.wiki-bookmark-label {
+    flex: 1;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wiki-bookmark-arrow {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+/* ── Custom editor tool inputs ────────────────────────────────────────────── */
+
+.ej-tool-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+}
+
+.ej-callout-wrap {
+    flex-direction: row;
+    align-items: center;
+}
+
+.ej-callout-wrap .ej-input:last-child {
+    flex: 1;
+}
+
+.ej-input {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(211, 179, 231, 0.25);
+    border-radius: 5px;
+    color: #e8e0f0;
+    font-size: 0.9rem;
+    padding: 7px 10px;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.ej-input:focus {
+    border-color: rgba(211, 179, 231, 0.6);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.ej-emoji {
+    width: 52px !important;
+    text-align: center;
+    font-size: 1.1rem;
+    padding: 5px 4px;
+    flex-shrink: 0;
+}
+
+.ej-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.ej-select {
+    appearance: none;
+    cursor: pointer;
+    background-color: #2b1b2e;
+    border-color: #503554;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d3b3e7' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+.ej-select:focus {
+    border-color: #d3b3e7;
+    background-color: #321e38;
+}
+
+.ej-color-input {
+    width: 52px !important;
+    height: 36px;
+    padding: 2px 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Columns tool editor grid */
+.ej-cols-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.ej-cols-ctrl-btn {
+    font-size: 0.72rem !important;
+    padding: 3px 8px !important;
+}
+
+.ej-cols-grid {
+    display: grid;
+    gap: 8px;
+    align-items: start;
+}
+
+/* Per-column wrapper */
+.ej-col-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+    z-index: 0;
+}
+
+.ej-col-wrap:focus-within { z-index: 100; }
+
+/* Settings header row inside each column */
+.ej-col-settings-hdr {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2px;
+}
+
+.ej-col-settings-toggle {
+    background: none;
+    border: none;
+    color: rgba(160, 138, 176, 0.4);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 1px 4px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
+    min-width: unset;
+}
+.ej-col-settings-toggle:hover,
+.ej-col-settings-toggle--active { color: #d3b3e7; background: rgba(211,179,231,0.1); }
+
+/* Settings panel (collapsed by default) */
+.ej-col-settings-panel {
+    display: none;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(80,53,84,0.5);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+}
+.ej-col-settings-panel--open { display: block; }
+
+.ej-col-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.ej-col-settings-row:last-child { margin-bottom: 0; }
+.ej-col-settings-row > span {
+    color: #a08ab0;
+    min-width: 72px;
+    flex-shrink: 0;
+}
+
+.ej-col-width-inp {
+    width: 52px !important;
+    text-align: center;
+    padding: 3px 6px !important;
+}
+
+.ej-col-style-sel {
+    font-size: 0.72rem !important;
+    padding: 2px 4px !important;
+    min-width: unset !important;
+    flex: 1;
+}
+
+.ej-col-holder {
+    position: relative;
+    min-height: 80px;
+    border: 1px dashed rgba(80, 53, 84, 0.6);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+/* Optional section label above blocks */
+.wiki-block-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #a08ab0;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(80, 53, 84, 0.4);
+}
+
+/* Label input in custom tools */
+.ej-label-input {
+    font-size: 0.78rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* ── Callout variants ─────────────────────────────────────────────────────── */
+
+.notion-callout--info    { background: rgba(152, 230, 214, 0.08); border-color: rgba(152, 230, 214, 0.3); }
+.notion-callout--warning { background: rgba(255, 200, 100, 0.08); border-color: rgba(255, 200, 100, 0.3); }
+.notion-callout--danger  { background: rgba(243, 100, 100, 0.08); border-color: rgba(243, 100, 100, 0.3); }
+.notion-callout--success { background: rgba(100, 220, 130, 0.08); border-color: rgba(100, 220, 130, 0.3); }
+
+.notion-callout--warning .notion-callout-icon { color: #ffc864; }
+.notion-callout--danger  .notion-callout-icon { color: #f06060; }
+.notion-callout--success .notion-callout-icon { color: #64dc82; }
+
+/* ── Columns block ────────────────────────────────────────────────────────── */
+
+.wiki-columns {
+    display: grid;
+    gap: 18px;
+    margin: 12px 0;
+    align-items: start;
+}
+
+.wiki-columns-2 { grid-template-columns: 1fr 1fr; }
+.wiki-columns-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+.wiki-column > *:first-child { margin-top: 0; }
+.wiki-column > *:last-child  { margin-bottom: 0; }
+
+@media (max-width: 600px) {
+    .wiki-columns-2,
+    .wiki-columns-3 { grid-template-columns: 1fr; }
+}
+
+/* ── Campaign banner ──────────────────────────────────────────────────────── */
+
+.wiki-campaign-banner {
+    width: 100%;
+    height: 180px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    background-color: rgba(211, 179, 231, 0.08);
+}
+
+/* ── Entry banner ─────────────────────────────────────────────────────────── */
+
+.wiki-entry-banner {
+    width: 100%;
+    height: 200px;
+    background-size: cover;
+    background-position: center top;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    background-color: rgba(152, 230, 214, 0.06);
+}
+
+/* ── Entry subtitle ───────────────────────────────────────────────────────── */
+
+.wiki-entry-subtitle {
+    color: #a08ab0;
+    font-style: italic;
+    margin: -8px 0 14px;
+    font-size: 0.95rem;
+}
+
+/* ── Sidebar layout variants ──────────────────────────────────────────────── */
+
+.wiki-sidebar-left  { flex-direction: row-reverse; }
+.wiki-sidebar-none  { display: block; }
+.wiki-sidebar-none .wiki-entry-main { max-width: 100%; }
+.wiki-sidebar-none .wiki-entry-sidebar { display: none; }
+
+/* Float sidebar — content wraps around and continues under the image */
+.wiki-sidebar-float-right,
+.wiki-sidebar-float-left {
+    display: block;
+}
+
+.wiki-sidebar-float-right::after,
+.wiki-sidebar-float-left::after {
+    content: '';
+    display: table;
+    clear: both;
+}
+
+.wiki-sidebar-float-right .wiki-entry-sidebar {
+    float: right;
+    width: 28%;
+    max-width: 220px;
+    margin: 0 0 16px 24px;
+    padding-left: 0;
+    text-align: center;
+}
+
+.wiki-sidebar-float-left .wiki-entry-sidebar {
+    float: left;
+    width: 28%;
+    max-width: 220px;
+    margin: 0 24px 16px 0;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .wiki-sidebar-float-right .wiki-entry-sidebar,
+    .wiki-sidebar-float-left  .wiki-entry-sidebar {
+        float: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 0 16px 0;
+    }
+}
+
+/* ── CSS accent colour theming ────────────────────────────────────────────── */
+
+/* Any element using mint can pick up --wiki-accent when set */
+#wiki-container {
+    --wiki-accent: #98e6d6;
+}
+
+#wiki-container .wiki-cat-pill:hover,
+#wiki-container .wiki-cat-pill.active {
+    border-color: var(--wiki-accent);
+    color: var(--wiki-accent);
+}
+
+#wiki-container .wiki-back-btn {
+    color: var(--wiki-accent);
+    border-color: var(--wiki-accent);
+}
+
+#wiki-container .wiki-entry-link {
+    color: var(--wiki-accent);
+}
+
+/* ── Stat boxes (ALL CAPS properties) ────────────────────────────────────── */
+
+.wiki-stat-boxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.wiki-stat-box {
+    background: rgba(211, 179, 231, 0.08);
+    border: 1px solid rgba(211, 179, 231, 0.2);
+    border-radius: 6px;
+    padding: 8px 14px;
+    text-align: center;
+    min-width: 64px;
+}
+
+.wiki-stat-val {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e8e0f0;
+    line-height: 1.2;
+}
+
+.wiki-stat-key {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: #a08ab0;
+    margin-top: 3px;
+    font-family: 'Cinzel', serif;
+}
+
+/* ── Mixed-case prop body rows ────────────────────────────────────────────── */
+
+.wiki-prop-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 14px;
+}
+
+.wiki-prop-row {
+    display: flex;
+    gap: 8px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.wiki-prop-key {
+    color: #a08ab0;
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.wiki-prop-key::after { content: ':'; }
+
+.wiki-prop-val { color: #ddd; }
+
+/* ── Stat Block props style (Notion wiki stat block layout) ──────────────── */
+
+.wiki-props-statblock {
+    margin-bottom: 14px;
+}
+
+.wiki-props-statblock .stat-attrs {
+    margin-bottom: 0;
+}
+
+.wiki-props-statblock .stat-rule {
+    margin: 10px 0;
+}
+
+.wiki-props-statblock p {
+    margin: 6px 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+/* ── Class Wiki Table props style (two-column key/value table) ───────────── */
+
+.wiki-props-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    font-size: 0.88rem;
+}
+
+.wiki-props-table tr + tr td {
+    border-top: 1px solid rgba(211, 179, 231, 0.1);
+}
+
+.wiki-props-table-key {
+    width: 40%;
+    padding: 5px 10px 5px 0;
+    color: #d3b3e7;
+    font-weight: 600;
+    vertical-align: top;
+}
+
+.wiki-props-table-val {
+    width: 60%;
+    padding: 5px 0;
+    color: #ddd;
+    vertical-align: top;
+}
+
+/* ── Checkbox + progress bar props ───────────────────────────────────────── */
+
+.wiki-prop-bool {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.wiki-prop-bool--yes { color: #64dc82; }
+.wiki-prop-bool--no  { color: #f06060; }
+
+.wiki-prop-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.wiki-prop-progress-bar {
+    display: inline-block;
+    height: 6px;
+    background: var(--wiki-accent, #98e6d6);
+    border-radius: 3px;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: width 0.3s;
+    max-width: 80px;
+}
+
+.wiki-prop-progress-text {
+    font-size: 0.82rem;
+    color: #a08ab0;
+}
+
+/* ── Entry Settings panel (edit mode) ────────────────────────────────────── */
+
+.wiki-entry-settings {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(211, 179, 231, 0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+
+.wes-header {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    color: #a08ab0;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-family: 'Cinzel', serif;
+}
+
+.wes-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px 12px;
+    align-items: start;
+}
+
+.wes-grid label {
+    font-size: 0.82rem;
+    color: #a08ab0;
+    text-align: right;
+    padding-top: 6px;
+}
+
+.wes-hint {
+    display: block;
+    font-size: 0.72rem;
+    color: #7a6680;
+    margin-top: 3px;
+}
+
+/* ── Overlay panel (campaign settings + templates) ───────────────────────── */
+
+.wsp-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wsp-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.wsp-box {
+    position: relative;
+    background: #2e1d32;
+    border: 1px solid rgba(211, 179, 231, 0.3);
+    border-radius: 12px;
+    width: min(520px, 92vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.wsp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(211, 179, 231, 0.15);
+    font-family: 'Cinzel', serif;
+    font-size: 0.95rem;
+    color: #d3b3e7;
+    flex-shrink: 0;
+}
+
+.wsp-body {
+    padding: 18px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.wsp-footer {
+    padding: 12px 18px;
+    border-top: 1px solid rgba(211, 179, 231, 0.15);
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+/* Template list inside overlay */
+.wsp-save-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.wsp-save-row .ej-input { flex: 1; }
+
+.wsp-template-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(211, 179, 231, 0.1);
+}
+
+.wsp-template-row:last-child { border-bottom: none; }
+
+.wsp-template-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wsp-template-info strong { color: #e8e0f0; font-size: 0.9rem; }
+.wsp-template-info span   { color: #a08ab0; font-size: 0.78rem; }
+
+.wsp-template-btns {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* ── Editor.js holder ─────────────────────────────────────────────────────── */
+
+.wiki-editor-holder {
+    border: 1px solid #503554;
+    border-radius: 8px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    min-height: 200px;
+    font-family: 'Spectral', serif;
+    color: #f4f4f4;
+}
+
+/* Override Editor.js defaults to match dark theme */
+.wiki-editor-holder .ce-block__content,
+.wiki-editor-holder .ce-toolbar__content,
+.ej-col-holder .ce-block__content,
+.ej-col-holder .ce-toolbar__content {
+    max-width: 100%;
+}
+
+/* Remove EditorJS narrow-mode side margins — these eat into usable column width.
+   The toolbar (+ and ⋮ buttons) floats outside the redactor so removing the
+   margin does not cause overlap. Reduce the excessive bottom padding too. */
+.wiki-editor-holder .codex-editor__redactor,
+.ej-col-holder .codex-editor__redactor {
+    margin-right: 0 !important;
+    margin-left:  0 !important;
+}
+
+.ej-col-holder .codex-editor__redactor {
+    padding-bottom: 40px !important; /* 300px default is excessive inside a column */
+}
+
+/* Toned-down block selection — replace default bright blue with a subtle
+   left-border accent and a barely-there tint */
+.ce-block--selected .ce-block__content,
+.wiki-editor-holder .ce-block--selected .ce-block__content {
+    background: rgba(211, 179, 231, 0.07) !important;
+    border-radius: 4px;
+    box-shadow: inset 2px 0 0 rgba(211, 179, 231, 0.4);
+}
+
+.ce-block--focused .ce-block__content,
+.wiki-editor-holder .ce-block--focused .ce-block__content {
+    background: rgba(152, 230, 214, 0.04) !important;
+    border-radius: 4px;
+}
+
+.wiki-editor-holder .cdx-block {
+    color: #f4f4f4;
+}
+
+/* ── Custom heading tool (editor) ────────────────────────────────────────── */
+
+.ej-heading-wrap {
+    display: block;
+}
+
+.ej-heading-el {
+    outline: none;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    width: 100%;
+    display: block;
+}
+
+/* Override body.wiki-page h2 { text-align: center } so "Left" alignment works in editor.
+   Two-class specificity (0,2,0) beats body.wiki-page h2 (0,1,1). */
+.ej-heading-wrap .ej-heading-el {
+    text-align: left;
+}
+
+.ej-heading-el:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+    font-style: italic;
+}
+
+.ej-heading--divider-full .ej-heading-el {
+    border-bottom: 1px solid #503554 !important;
+    padding-bottom: 5px !important;
+}
+
+.ej-heading--divider-text .ej-heading-el {
+    text-decoration: underline;
+    text-decoration-color: #503554;
+    text-underline-offset: 6px;
+    text-decoration-thickness: 1px;
+}
+
+/* Block separation — subtle card outline so each block has a clear boundary */
+.wiki-editor-holder .ce-block,
+.ej-col-holder .ce-block {
+    border-left: 2px solid rgba(80, 53, 84, 0.5);
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 3px;
+    padding-left: 6px;
+    transition: border-left-color 0.15s, background 0.15s;
+}
+
+.wiki-editor-holder .ce-block:hover,
+.ej-col-holder .ce-block:hover {
+    border-left-color: rgba(211, 179, 231, 0.55);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.wiki-editor-holder .ce-toolbar__plus,
+.wiki-editor-holder .ce-toolbar__settings-btn {
+    color: #d3b3e7;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+}
+
+.wiki-editor-holder .ce-toolbar__plus:hover,
+.wiki-editor-holder .ce-toolbar__settings-btn:hover {
+    background: #3a2440;
+}
+
+/* Block picker popover — always on top of all block content */
+.ce-popover,
+.wiki-editor-holder .ce-popover {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    color: #f4f4f4;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+    z-index: 10000 !important;
+}
+
+.ce-popover__container,
+.wiki-editor-holder .ce-popover__container {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    z-index: 10000 !important;
+}
+
+/* Keep all other Editor.js overlay layers above block content too */
+.ce-inline-toolbar    { z-index: 9999 !important; }
+.ce-conversion-toolbar { z-index: 9999 !important; }
+.ce-settings          { z-index: 9999 !important; }
+
+.ce-popover-item__title,
+.wiki-editor-holder .ce-popover-item__title {
+    color: #d3b3e7;
+}
+
+.ce-popover-item__secondary-title {
+    color: #a08ab0;
+}
+
+.ce-popover-item:hover,
+.wiki-editor-holder .ce-popover-item:hover {
+    background: rgba(211, 179, 231, 0.1);
+}
+
+.ce-popover-item--focused {
+    background: rgba(211, 179, 231, 0.12);
+}
+
+.ce-popover-item--active .ce-popover-item__icon {
+    background: rgba(152, 230, 214, 0.15);
+    color: #98e6d6;
+}
+
+.ce-popover-item__icon {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    color: #d3b3e7;
+}
+
+.ce-popover-item__icon svg {
+    fill: currentColor;
+}
+
+.ce-popover-item-separator__line {
+    border-top-color: #503554;
+}
+
+.ce-popover__nothing-found-message {
+    color: #a08ab0;
+}
+
+/* Search field inside block picker */
+.cdx-search-field {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #503554;
+}
+
+.cdx-search-field__icon svg {
+    fill: #a08ab0;
+}
+
+.cdx-search-field__input {
+    background: transparent;
+    color: #f4f4f4;
+    caret-color: #d3b3e7;
+}
+
+.cdx-search-field__input::placeholder {
+    color: #a08ab0;
+}
+
+/* Inline formatting toolbar (bold/italic/link/etc) */
+.ce-inline-toolbar {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.ce-inline-tool {
+    color: #d3b3e7;
+}
+
+.ce-inline-tool:hover,
+.ce-inline-tool--active {
+    background: rgba(211, 179, 231, 0.15);
+    color: #f4f4f4;
+}
+
+.ce-inline-toolbar__dropdown {
+    border-right-color: #503554;
+    color: #d3b3e7;
+}
+
+.ce-inline-toolbar__dropdown:hover {
+    background: rgba(211, 179, 231, 0.1);
+}
+
+/* Type conversion toolbar */
+.ce-conversion-toolbar {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.ce-conversion-toolbar__label {
+    color: #a08ab0;
+}
+
+.ce-conversion-tool {
+    color: #d3b3e7;
+}
+
+.ce-conversion-tool:hover,
+.ce-conversion-tool--focused {
+    background: rgba(211, 179, 231, 0.1);
+}
+
+.ce-conversion-tool__icon {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+}
+
+/* Block settings panel (⋮ menu) */
+.ce-settings {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.ce-settings__button {
+    color: #d3b3e7;
+}
+
+.ce-settings__button:hover,
+.ce-settings__button--active {
+    background: rgba(211, 179, 231, 0.1);
+    color: #f4f4f4;
+}
+
+/* Table plugin chrome */
+.tc-table {
+    border-color: #503554;
+}
+
+.tc-cell {
+    border-color: #503554;
+    color: #f4f4f4;
+}
+
+.tc-row:hover .tc-cell {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tc-add-row,
+.tc-add-column {
+    color: #a08ab0;
+}
+
+.tc-add-row:hover,
+.tc-add-column:hover {
+    color: #d3b3e7;
+}
+
+.tc-toolbox__toggler {
+    color: #a08ab0;
+}
+
+.tc-toolbox__toggler:hover {
+    color: #d3b3e7;
+    background: rgba(80, 53, 84, 0.5);
+}
+
+.tc-popover {
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.tc-popover__item {
+    color: #d3b3e7;
+}
+
+.tc-popover__item:hover {
+    background: rgba(211, 179, 231, 0.1);
+}
+
+/* ── Extra props editor ───────────────────────────────────────────────────── */
+
+.wiki-props-editor {
+    border: 1px solid rgba(152, 230, 214, 0.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.wiki-props-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    color: #a08ab0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.pe-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.pe-key,
+.pe-val {
+    flex: 1;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 6px;
+    color: #f4f4f4;
+    font-family: 'Spectral', serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.pe-key { flex: 0 0 38%; }
+
+.pe-key:focus,
+.pe-val:focus {
+    border-color: #98e6d6;
+}
+
+.pe-del {
+    background: none;
+    border: none;
+    color: rgba(243, 176, 195, 0.5);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 4px;
+    transition: color 0.2s;
+    min-width: unset;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.pe-del:hover { color: #f3b0c3; background: none; border-color: transparent; }
+
+/* ── Properties block tool layout ────────────────────────────────────────── */
+
+/* Display mode row — wraps label + select; select wraps below label on narrow columns */
+.ej-props-display-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.ej-props-display-label {
+    font-size: 0.8rem;
+    color: #a08ab0;
+    flex-shrink: 0;
+}
+
+.ej-props-mode-sel {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Property rows */
+.ej-props-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 5px;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Key + value inputs side by side, wrapping to separate lines when narrow */
+.ej-props-fields {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ej-props-key-inp,
+.ej-props-val-inp {
+    flex: 1 1 80px;
+    min-width: 80px;
+    width: 0; /* forces flex to control actual width */
+}
+
+/* Vertical button stack: ↑ ✕ ↓ */
+.ej-props-row-btns {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    align-self: stretch;
+    justify-content: space-between;
+}
+
+/* Add Row button centred */
+.ej-props-add-btn {
+    display: block;
+    margin: 2px auto 0;
+    font-size: 0.78rem !important;
+    padding: 4px 10px !important;
+}
+
+/* ── Profile image URL input (edit mode sidebar) ─────────────────────────── */
+
+.wiki-img-url-wrap {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wiki-img-url-label {
+    font-size: 0.75rem;
+    color: #a08ab0;
+}
+
+.wiki-img-url-wrap input {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 6px;
+    color: #f4f4f4;
+    font-family: 'Spectral', serif;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.wiki-img-url-wrap input:focus { border-color: #d3b3e7; }
+
+/* ── Supabase wiki mobile adjustments ─────────────────────────────────────── */
+
+@media (max-width: 700px) {
+    #wiki-edit-toolbar {
+        top: 65px;
+        right: 10px;
+        left: 10px;
+        bottom: auto;
+        min-width: unset;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .et-btn-row { flex: 1; }
+}
+
+/* ── Void transition ──────────────────────────────────────────────────────── */
+
+.void-emerge {
+    transform: scale(0.02) rotate(-1080deg);
+    opacity: 0;
+    filter: blur(8px);
+    transform-origin: 50% 50%;
+    transition: transform 0.65s cubic-bezier(0, 0.6, 0.4, 1) 0.15s,
+                opacity 0.65s ease 0.15s,
+                filter 0.65s ease 0.15s;
+}
+
+.void-emerge.visible {
+    transform: none;
+    opacity: 1;
+    filter: none;
+}
+
+#void-portal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 50%,
+        #000 0%, #060010 20%, #0e001c 45%, #0a0015 70%, #000 100%);
+    clip-path: circle(0% at 50% 50%);
+    transition: clip-path 0.75s cubic-bezier(0.3, 0, 0.55, 1);
+}
+
+#void-portal.active {
+    clip-path: circle(150% at 50% 50%);
+    pointer-events: all;
+}
+
+.void-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    border: 1.5px solid rgba(180, 100, 255, 0.55);
+    transform: translate(-50%, -50%) scale(0);
+    animation: void-ring-expand 0.85s ease-out forwards;
+}
+
+@keyframes void-ring-expand {
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(12); opacity: 0; }
+}
+
+.void-suck {
+    transition: transform 0.6s cubic-bezier(0.6, 0, 1, 0.8),
+                opacity 0.6s ease,
+                filter 0.6s ease !important;
+    transform: scale(0.02) rotate(1080deg) !important;
+    opacity: 0 !important;
+    filter: blur(8px) !important;
+    transform-origin: 50% 50%;
 }
