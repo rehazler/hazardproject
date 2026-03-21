@@ -474,6 +474,19 @@ window.WikiSB = {
                     break;
                 }
 
+                case 'entry_link': {
+                    const id  = esc(c.entryId || '');
+                    const nm  = esc(c.entryName || '');
+                    const cat = c.categoryName ? ` <span class="wiki-count"> — ${esc(c.categoryName)}</span>` : '';
+                    out += `<a class="wiki-entry-ref" href="#"
+                               data-entry-id="${id}" data-entry-name="${esc(c.entryName || '')}">
+                        ${c.profileImage ? `<img src="${esc(c.profileImage)}" class="wiki-entry-thumb" alt="">` : ''}
+                        <span>${nm}${cat}</span>
+                        <span class="wiki-entry-ref-arrow">→</span>
+                    </a>`;
+                    break;
+                }
+
                 default:
                     if (c.html) out += `<p>${c.html}</p>`;
             }
@@ -689,6 +702,24 @@ window.WikiSB = {
             });
         });
 
+        // Lazy-load total entry counts for each campaign card
+        if (campaigns.length > 0) {
+            Promise.all(campaigns.map(async camp => {
+                try {
+                    const count = await API.getCampaignEntryCount(camp.id);
+                    const li = container.querySelector(`#sb-camp-list li[data-id="${camp.id}"]`);
+                    if (!li) return;
+                    const info = li.querySelector('.quest-info');
+                    if (info) {
+                        const badge = document.createElement('span');
+                        badge.className = 'wiki-count';
+                        badge.textContent = count + (count === 1 ? ' entry' : ' entries');
+                        info.appendChild(badge);
+                    }
+                } catch { /* non-fatal */ }
+            }));
+        }
+
         if (WikiSB.onCampaignList) WikiSB.onCampaignList(campaigns);
     }
 
@@ -902,6 +933,8 @@ window.WikiSB = {
             return;
         }
 
+        const PAGE_SIZE = 20;
+
         if (entries.length === 0) {
             area.innerHTML = `<p class="wiki-empty">No entries in this category yet.</p>`;
         } else {
@@ -927,6 +960,25 @@ window.WikiSB = {
                     showEntry(a.dataset.id, a.dataset.name);
                 });
             });
+
+            // Paginate long lists — hide items beyond page size
+            if (entries.length > PAGE_SIZE) {
+                const allItems = [...area.querySelectorAll('#sb-entry-list li')];
+                let shown = PAGE_SIZE;
+                allItems.forEach((li, i) => { if (i >= PAGE_SIZE) li.hidden = true; });
+
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.className = 'et-btn wiki-load-more-btn';
+                loadMoreBtn.textContent = `Load ${Math.min(PAGE_SIZE, entries.length - shown)} more (${entries.length - shown} remaining)`;
+                loadMoreBtn.addEventListener('click', () => {
+                    const nextBatch = Math.min(shown + PAGE_SIZE, entries.length);
+                    allItems.forEach((li, i) => { if (i >= shown && i < nextBatch) li.hidden = false; });
+                    shown = nextBatch;
+                    if (shown >= entries.length) loadMoreBtn.remove();
+                    else loadMoreBtn.textContent = `Load ${Math.min(PAGE_SIZE, entries.length - shown)} more (${entries.length - shown} remaining)`;
+                });
+                area.querySelector('#sb-entry-list').after(loadMoreBtn);
+            }
         }
 
         if (WikiSB.onEntries) WikiSB.onEntries(categoryId, entries, area);
@@ -1133,7 +1185,12 @@ window.WikiSB = {
         const img = e.target.closest('.wiki-zoomable');
         if (img) { e.preventDefault(); openLightbox(img.dataset.src || img.src); return; }
         const banner = e.target.closest('.wiki-banner-clickable[data-src]');
-        if (banner) openLightbox(banner.dataset.src);
+        if (banner) { openLightbox(banner.dataset.src); return; }
+        const entryRef = e.target.closest('.wiki-entry-ref[data-entry-id]');
+        if (entryRef && entryRef.dataset.entryId) {
+            e.preventDefault();
+            showEntry(entryRef.dataset.entryId, entryRef.dataset.entryName);
+        }
     });
 
     // ── Expose navigation for editor ──────────────────────────────────────────

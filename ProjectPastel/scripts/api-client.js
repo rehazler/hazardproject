@@ -149,6 +149,10 @@ const API = {
         if (error) throw new Error(error.message);
         _cacheDel('entry:' + id);
         if (row) _cacheDel('ents:' + row.category_id);
+        // When moving to a different category, also clear the destination cache
+        if (fields.category_id && fields.category_id !== row?.category_id) {
+            _cacheDel('ents:' + fields.category_id);
+        }
     },
 
     async deleteEntry(id) {
@@ -185,6 +189,17 @@ const API = {
             .select('*', { count: 'exact', head: true })
             .eq('category_id', categoryId);
         if (error) throw new Error(error.message);
+        return count ?? 0;
+    },
+
+    async getCampaignEntryCount(campaignId) {
+        const { data: cats } = await _sb.from('categories').select('id').eq('campaign_id', campaignId);
+        if (!cats?.length) return 0;
+        const { count, error } = await _sb
+            .from('entries')
+            .select('*', { count: 'exact', head: true })
+            .in('category_id', cats.map(c => c.id));
+        if (error) return 0;
         return count ?? 0;
     },
 

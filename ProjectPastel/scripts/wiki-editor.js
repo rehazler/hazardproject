@@ -1239,6 +1239,73 @@
         }
     }
 
+    class EntryLinkTool {
+        static get toolbox() {
+            return { title: 'Entry Link', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.71-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>' };
+        }
+        constructor({ data }) {
+            this._data = { entryId: data.entryId || '', entryName: data.entryName || '', categoryName: data.categoryName || '', profileImage: data.profileImage || '' };
+            this._debounce = null;
+        }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap ej-entry-link-wrap';
+
+            const searchInp = document.createElement('input');
+            searchInp.type = 'text';
+            searchInp.className = 'ej-input';
+            searchInp.placeholder = 'Search for an entry…';
+            searchInp.value = this._data.entryName || '';
+            wrap.appendChild(searchInp);
+
+            const results = document.createElement('div');
+            results.className = 'ej-entry-link-results';
+            wrap.appendChild(results);
+
+            const selected = document.createElement('div');
+            selected.className = 'ej-entry-link-selected';
+            selected.textContent = this._data.entryId ? `✓ ${this._data.entryName}` : '';
+            selected.style.display = this._data.entryId ? '' : 'none';
+            wrap.appendChild(selected);
+
+            const _setSelected = (id, name, cat, img) => {
+                this._data = { entryId: id, entryName: name, categoryName: cat, profileImage: img };
+                searchInp.value = name;
+                selected.textContent = `✓ ${name}`;
+                selected.style.display = '';
+                results.innerHTML = '';
+                results.style.display = 'none';
+            };
+
+            searchInp.addEventListener('input', () => {
+                clearTimeout(this._debounce);
+                const q = searchInp.value.trim();
+                if (q.length < 2) { results.innerHTML = ''; results.style.display = 'none'; return; }
+                results.innerHTML = '<div class="ej-entry-link-loading">Searching…</div>';
+                results.style.display = '';
+                this._debounce = setTimeout(async () => {
+                    try {
+                        const hits = await API.searchEntries(q);
+                        if (!hits.length) { results.innerHTML = '<div class="ej-entry-link-loading">No results</div>'; return; }
+                        results.innerHTML = '';
+                        hits.slice(0, 8).forEach(h => {
+                            const el = document.createElement('div');
+                            el.className = 'ej-entry-link-result';
+                            const catName = h.categories?.name || '';
+                            el.innerHTML = `${h.profile_image ? `<img src="${h.profile_image.replace(/"/g,'&quot;')}" class="wiki-entry-thumb" alt="">` : ''}<span>${(h.name||'').replace(/</g,'&lt;')}</span>${catName ? `<span class="wiki-count"> — ${catName.replace(/</g,'&lt;')}</span>` : ''}`;
+                            el.addEventListener('click', () => _setSelected(h.id, h.name, catName, h.profile_image || ''));
+                            results.appendChild(el);
+                        });
+                    } catch { results.innerHTML = '<div class="ej-entry-link-loading">Search failed</div>'; }
+                }, 300);
+            });
+
+            return wrap;
+        }
+        save() { return { entryId: this._data.entryId || '', entryName: this._data.entryName || '', categoryName: this._data.categoryName || '', profileImage: this._data.profileImage || '' }; }
+        validate(d) { return !!d.entryId; }
+    }
+
     class BookmarkTool {
         static get toolbox() {
             return { title: 'Bookmark', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>' };
@@ -1364,6 +1431,9 @@
                 case 'spacer':
                     out.push({ type: 'spacer', data: { height: c.height || 60 } });
                     break;
+                case 'entry_link':
+                    out.push({ type: 'entry_link', data: { entryId: c.entryId || '', entryName: c.entryName || '', categoryName: c.categoryName || '', profileImage: c.profileImage || '' } });
+                    break;
                 default:
                     if (c.html) out.push({ type: 'paragraph', data: { text: c.html } });
             }
@@ -1438,6 +1508,9 @@
                 case 'spacer':
                     out.push({ type: 'spacer', content: { height: blk.data.height || 60 } });
                     break;
+                case 'entry_link':
+                    out.push({ type: 'entry_link', content: { entryId: blk.data.entryId || '', entryName: blk.data.entryName || '', categoryName: blk.data.categoryName || '', profileImage: blk.data.profileImage || '' } });
+                    break;
                 default:
                     if (blk.data?.text) out.push({ type: 'paragraph', content: { html: blk.data.text } });
             }
@@ -1452,6 +1525,23 @@
     let _isDirty      = false;  // true once the user makes any change in edit mode
     let _origNavFns   = null;   // stashed nav functions restored on exit
     let _navGuardFn   = null;   // document click guard — installed while in edit mode
+    let _ctrlSHandler = null;   // keydown Ctrl+S listener
+    let _draftTimer   = null;   // debounced auto-save draft timer
+    let _countTimer   = null;   // debounced word/block count timer
+
+    // ── Draft auto-save helpers ───────────────────────────────────────────────
+
+    const _DRAFT_NS = 'ppastel-draft-v1';
+
+    function _saveDraft(entryId, blocks, settings) {
+        try { localStorage.setItem(`${_DRAFT_NS}:${entryId}`, JSON.stringify({ blocks, settings, savedAt: Date.now() })); } catch { /* storage full */ }
+    }
+    function _loadDraft(entryId) {
+        try { const raw = localStorage.getItem(`${_DRAFT_NS}:${entryId}`); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    }
+    function _clearDraft(entryId) {
+        try { localStorage.removeItem(`${_DRAFT_NS}:${entryId}`); } catch { /* ignore */ }
+    }
 
     function _beforeUnloadHandler(e) {
         if (_isDirty) { e.preventDefault(); e.returnValue = ''; }
@@ -1600,6 +1690,7 @@
                     spacer:      { class: SpacerTool },
                     columns:     { class: ColumnsTool },
                     props_block: { class: PropsBlockTool },
+                    entry_link:  { class: EntryLinkTool },
                     duplicate:   { class: DuplicateTune },
                 },
                 tunes: ['duplicate'],
@@ -1607,13 +1698,52 @@
 
             // Wait for the editor to finish initialising before it is usable
             await _ejInstance.isReady;
-            setStatus('Editing — save when done');
+            setStatus('Ctrl+S to save');
             _isDirty = false;
 
-            // Any keystrokes inside the editor (including nested column editors
-            // whose input events bubble up) mark the entry as dirty.
+            // Mark the entry being edited in the entry list
+            document.querySelector(`#sb-entry-list li[data-id="${entry.id}"]`)
+                ?.classList.add('wiki-editing');
+
+            // Ctrl+S / Cmd+S to save
+            _ctrlSHandler = e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    if (!etSave.disabled) etSave.click();
+                }
+            };
+            document.addEventListener('keydown', _ctrlSHandler);
+
+            // Combined input handler: dirty flag + auto-save draft + word/block count
             const _ejHolder = document.getElementById('ej-holder');
-            _ejHolder?.addEventListener('input', () => { _isDirty = true; }, { capture: true });
+            _ejHolder?.addEventListener('input', () => {
+                _isDirty = true;
+
+                // Auto-save draft (2-second debounce)
+                clearTimeout(_draftTimer);
+                _draftTimer = setTimeout(async () => {
+                    if (!_ejInstance || !_editingEntry) return;
+                    try {
+                        const data = await _ejInstance.save();
+                        _saveDraft(_editingEntry.id, editorDataToBlocks(data), _readEntrySettings());
+                    } catch { /* ignore */ }
+                }, 2000);
+
+                // Update block + word count (0.8-second debounce)
+                clearTimeout(_countTimer);
+                _countTimer = setTimeout(async () => {
+                    if (!_ejInstance) return;
+                    try {
+                        const data = await _ejInstance.save();
+                        const bc = data.blocks.length;
+                        const wc = data.blocks.reduce((sum, b) => {
+                            const txt = (b.data?.text || b.data?.html || '').replace(/<[^>]+>/g, '');
+                            return sum + (txt.match(/\S+/g) || []).length;
+                        }, 0);
+                        setStatus(`Ctrl+S to save  ·  ${bc} block${bc !== 1 ? 's' : ''}  ·  ~${wc} word${wc !== 1 ? 's' : ''}`);
+                    } catch { /* ignore */ }
+                }, 800);
+            }, { capture: true });
 
             // Inline markdown shortcuts (**bold**, *italic*, `code`, ~~strike~~, etc.)
             _installMarkdownShortcuts(_ejHolder);
@@ -1639,14 +1769,24 @@
                            value="${(entry.subtitle || '').replace(/"/g,'&quot;')}">
 
                     <label>Profile image URL</label>
-                    <input id="sb-img-url" class="ej-input" type="url"
-                           placeholder="https://…"
-                           value="${(entry.profile_image || '').replace(/"/g,'&quot;')}">
+                    <div>
+                        <input id="sb-img-url" class="ej-input" type="url"
+                               placeholder="https://…"
+                               value="${(entry.profile_image || '').replace(/"/g,'&quot;')}">
+                        <img id="sb-img-preview" class="ej-img-preview"
+                             src="${(entry.profile_image || '').replace(/"/g,'&quot;')}"
+                             style="${entry.profile_image ? '' : 'display:none'}">
+                    </div>
 
                     <label>Banner image URL</label>
-                    <input id="sb-banner-url" class="ej-input" type="url"
-                           placeholder="https://… (wide header image)"
-                           value="${(entry.banner_image || '').replace(/"/g,'&quot;')}">
+                    <div>
+                        <input id="sb-banner-url" class="ej-input" type="url"
+                               placeholder="https://… (wide header image)"
+                               value="${(entry.banner_image || '').replace(/"/g,'&quot;')}">
+                        <img id="sb-banner-preview" class="ej-img-preview ej-img-preview--banner"
+                             src="${(entry.banner_image || '').replace(/"/g,'&quot;')}"
+                             style="${entry.banner_image ? '' : 'display:none'}">
+                    </div>
 
                     <label>Accent colour</label>
                     <input id="sb-accent-color" class="ej-input ej-color-input" type="color"
@@ -1693,10 +1833,41 @@
                 </div>`;
             mainArea.insertBefore(settingsEl, mainArea.firstChild);
 
+            // Image URL → live preview
+            const _wirePreview = (inputId, previewId) => {
+                const inp = document.getElementById(inputId);
+                const img = document.getElementById(previewId);
+                if (!inp || !img) return;
+                inp.addEventListener('input', () => {
+                    const url = inp.value.trim();
+                    img.style.display = url ? '' : 'none';
+                    if (url) img.src = url;
+                });
+            };
+            _wirePreview('sb-img-url',    'sb-img-preview');
+            _wirePreview('sb-banner-url', 'sb-banner-preview');
+
             // Any change in the settings panel also marks dirty
             settingsEl.querySelectorAll('input, select').forEach(el => {
                 el.addEventListener('change', () => { _isDirty = true; });
             });
+
+            // ── Draft recovery ────────────────────────────────────────────────
+            const _draft = _loadDraft(entry.id);
+            if (_draft && _draft.savedAt > Date.now() - 7 * 24 * 3600 * 1000) {
+                const t = new Date(_draft.savedAt);
+                const timeStr = t.toLocaleDateString() + ' ' + t.toLocaleTimeString();
+                const restore = await _dlgConfirm(
+                    'Unsaved Draft Found',
+                    `A draft from ${timeStr} was found. Restore it?`,
+                    { okLabel: 'Restore Draft' }
+                );
+                if (restore) {
+                    await _ejInstance.render(blocksToEditorData(_draft.blocks || []));
+                    if (_draft.settings) _applyEntrySettings(_draft.settings);
+                    _isDirty = true;
+                }
+            }
 
             // ── Guard in-app navigation while dirty ───────────────────────────
 
@@ -1825,6 +1996,7 @@
             }
 
             const savedId   = _editingEntry.id;
+            _clearDraft(savedId);
             exitEditMode();
             await WikiSB.nav.showEntry(savedId, name);
         } catch (e) {
@@ -1837,6 +2009,7 @@
     etCancel.addEventListener('click', async () => {
         if (_isDirty && !await _dlgConfirm('Unsaved Changes', 'You have unsaved changes. Discard them?', { okLabel: 'Discard', danger: true })) return;
         const entry = _editingEntry; // capture before exitEditMode nulls it
+        if (entry) _clearDraft(entry.id);
         _isDirty = false;
         exitEditMode();
         if (WikiSB.nav.showEntry && entry) {
@@ -1846,6 +2019,13 @@
 
     function exitEditMode() {
         _isDirty = false;
+        clearTimeout(_draftTimer); _draftTimer = null;
+        clearTimeout(_countTimer); _countTimer = null;
+        if (_ctrlSHandler) {
+            document.removeEventListener('keydown', _ctrlSHandler);
+            _ctrlSHandler = null;
+        }
+        document.querySelector('#sb-entry-list li.wiki-editing')?.classList.remove('wiki-editing');
         if (_origNavFns) {
             WikiSB.nav.showCampaignList = _origNavFns.showCampaignList;
             WikiSB.nav.showCampaign     = _origNavFns.showCampaign;
@@ -1990,6 +2170,35 @@
         });
     }
 
+    function _dlgSelect(title, message, options) {
+        return new Promise(resolve => {
+            const opts = options.map(o => `<option value="${o.id.replace(/"/g,'&quot;')}">${(_parseIcon(o.name).displayName || o.name).replace(/</g,'&lt;')}</option>`).join('');
+            const panel = document.createElement('div');
+            panel.className = 'wsp-overlay';
+            panel.innerHTML = `
+                <div class="wsp-backdrop"></div>
+                <div class="wsp-box wsp-dialog">
+                    <div class="wsp-header"><span>${title}</span></div>
+                    <div class="wsp-body">
+                        <p class="wsp-dlg-msg">${message}</p>
+                        <select class="ej-input ej-select wsp-dlg-sel" style="width:100%">${opts}</select>
+                    </div>
+                    <div class="wsp-footer wsp-footer--gap">
+                        <button class="et-btn wsp-dlg-cancel">Cancel</button>
+                        <button class="et-btn et-primary wsp-dlg-ok">Move</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(panel);
+            const ok     = () => { const v = panel.querySelector('.wsp-dlg-sel')?.value || null; panel.remove(); resolve(v); };
+            const cancel = () => { panel.remove(); resolve(null); };
+            panel.querySelector('.wsp-backdrop').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-cancel').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-ok').addEventListener('click', ok);
+            panel.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
+            requestAnimationFrame(() => panel.querySelector('.wsp-dlg-ok').focus());
+        });
+    }
+
     // ── Template system ───────────────────────────────────────────────────────
 
     function _stripBlockContent(blocks) {
@@ -2023,6 +2232,8 @@
                     return { ...blk, content: { ...c, items: (c.items || []).map(col => ({ ...col, blocks: _stripBlockContent(col.blocks || []) })) } };
                 case 'toggle':
                     return { ...blk, content: { ...c, blocks: _stripBlockContent(c.blocks || []) } };
+                case 'entry_link':
+                    return { ...blk, content: { ...c, entryId: '', entryName: '' } };
                 default:
                     return blk;
             }
@@ -2066,6 +2277,8 @@
 
         const inEditMode = !!_ejInstance && !!_editingEntry;
 
+        const _BLOCK_LABELS = { heading_2:'Heading', heading_3:'Heading', heading_4:'Heading', paragraph:'Text', image:'Image', quote:'Quote', divider:'Divider', callout:'Callout', props_block:'Properties', toggle:'Toggle', columns:'Columns', table:'Table', embed:'Embed', bookmark:'Link', audio:'Audio', spacer:'Spacer', bulleted_list:'List', numbered_list:'List', entry_link:'Entry Link' };
+
         const listHTML = templates.length
             ? templates.map(t => `
                 <div class="wsp-template-row" data-id="${t.id}">
@@ -2074,6 +2287,7 @@
                         ${t.description ? `<span>${t.description.replace(/</g,'&lt;')}</span>` : ''}
                     </div>
                     <div class="wsp-template-btns">
+                        <button class="et-btn wsp-tpl-preview-btn" data-id="${t.id}">▾ Preview</button>
                         ${inEditMode ? `
                         <button class="et-btn wsp-tpl-overwrite" data-id="${t.id}">Overwrite</button>
                         <button class="et-btn wsp-tpl-append"    data-id="${t.id}">Append</button>
@@ -2169,6 +2383,31 @@
                     await API.deleteTemplate(tpl.id);
                     btn.closest('.wsp-template-row').remove();
                 } catch (e) { setStatus('Delete failed: ' + e.message, true); }
+            });
+        });
+
+        // Template preview (expandable block list)
+        panel.querySelectorAll('.wsp-tpl-preview-btn').forEach(btn => {
+            const tpl = templates.find(t => t.id === btn.dataset.id);
+            if (!tpl) return;
+            btn.addEventListener('click', () => {
+                const row = btn.closest('.wsp-template-row');
+                const existing = row.querySelector('.wsp-tpl-preview');
+                if (existing) { existing.remove(); btn.textContent = '▾ Preview'; return; }
+                const blocks = tpl.blocks || [];
+                // Summarise block types, collapsing consecutive identical ones
+                const summary = blocks.map(b => _BLOCK_LABELS[b.type] || b.type);
+                const grouped = summary.reduce((acc, t) => {
+                    if (acc.length && acc[acc.length - 1].type === t) acc[acc.length - 1].count++;
+                    else acc.push({ type: t, count: 1 });
+                    return acc;
+                }, []);
+                const text = grouped.map(g => g.count > 1 ? `${g.type} ×${g.count}` : g.type).join(' → ');
+                const preview = document.createElement('div');
+                preview.className = 'wsp-tpl-preview';
+                preview.textContent = blocks.length ? `${blocks.length} block${blocks.length !== 1 ? 's' : ''}: ${text}` : '(empty)';
+                row.appendChild(preview);
+                btn.textContent = '▴ Preview';
             });
         });
     }
@@ -2459,25 +2698,76 @@
         );
     };
 
-    // Entry list: inject "+ New Entry" and delete per entry
+    // Entry list: inject "+ New Entry", delete, move, and duplicate per entry
     WikiSB.onEntries = function (categoryId, entries, area) {
         if (!editorGuard()) return;
 
-        // Rename + delete buttons per entry row
+        const _refreshList = () => {
+            const activePill = document.querySelector('#sb-cat-pills .wiki-cat-pill.active');
+            if (activePill) activePill.click();
+        };
+
         const list = area.querySelector('#sb-entry-list');
         if (list) {
-            list.querySelectorAll('li').forEach((li, i) => {
+            // Operate on all li elements — entries array and li elements are in the same order
+            const allLis = [...list.querySelectorAll('li[data-id]')];
+            allLis.forEach((li, i) => {
                 const entry = entries[i];
                 if (!entry) return;
-                _addRenameBtn(li, entry.name, async name => {
-                    await API.updateEntry(entry.id, { name });
-                    const activePill = document.querySelector('#sb-cat-pills .wiki-cat-pill.active');
-                    if (activePill) activePill.click();
+
+                // Move to category
+                const moveBtn = document.createElement('button');
+                moveBtn.className   = 'wiki-crud-move';
+                moveBtn.textContent = '↕';
+                moveBtn.title       = 'Move to another category';
+                moveBtn.addEventListener('click', async e => {
+                    e.stopPropagation(); e.preventDefault();
+                    const campId = WikiSB.state.campaign?.id;
+                    if (!campId) return;
+                    try {
+                        const allCats  = await API.getCategories(campId);
+                        const otherCats = allCats.filter(c => c.id !== categoryId);
+                        if (!otherCats.length) {
+                            await _dlgConfirm('Move Entry', 'No other categories to move to.', { okLabel: 'OK' });
+                            return;
+                        }
+                        const name = entry.name.replace(/</g, '&lt;');
+                        const targetId = await _dlgSelect('Move Entry', `Move <strong>${name}</strong> to:`, otherCats);
+                        if (!targetId) return;
+                        await API.updateEntry(entry.id, { category_id: targetId });
+                        _refreshList();
+                    } catch (err) { setStatus('Move failed: ' + err.message, true); }
                 });
+                li.appendChild(moveBtn);
+
+                // Duplicate entry
+                const dupBtn = document.createElement('button');
+                dupBtn.className   = 'wiki-crud-dup';
+                dupBtn.textContent = '⎘';
+                dupBtn.title       = 'Duplicate entry';
+                dupBtn.addEventListener('click', async e => {
+                    e.stopPropagation(); e.preventDefault();
+                    try {
+                        const full    = await API.getEntry(entry.id);
+                        const newName = entry.name + ' (copy)';
+                        const newRow  = await API.createEntry(categoryId, {
+                            name: newName,
+                            profile_image: full.profile_image || null,
+                            subtitle:      full.subtitle      || null,
+                            banner_image:  full.banner_image  || null,
+                            layout:        full.layout        || null,
+                            extra_props:   full.extra_props   || {},
+                        });
+                        if (full.blocks?.length) await API.saveBlocks(newRow.id, full.blocks);
+                        await WikiSB.nav.showEntry(newRow.id, newName);
+                    } catch (err) { setStatus('Duplicate failed: ' + err.message, true); }
+                });
+                li.appendChild(dupBtn);
+
+                // Delete
                 _addDeleteBtn(li, entry.name, async () => {
                     await API.deleteEntry(entry.id);
-                    const activePill = document.querySelector('#sb-cat-pills .wiki-cat-pill.active');
-                    if (activePill) activePill.click();
+                    _refreshList();
                 });
             });
         }
@@ -2492,7 +2782,6 @@
             if (!name) return;
             try {
                 const row = await API.createEntry(categoryId, { name: name.trim(), extra_props: {} });
-                // Navigate straight to the new entry so the editor can populate it
                 await WikiSB.nav.showEntry(row.id, row.name);
             } catch (e) { setStatus('Create failed: ' + e.message, true); }
         });
