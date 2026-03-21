@@ -951,15 +951,17 @@ body.wiki-page #music-prompt .music-char {
 }
 
 .pip-popout:hover {
-    color: #98e6d6;
-    background: none;
+    color: #6de8d0;
+    background: rgba(152, 230, 214, 0.16);
     border-color: transparent;
+    border-radius: 3px;
 }
 
 .pip-close:hover {
     color: #f3b0c3;
-    background: none;
+    background: rgba(243, 176, 195, 0.16);
     border-color: transparent;
+    border-radius: 3px;
 }
 
 #twitch-pip iframe {
@@ -2012,7 +2014,8 @@ body.wiki-page img.wiki-entry-thumb {
 
 .wiki-add-pill:hover {
     border-color: #98e6d6;
-    color: #98e6d6;
+    color: #6de8d0;
+    background: rgba(152, 230, 214, 0.1);
 }
 
 /* Entry list */
@@ -2246,9 +2249,10 @@ body.wiki-page img.wiki-section-float-img--left {
     color: rgba(243, 176, 195, 0.5);
     font-size: 0.75rem;
     cursor: pointer;
-    padding: 0 0 0 8px;
+    padding: 2px 6px;
     margin-left: auto;
-    transition: color 0.2s;
+    border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
     min-width: unset;
     line-height: 1;
     flex-shrink: 0;
@@ -2256,7 +2260,7 @@ body.wiki-page img.wiki-section-float-img--left {
 
 .wiki-crud-del:hover {
     color: #f3b0c3;
-    background: none;
+    background: rgba(243, 176, 195, 0.14);
     border-color: transparent;
 }
 
@@ -2267,9 +2271,10 @@ body.wiki-page img.wiki-section-float-img--left {
     color: rgba(243, 176, 195, 0.4);
     font-size: 0.65rem;
     cursor: pointer;
-    padding: 0 0 0 6px;
+    padding: 1px 5px;
     margin-left: 4px;
-    transition: color 0.2s;
+    border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
     min-width: unset;
     line-height: 1;
     vertical-align: middle;
@@ -2277,19 +2282,20 @@ body.wiki-page img.wiki-section-float-img--left {
 
 .wiki-crud-del-inline:hover {
     color: #f3b0c3;
-    background: none;
+    background: rgba(243, 176, 195, 0.14);
     border-color: transparent;
 }
 
-/* Inline rename button (campaigns, entries, category pills) */
+/* Inline rename / settings button (campaigns, entries, category pills) */
 .wiki-crud-rename {
     background: none;
     border: none;
     color: rgba(152, 230, 214, 0.45);
     font-size: 0.75rem;
     cursor: pointer;
-    padding: 2px 5px;
+    padding: 2px 6px;
     border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
     min-width: unset;
     line-height: 1;
     flex-shrink: 0;
@@ -2297,7 +2303,7 @@ body.wiki-page img.wiki-section-float-img--left {
 
 .wiki-crud-rename:hover {
     color: #98e6d6;
-    background: none;
+    background: rgba(152, 230, 214, 0.14);
     border-color: transparent;
 }
 
@@ -2307,8 +2313,9 @@ body.wiki-page img.wiki-section-float-img--left {
     color: rgba(152, 230, 214, 0.35);
     font-size: 0.65rem;
     cursor: pointer;
-    padding: 1px 4px;
+    padding: 1px 5px;
     border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
     min-width: unset;
     line-height: 1;
     vertical-align: middle;
@@ -2316,7 +2323,7 @@ body.wiki-page img.wiki-section-float-img--left {
 
 .wiki-crud-rename-inline:hover {
     color: #98e6d6;
-    background: none;
+    background: rgba(152, 230, 214, 0.14);
     border-color: transparent;
 }
 
@@ -2409,7 +2416,7 @@ body.wiki-page img.wiki-section-float-img--left {
     line-height: 1;
 }
 
-.ej-toggle-chevron:hover { color: #d3b3e7; }
+.ej-toggle-chevron:hover { color: #e8c8ff; background: rgba(211, 179, 231, 0.16); border-radius: 3px; }
 .ej-toggle-chevron--open { transform: rotate(90deg); }
 
 .ej-toggle-head-wrap {
@@ -3524,7 +3531,9 @@ body.wiki-page img.wiki-section-float-img--left {
 
 .tc-add-row:hover,
 .tc-add-column:hover {
-    color: #d3b3e7;
+    color: #e8c8ff;
+    background: rgba(211, 179, 231, 0.14);
+    border-radius: 3px;
 }
 
 .tc-toolbox__toggler {
@@ -3612,7 +3621,7 @@ body.wiki-page img.wiki-section-float-img--left {
     line-height: 1.4;
 }
 
-.pe-del:hover { color: #f3b0c3; background: none; border-color: transparent; }
+.pe-del:hover { color: #f3b0c3; background: rgba(243, 176, 195, 0.14); border-color: transparent; border-radius: 3px; }
 
 /* ── Properties block tool layout ────────────────────────────────────────── */
 
@@ -3783,4 +3792,106 @@ body.wiki-page img.wiki-section-float-img--left {
     opacity: 0 !important;
     filter: blur(8px) !important;
     transform-origin: 50% 50%;
+}
+
+/* ── Feature 2: Image previews in Entry Settings ─────────────────────────── */
+.ej-img-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 80px;
+    margin-top: 6px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid rgba(211,179,231,0.2);
+}
+.ej-img-preview--banner {
+    max-height: 44px;
+    width: 100%;
+    object-fit: cover;
+}
+
+/* ── Feature 6 / 7: Move and Duplicate buttons on entry rows ─────────────── */
+.wiki-crud-move,
+.wiki-crud-dup {
+    background: none;
+    border: none;
+    color: rgba(160, 138, 176, 0.6);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.9rem;
+    border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
+    min-width: unset;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.wiki-crud-move:hover { color: #6de8d0; background: rgba(152, 230, 214, 0.16); }
+.wiki-crud-dup:hover  { color: #e8c8ff; background: rgba(211, 179, 231, 0.16); }
+
+/* ── Feature 8: Template block preview ──────────────────────────────────── */
+.wsp-tpl-preview {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.18);
+    border-radius: 4px;
+    font-size: 0.78rem;
+    color: #a08ab0;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* ── Feature 14: Entry link block ───────────────────────────────────────── */
+.wiki-entry-ref {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(211,179,231,0.06);
+    border: 1px solid rgba(211,179,231,0.2);
+    border-radius: 6px;
+    color: #d3b3e7;
+    text-decoration: none;
+    margin: 4px 0;
+    transition: background 0.15s;
+}
+.wiki-entry-ref:hover { background: rgba(211,179,231,0.12); color: #d3b3e7; text-decoration: none; }
+.wiki-entry-ref-arrow { margin-left: auto; opacity: 0.6; }
+.ej-entry-link-results {
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid rgba(211,179,231,0.2);
+    border-radius: 4px;
+    background: #2e1d32;
+    margin-top: 4px;
+}
+.ej-entry-link-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ej-entry-link-result:last-child { border-bottom: none; }
+.ej-entry-link-result:hover { background: rgba(211,179,231,0.1); }
+.ej-entry-link-loading { padding: 8px 12px; color: #a08ab0; font-size: 0.85rem; }
+.ej-entry-link-selected { margin-top: 4px; color: #98e6d6; font-size: 0.85rem; }
+
+/* ── Feature 15: Load-more button ───────────────────────────────────────── */
+.wiki-load-more-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    text-align: center;
+}
+
+/* ── Feature 17: Visual indication of entry being edited ────────────────── */
+#sb-entry-list li.wiki-editing {
+    border-left: 2px solid #d3b3e7;
+    border-radius: 2px;
+}
+#sb-entry-list li.wiki-editing > .wiki-entry-link {
+    background: rgba(211,179,231,0.08);
+    border-radius: 0 4px 4px 0;
 }
