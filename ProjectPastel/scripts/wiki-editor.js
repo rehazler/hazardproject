@@ -2584,14 +2584,23 @@
                             const icon = panel.querySelector('#cst-icon').value.trim();
                             const slug = displayName.toLowerCase()
                                 .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                            await API.updateCampaign(camp.id, {
+                            const allFields = {
                                 name:         displayName,
                                 slug,
                                 icon:         icon || null,
                                 description:  panel.querySelector('#cst-desc').value.trim(),
                                 accent_color: panel.querySelector('#cst-accent').value,
                                 banner_image: panel.querySelector('#cst-banner').value.trim(),
-                            });
+                            };
+                            try {
+                                await API.updateCampaign(camp.id, allFields);
+                            } catch (e2) {
+                                if (e2.message.includes('schema cache') || e2.message.includes('column')) {
+                                    const { icon: _i, ...coreFields } = allFields;
+                                    await API.updateCampaign(camp.id, coreFields);
+                                    setStatus('Saved (icon skipped — run supabase-migration-v3.sql to enable icons)', true);
+                                } else { throw e2; }
+                            }
                             await WikiSB.nav.showCampaignList();
                         } catch (err) { setStatus('Save failed: ' + err.message, true); }
                     },
@@ -2652,7 +2661,14 @@
                         try {
                             const displayName = panel.querySelector('#ccat-name').value.trim();
                             const icon = panel.querySelector('#ccat-icon').value.trim();
-                            await API.updateCategory(cat.id, { name: displayName, icon: icon || null });
+                            try {
+                                await API.updateCategory(cat.id, { name: displayName, icon: icon || null });
+                            } catch (e2) {
+                                if (e2.message.includes('schema cache') || e2.message.includes('column')) {
+                                    await API.updateCategory(cat.id, { name: displayName });
+                                    setStatus('Saved (icon skipped — run supabase-migration-v3.sql to enable icons)', true);
+                                } else { throw e2; }
+                            }
                             await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
                         } catch (err) { setStatus('Save failed: ' + err.message, true); }
                     },
