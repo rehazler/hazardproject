@@ -3108,6 +3108,22 @@ body.wiki-page img.wiki-section-float-img--left {
     justify-content: flex-end;
     flex-shrink: 0;
 }
+.wsp-footer--gap { gap: 8px; }
+
+.wsp-dialog .wsp-box { width: min(380px, 92vw); }
+
+.wsp-dlg-msg {
+    margin: 0 0 10px;
+    color: #c0a8d8;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+.wsp-dlg-msg strong { color: #e8e0f0; }
+.wsp-dlg-hint {
+    margin: 0 0 8px;
+    color: #a08ab0;
+    font-size: 0.82rem;
+}
 
 /* Template list inside overlay */
 .wsp-save-row {
