@@ -68,7 +68,7 @@
         'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest',
         'https://cdn.jsdelivr.net/npm/@editorjs/list@1',
         'https://cdn.jsdelivr.net/npm/@editorjs/image@latest',
-        'https://cdn.jsdelivr.net/npm/@editorjs/quote@latest',
+        // @editorjs/quote replaced by local QuoteTool below
         // @editorjs/delimiter replaced by local DelimiterTool below
         'https://cdn.jsdelivr.net/npm/@editorjs/table@2',
         'https://cdn.jsdelivr.net/npm/@editorjs/embed@2',
@@ -513,7 +513,7 @@
                     uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
                     uploadByFile()   { return Promise.resolve({ success: 0 }); },
                 } } },
-                quote:       { class: Quote,      inlineToolbar: true },
+                quote:       { class: QuoteTool, inlineToolbar: true },
                 delimiter:   { class: DelimiterTool },
                 audio:       { class: AudioTool },
                 callout:     { class: CalloutTool },
@@ -829,7 +829,7 @@
                     uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
                     uploadByFile()   { return Promise.resolve({ success: 0 }); },
                 } } },
-                quote:       { class: Quote,        inlineToolbar: true },
+                quote:       { class: QuoteTool, inlineToolbar: true },
                 delimiter:   { class: DelimiterTool },
                 audio:       { class: AudioTool },
                 callout:     { class: CalloutTool },
@@ -1089,6 +1089,82 @@
         validate(d) { return d.rows && d.rows.length > 0; }
     }
 
+    class QuoteTool {
+        static get toolbox() {
+            return { title: 'Quote', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>' };
+        }
+        static get sanitize() {
+            return { text: { b: true, i: true, em: true, strong: true, u: true, a: { href: true } } };
+        }
+        constructor({ data }) {
+            this._data = {
+                text:         data.text         || '',
+                caption:      data.caption      || '',
+                style:        data.style        || 'none',
+                textAlign:    data.textAlign    || 'left',
+                captionAlign: data.captionAlign || 'right',
+            };
+        }
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap ej-quote-wrap';
+
+            const ctrlRow = document.createElement('div');
+            ctrlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center';
+
+            const mkSel = (label, options, current) => {
+                const g = document.createElement('div');
+                g.style.cssText = 'display:flex;align-items:center;gap:4px';
+                g.innerHTML = `<span style="font-size:0.78rem;color:#a08ab0">${label}:</span>`;
+                const sel = document.createElement('select');
+                sel.className = 'ej-input ej-select'; sel.style.width = 'auto';
+                options.forEach(([v, l]) => {
+                    const o = document.createElement('option');
+                    o.value = v; o.textContent = l;
+                    if (v === current) o.selected = true;
+                    sel.appendChild(o);
+                });
+                g.appendChild(sel);
+                return { g, sel };
+            };
+
+            const { g: sg, sel: styleSel }    = mkSel('Style',          [['none','None'],['line','Line'],['box','Box'],['shade','Shade']],       this._data.style);
+            const { g: tag, sel: textAlignSel }= mkSel('Text',           [['left','Left'],['center','Center'],['right','Right']],                 this._data.textAlign);
+            const { g: cag, sel: captAlignSel }= mkSel('Caption',        [['left','Left'],['center','Center'],['right','Right']],                 this._data.captionAlign);
+            ctrlRow.appendChild(sg); ctrlRow.appendChild(tag); ctrlRow.appendChild(cag);
+            wrap.appendChild(ctrlRow);
+
+            const textEl = document.createElement('div');
+            textEl.contentEditable = 'true';
+            textEl.className = 'ej-input ej-quote-text';
+            textEl.dataset.placeholder = 'Quote text…';
+            textEl.innerHTML = this._data.text;
+            wrap.appendChild(textEl);
+
+            const capInp = document.createElement('input');
+            capInp.type = 'text';
+            capInp.className = 'ej-input';
+            capInp.placeholder = 'Attribution (optional)';
+            capInp.value = this._data.caption;
+            wrap.appendChild(capInp);
+
+            return wrap;
+        }
+        save(el) {
+            const textEl       = el.querySelector('.ej-quote-text');
+            const capInp       = el.querySelector('input');
+            const [styleSel, textAlignSel, captAlignSel] = el.querySelectorAll('select');
+            return {
+                text:         textEl        ? textEl.innerHTML     : '',
+                caption:      capInp        ? capInp.value.trim()  : '',
+                style:        styleSel      ? styleSel.value       : 'none',
+                textAlign:    textAlignSel  ? textAlignSel.value   : 'left',
+                captionAlign: captAlignSel  ? captAlignSel.value   : 'right',
+            };
+        }
+        validate(d) { return !!(d.text && d.text.replace(/<[^>]+>/g, '').trim()); }
+    }
+
     class DelimiterTool {
         static get toolbox() {
             return { title: 'Divider', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 12h16v1H4z"/></svg>' };
@@ -1121,7 +1197,7 @@
             };
 
             const { g: sg, sel: styleSel }  = mkGroup('Style',     [['line','Line'],['moon','Moon'],['moon-full','Moon (full)']],            this._data.style     || 'line');
-            const { g: tg, sel: thickSel }  = mkGroup('Thickness', [['1','Thin'],['2','Medium'],['3','Thick']],                               this._data.thickness || '1');
+            const { g: tg, sel: thickSel }  = mkGroup('Thickness', [['0.5','Very Thin'],['1','Thin'],['2','Medium'],['3','Thick']],            this._data.thickness || '1');
             const { g: cg, sel: colorSel }  = mkGroup('Color',     [['default','Default'],['lavender','Lavender'],['mint','Mint'],['pink','Pink']], this._data.color || 'default');
 
             topRow.appendChild(sg); topRow.appendChild(tg); topRow.appendChild(cg);
@@ -1247,7 +1323,7 @@
                     out.push({ type: 'image', data: { file: { url: c.url || '' }, caption: c.caption || '' } });
                     break;
                 case 'quote':
-                    out.push({ type: 'quote', data: { text: c.html || '', caption: '' } });
+                    out.push({ type: 'quote', data: { text: c.html || '', caption: c.caption || '', style: c.style || 'none', textAlign: c.textAlign || 'left', captionAlign: c.captionAlign || 'right' } });
                     break;
                 case 'divider':
                     out.push({ type: 'delimiter', data: { style: c.style || 'line', thickness: c.thickness || '1', color: c.color || 'default' } });
@@ -1330,7 +1406,7 @@
                     out.push({ type: 'image', content: { url: blk.data.file?.url || '', caption: blk.data.caption || '' } });
                     break;
                 case 'quote':
-                    out.push({ type: 'quote', content: { html: blk.data.text || '' } });
+                    out.push({ type: 'quote', content: { html: blk.data.text || '', caption: blk.data.caption || '', style: blk.data.style || 'none', textAlign: blk.data.textAlign || 'left', captionAlign: blk.data.captionAlign || 'right' } });
                     break;
                 case 'delimiter':
                     out.push({ type: 'divider', content: { style: blk.data.style || 'line', thickness: blk.data.thickness || '1', color: blk.data.color || 'default' } });
@@ -1382,6 +1458,89 @@
     }
 
     // Returns false (and blocks the action) if dirty and the user cancels.
+    // ── Inline markdown auto-formatting ──────────────────────────────────────
+    // Listens for input events on an EditorJS holder and converts inline
+    // markdown syntax to rich text as the user types.
+    // Covers all nested sub-editors (ColumnsTool, ToggleTool) via event bubbling.
+
+    function _installMarkdownShortcuts(holder) {
+        if (!holder) return;
+
+        // Patterns checked longest-first so ** is tested before *
+        const PATTERNS = [
+            { open: '**', wrap: s => `<b>${s}</b>` },
+            { open: '__', wrap: s => `<b>${s}</b>` },
+            { open: '*',  wrap: s => `<em>${s}</em>` },
+            { open: '_',  wrap: s => `<em>${s}</em>` },
+            { open: '~~', wrap: s => `<s>${s}</s>` },
+            { open: '`',  wrap: s => `<code>${s}</code>` },
+        ];
+
+        holder.addEventListener('input', (e) => {
+            if (e.isComposing) return;
+
+            const sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+
+            const range = sel.getRangeAt(0);
+            if (!range.collapsed) return;
+
+            const node = range.startContainer;
+            if (node.nodeType !== Node.TEXT_NODE) return;
+            if (!node.parentElement?.isContentEditable) return;
+
+            const text   = node.textContent;
+            const pos    = range.startOffset;
+            const before = text.slice(0, pos);
+
+            for (const pat of PATTERNS) {
+                if (!before.endsWith(pat.open)) continue;
+
+                const innerEnd = before.length - pat.open.length;
+                const search   = before.slice(0, innerEnd);
+                const openIdx  = search.lastIndexOf(pat.open);
+                if (openIdx < 0) continue;
+
+                // Prevent single-char marker matching inside a double-char one
+                // (e.g. stop * matching the second * in **)
+                if (pat.open.length === 1 && openIdx > 0 &&
+                    search[openIdx - 1] === pat.open[0]) continue;
+
+                const inner = search.slice(openIdx + pat.open.length);
+                if (!inner) continue;
+
+                // Select the whole marker+content+marker span
+                const r = document.createRange();
+                r.setStart(node, openIdx);
+                r.setEnd(node, pos);
+                sel.removeAllRanges();
+                sel.addRange(r);
+
+                // Build safe HTML and insert it with a temporary cursor anchor
+                const safeInner = inner
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                const anchorId = '_md_' + Date.now();
+                // eslint-disable-next-line no-undef
+                document.execCommand('insertHTML', false,
+                    pat.wrap(safeInner) + `<span id="${anchorId}"></span>`);
+
+                // Move cursor to just after the inserted element, then remove the anchor
+                const anchor = document.getElementById(anchorId);
+                if (anchor) {
+                    const after = document.createRange();
+                    after.setStartAfter(anchor);
+                    after.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(after);
+                    anchor.remove();
+                }
+                return;
+            }
+        });
+    }
+
     // Exits edit mode automatically when the user confirms discard.
     function _confirmDiscard() {
         if (!_isDirty) return true;
@@ -1430,7 +1589,7 @@
                             },
                         },
                     },
-                    quote:     { class: Quote,     inlineToolbar: true },
+                    quote:     { class: QuoteTool, inlineToolbar: true },
                     delimiter: { class: DelimiterTool },
                     table:     { class: Table, inlineToolbar: true },
                     embed:     { class: Embed },
@@ -1453,9 +1612,11 @@
 
             // Any keystrokes inside the editor (including nested column editors
             // whose input events bubble up) mark the entry as dirty.
-            document.getElementById('ej-holder')?.addEventListener(
-                'input', () => { _isDirty = true; }, { capture: true }
-            );
+            const _ejHolder = document.getElementById('ej-holder');
+            _ejHolder?.addEventListener('input', () => { _isDirty = true; }, { capture: true });
+
+            // Inline markdown shortcuts (**bold**, *italic*, `code`, ~~strike~~, etc.)
+            _installMarkdownShortcuts(_ejHolder);
 
             // ── Entry Settings panel ──────────────────────────────────────────
             const mainArea   = document.getElementById('sb-entry-main');
@@ -1467,6 +1628,11 @@
             settingsEl.innerHTML = `
                 <div class="wes-header"><span>Entry Settings</span></div>
                 <div class="wes-grid">
+                    <label>Name</label>
+                    <input id="sb-entry-name" class="ej-input" type="text"
+                           placeholder="Entry name"
+                           value="${(entry.name || '').replace(/"/g,'&quot;')}">
+
                     <label>Subtitle</label>
                     <input id="sb-subtitle" class="ej-input" type="text"
                            placeholder="Optional subtitle / tagline"
@@ -1494,11 +1660,10 @@
 
                     <label>Title divider</label>
                     <select id="sb-title-divider" class="ej-input ej-select">
-                        <option value=""          ${!(layout.titleDivider||'').replace(/^moon$/,'moon-full')                    ? 'selected':''}>Default</option>
-                        <option value="moon-full" ${(layout.titleDivider==='moon-full'||layout.titleDivider==='moon') ? 'selected':''}>Moon (full)</option>
-                        <option value="moon-split"${layout.titleDivider==='moon-split'                                ? 'selected':''}>Moon (split)</option>
+                        <option value="none"      ${(!layout.titleDivider || layout.titleDivider==='none')            ? 'selected':''}>None</option>
                         <option value="line"      ${layout.titleDivider==='line'                                      ? 'selected':''}>Line only</option>
-                        <option value="none"      ${layout.titleDivider==='none'                                      ? 'selected':''}>None</option>
+                        <option value="moon-split"${layout.titleDivider==='moon-split'                                ? 'selected':''}>Moon (split)</option>
+                        <option value="moon-full" ${(layout.titleDivider==='moon-full'||layout.titleDivider==='moon') ? 'selected':''}>Moon (full)</option>
                     </select>
 
                     <label>Divider color</label>
@@ -1511,9 +1676,10 @@
 
                     <label>Divider thickness</label>
                     <select id="sb-divider-thickness" class="ej-input ej-select">
-                        <option value="1" ${(layout.titleDividerThickness||'1')==='1' ? 'selected':''}>Thin</option>
-                        <option value="2" ${layout.titleDividerThickness==='2'        ? 'selected':''}>Medium</option>
-                        <option value="3" ${layout.titleDividerThickness==='3'        ? 'selected':''}>Thick</option>
+                        <option value="0.5" ${layout.titleDividerThickness==='0.5'              ? 'selected':''}>Very Thin</option>
+                        <option value="1"   ${(layout.titleDividerThickness||'1')==='1'         ? 'selected':''}>Thin</option>
+                        <option value="2"   ${layout.titleDividerThickness==='2'                ? 'selected':''}>Medium</option>
+                        <option value="3"   ${layout.titleDividerThickness==='3'                ? 'selected':''}>Thick</option>
                     </select>
 
                     <label>Sidebar</label>
@@ -1601,7 +1767,7 @@
             sidebar:               (document.getElementById('sb-sidebar-pos')?.value        || 'right'),
             accentColor:           (document.getElementById('sb-accent-color')?.value       || ''),
             pageStyle:             (document.getElementById('sb-page-style')?.value         || 'full'),
-            titleDivider:          (document.getElementById('sb-title-divider')?.value      || ''),
+            titleDivider:          (document.getElementById('sb-title-divider')?.value      || 'none'),
             titleDividerColor:     (document.getElementById('sb-divider-color')?.value      || 'default'),
             titleDividerThickness: (document.getElementById('sb-divider-thickness')?.value  || '1'),
         };
@@ -1618,7 +1784,7 @@
         if (accentInp && layout.accentColor) accentInp.value = layout.accentColor;
         if (pageStyleSel) pageStyleSel.value = layout.pageStyle    || 'full';
         // normalise legacy 'moon' → 'moon-full'
-        const _td = layout.titleDivider === 'moon' ? 'moon-full' : (layout.titleDivider || '');
+        const _td = layout.titleDivider === 'moon' ? 'moon-full' : (layout.titleDivider || 'none');
         if (titleDivSel) titleDivSel.value = _td;
         if (divColorSel) divColorSel.value = layout.titleDividerColor     || 'default';
         if (divThickSel) divThickSel.value = layout.titleDividerThickness || '1';
@@ -1635,6 +1801,7 @@
         try {
             const editorData    = await _ejInstance.save();
             const blocks        = editorDataToBlocks(editorData);
+            const name          = document.getElementById('sb-entry-name')?.value.trim() || _editingEntry.name;
             const profile_image = document.getElementById('sb-img-url')?.value.trim()    ?? _editingEntry.profile_image;
             const subtitle      = document.getElementById('sb-subtitle')?.value.trim()   ?? _editingEntry.subtitle;
             const banner_image  = document.getElementById('sb-banner-url')?.value.trim() ?? _editingEntry.banner_image;
@@ -1645,21 +1812,21 @@
 
             // Try full update; if schema cache error, fall back to core fields only
             try {
-                await API.updateEntry(_editingEntry.id, { profile_image, subtitle, banner_image, layout });
+                await API.updateEntry(_editingEntry.id, { name, profile_image, subtitle, banner_image, layout });
                 setStatus('Saved!');
             } catch (e2) {
                 const isMigration = e2.message.includes('schema cache') || e2.message.includes('column');
                 if (isMigration) {
-                    await API.updateEntry(_editingEntry.id, { profile_image });
+                    await API.updateEntry(_editingEntry.id, { name, profile_image });
                     setStatus('Content saved. Run supabase-migration-v2.sql to enable subtitle/banner/layout.', true);
                 } else {
                     throw e2;
                 }
             }
 
-            const savedEntry = _editingEntry; // capture before exitEditMode nulls it
+            const savedId   = _editingEntry.id;
             exitEditMode();
-            await WikiSB.nav.showEntry(savedEntry.id, savedEntry.name);
+            await WikiSB.nav.showEntry(savedId, name);
         } catch (e) {
             setStatus('Save failed: ' + e.message, true);
         } finally {
@@ -1734,6 +1901,74 @@
 
     // ── Template system ───────────────────────────────────────────────────────
 
+    function _stripBlockContent(blocks) {
+        return (blocks || []).map(blk => {
+            const c = blk.content || {};
+            switch (blk.type) {
+                case 'heading_2':
+                case 'heading_3':
+                case 'heading_4':
+                    return blk; // headings ARE structure
+                case 'paragraph':
+                case 'rawHtml':
+                    return { ...blk, content: { ...c, html: '' } };
+                case 'quote':
+                    return { ...blk, content: { ...c, html: '', caption: '' } };
+                case 'image':
+                case 'audio':
+                case 'bookmark':
+                case 'embed':
+                    return { ...blk, content: { ...c, url: '' } };
+                case 'callout':
+                    return { ...blk, content: { variant: c.variant, emoji: c.emoji, html: '' } };
+                case 'props_block':
+                    return { ...blk, content: { ...c, rows: (c.rows || []).map(r => ({ key: r.key, value: '' })) } };
+                case 'divider':
+                    return blk;
+                case 'bulleted_list':
+                case 'numbered_list':
+                    return { ...blk, content: { ...c, items: [] } };
+                case 'columns':
+                    return { ...blk, content: { ...c, items: (c.items || []).map(col => ({ ...col, blocks: _stripBlockContent(col.blocks || []) })) } };
+                case 'toggle':
+                    return { ...blk, content: { ...c, blocks: _stripBlockContent(c.blocks || []) } };
+                default:
+                    return blk;
+            }
+        });
+    }
+
+    function _smartMerge(currentBlocks, templateBlocks) {
+        const working = currentBlocks.slice();
+        for (const tblk of (templateBlocks || [])) {
+            if (tblk.type === 'props_block') {
+                const idx = working.findIndex(b => b.type === 'props_block');
+                if (idx !== -1) {
+                    const curRows = (working[idx].content?.rows || []).map(r => ({ ...r }));
+                    const tplRows = tblk.content?.rows || [];
+                    for (const tr of tplRows) {
+                        const ci = curRows.findIndex(r => r.key === tr.key);
+                        if (ci !== -1) { if (tr.value) curRows[ci].value = tr.value; }
+                        else curRows.push({ ...tr });
+                    }
+                    working[idx] = { ...working[idx], content: { ...working[idx].content, rows: curRows } };
+                } else {
+                    working.push(tblk);
+                }
+            } else if (tblk.type === 'heading_2' || tblk.type === 'heading_3' || tblk.type === 'heading_4') {
+                const tText = (tblk.content?.html || '').replace(/<[^>]+>/g, '').trim();
+                const found = tText && working.some(b =>
+                    (b.type === tblk.type) &&
+                    (b.content?.html || '').replace(/<[^>]+>/g, '').trim() === tText
+                );
+                if (!found) working.push(tblk);
+            } else {
+                working.push(tblk);
+            }
+        }
+        return working;
+    }
+
     async function _openTemplatePanel() {
         let templates = [];
         try { templates = await API.getTemplates(); } catch { /* empty */ }
@@ -1748,7 +1983,11 @@
                         ${t.description ? `<span>${t.description.replace(/</g,'&lt;')}</span>` : ''}
                     </div>
                     <div class="wsp-template-btns">
-                        ${inEditMode ? `<button class="et-btn wsp-tpl-apply" data-id="${t.id}">Apply</button>` : ''}
+                        ${inEditMode ? `
+                        <button class="et-btn wsp-tpl-overwrite" data-id="${t.id}">Overwrite</button>
+                        <button class="et-btn wsp-tpl-append"    data-id="${t.id}">Append</button>
+                        <button class="et-btn wsp-tpl-smart"     data-id="${t.id}">Smart</button>
+                        ` : ''}
                         <button class="et-btn et-danger wsp-tpl-del" data-id="${t.id}">✕</button>
                     </div>
                 </div>`).join('')
@@ -1757,6 +1996,11 @@
         const saveRow = inEditMode
             ? `<div class="wsp-save-row">
                 <input id="wsp-tpl-name" class="ej-input" type="text" placeholder="Template name…">
+                <input id="wsp-tpl-desc" class="ej-input" type="text" placeholder="Description (optional)…">
+                <div class="wsp-tpl-mode-row">
+                    <label><input type="radio" name="wsp-tpl-mode" value="structure" checked> Structure only</label>
+                    <label><input type="radio" name="wsp-tpl-mode" value="content"> With content</label>
+                </div>
                 <button class="et-btn et-primary" id="wsp-tpl-save">💾 Save current as template</button>
                </div>`
             : '';
@@ -1770,27 +2014,57 @@
                 const name = panel.querySelector('#wsp-tpl-name').value.trim();
                 if (!name) { alert('Please enter a template name.'); return; }
                 try {
-                    const editorData = await _ejInstance.save();
-                    const blocks     = editorDataToBlocks(editorData);
-                    const layout     = _readEntrySettings();
-                    await API.createTemplate({ name, blocks, layout });
+                    const editorData  = await _ejInstance.save();
+                    let blocks        = editorDataToBlocks(editorData);
+                    const description = panel.querySelector('#wsp-tpl-desc').value.trim();
+                    const mode        = panel.querySelector('input[name="wsp-tpl-mode"]:checked')?.value || 'structure';
+                    if (mode === 'structure') blocks = _stripBlockContent(blocks);
+                    const layout = _readEntrySettings();
+                    await API.createTemplate({ name, description, blocks, layout });
                     setStatus('Template saved!');
                     panel.remove();
                 } catch (e) { setStatus('Template save failed: ' + e.message, true); }
             });
         }
 
-        // Apply / delete per template
-        panel.querySelectorAll('.wsp-tpl-apply').forEach(btn => {
+        // Overwrite
+        panel.querySelectorAll('.wsp-tpl-overwrite').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tpl = templates.find(t => t.id === btn.dataset.id);
                 if (!tpl || !_ejInstance) return;
                 if (!confirm(`Apply template "${tpl.name}"? This replaces the current editor content.`)) return;
                 await _ejInstance.render(blocksToEditorData(tpl.blocks || []));
-                // Apply layout settings from template
                 if (tpl.layout) _applyEntrySettings(tpl.layout);
                 panel.remove();
                 setStatus('Template applied — edit and save when ready');
+            });
+        });
+
+        // Append
+        panel.querySelectorAll('.wsp-tpl-append').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tpl = templates.find(t => t.id === btn.dataset.id);
+                if (!tpl || !_ejInstance) return;
+                const currentData   = await _ejInstance.save();
+                const currentBlocks = editorDataToBlocks(currentData);
+                const merged        = [...currentBlocks, ...(tpl.blocks || [])];
+                await _ejInstance.render(blocksToEditorData(merged));
+                panel.remove();
+                setStatus('Template appended — edit and save when ready');
+            });
+        });
+
+        // Smart Match
+        panel.querySelectorAll('.wsp-tpl-smart').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tpl = templates.find(t => t.id === btn.dataset.id);
+                if (!tpl || !_ejInstance) return;
+                const currentData   = await _ejInstance.save();
+                const currentBlocks = editorDataToBlocks(currentData);
+                const merged        = _smartMerge(currentBlocks, tpl.blocks || []);
+                await _ejInstance.render(blocksToEditorData(merged));
+                panel.remove();
+                setStatus('Template smart-merged — edit and save when ready');
             });
         });
 
@@ -1859,6 +2133,57 @@
         });
         parentEl.appendChild(btn);
         return btn;
+    }
+
+    // ── Drag-and-drop sort helper ─────────────────────────────────────────────
+
+    function _setupDragSort(containerEl, itemSelector, onReorder, { horizontal = false } = {}) {
+        if (!containerEl) return;
+        let dragSrc = null;
+        let ghost   = null;
+
+        const items       = () => [...containerEl.querySelectorAll(itemSelector)];
+        const removeGhost = () => { ghost?.remove(); ghost = null; };
+
+        // Container handles the actual drop — fires wherever the user releases
+        containerEl.addEventListener('dragover', e => e.preventDefault());
+        containerEl.addEventListener('drop', e => {
+            e.preventDefault();
+            if (!dragSrc) { removeGhost(); return; }
+            if (ghost?.parentNode) ghost.replaceWith(dragSrc);
+            removeGhost();
+            onReorder(items().map(n => n.dataset.id));
+        });
+
+        items().forEach(el => {
+            el.draggable = true;
+            el.addEventListener('dragstart', e => {
+                dragSrc = el;
+                el.classList.add('wiki-dnd-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                const tag = containerEl.tagName === 'UL' || containerEl.tagName === 'OL' ? 'li' : 'div';
+                ghost = document.createElement(tag);
+                ghost.className = horizontal ? 'wiki-dnd-ghost wiki-dnd-ghost--h' : 'wiki-dnd-ghost';
+                if (horizontal) ghost.style.height = el.offsetHeight + 'px';
+            });
+            el.addEventListener('dragend', () => {
+                el.classList.remove('wiki-dnd-dragging');
+                removeGhost();
+            });
+            el.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (!ghost || !dragSrc || dragSrc === el) return;
+                const rect = el.getBoundingClientRect();
+                if (horizontal) {
+                    if (e.clientX < rect.left + rect.width / 2) el.before(ghost);
+                    else el.after(ghost);
+                } else {
+                    if (e.clientY < rect.top + rect.height / 2) el.before(ghost);
+                    else el.after(ghost);
+                }
+            });
+            el.addEventListener('dragenter', e => e.preventDefault());
+        });
     }
 
     // ── WikiSB lifecycle hooks ────────────────────────────────────────────────
@@ -1955,6 +2280,13 @@
                 await WikiSB.nav.showCampaignList();
             }, true);
         });
+
+        _setupDragSort(
+            list,
+            'li[data-id]',
+            ids => Promise.all(ids.map((id, i) => API.updateCampaign(id, { sort_order: i })))
+                .catch(e => setStatus('Reorder failed: ' + e.message, true))
+        );
     };
 
     // Campaign view: inject "+ New Category" and delete per pill
@@ -2032,6 +2364,14 @@
             } catch (e) { setStatus('Create failed: ' + e.message, true); }
         });
         pillsEl.appendChild(addPill);
+
+        _setupDragSort(
+            pillsEl,
+            '.wiki-cat-pill[data-id]',
+            ids => Promise.all(ids.map((id, i) => API.updateCategory(id, { sort_order: i })))
+                .catch(e => setStatus('Reorder failed: ' + e.message, true)),
+            { horizontal: true }
+        );
     };
 
     // Entry list: inject "+ New Entry" and delete per entry
@@ -2072,6 +2412,15 @@
             } catch (e) { setStatus('Create failed: ' + e.message, true); }
         });
         area.appendChild(addBtn);
+
+        if (list) {
+            _setupDragSort(
+                list,
+                'li[data-id]',
+                ids => Promise.all(ids.map((id, i) => API.updateEntry(id, { sort_order: i })))
+                    .catch(e => setStatus('Reorder failed: ' + e.message, true))
+            );
+        }
     };
 
     // ── Toolbar scroll positioning ────────────────────────────────────────────

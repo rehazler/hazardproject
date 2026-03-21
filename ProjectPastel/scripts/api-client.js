@@ -177,6 +177,41 @@ const API = {
         _cacheDel('entry:' + entryId);
     },
 
+    // ── Search ────────────────────────────────────────────────────────────────
+
+    async getEntryCount(categoryId) {
+        const { count, error } = await _sb
+            .from('entries')
+            .select('*', { count: 'exact', head: true })
+            .eq('category_id', categoryId);
+        if (error) throw new Error(error.message);
+        return count ?? 0;
+    },
+
+    async searchEntries(query) {
+        const { data, error } = await _sb
+            .from('entries')
+            .select('id, name, profile_image, category_id, categories(id, name, campaigns(id, name))')
+            .ilike('name', `%${query}%`)
+            .order('name')
+            .limit(30);
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async searchEntriesInCategories(categoryIds, query) {
+        if (!categoryIds.length) return [];
+        const { data, error } = await _sb
+            .from('entries')
+            .select('id, name, profile_image, category_id, categories(id, name)')
+            .in('category_id', categoryIds)
+            .ilike('name', `%${query}%`)
+            .order('name')
+            .limit(30);
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
     // ── Templates ─────────────────────────────────────────────────────────────
 
     async getTemplates() {

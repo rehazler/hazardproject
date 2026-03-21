@@ -9,7 +9,7 @@
 
 window.WikiSB = {
     // Current navigation state — read by wiki-editor.js
-    state: { campaign: null, category: null, entryId: null },
+    state: { campaign: null, category: null, entryId: null, entryName: null },
 
     // Navigation functions — set below, called by wiki-editor.js
     nav: {
@@ -53,7 +53,7 @@ window.WikiSB = {
     ];
 
     function getCatIcon(name) {
-        const lower = name.toLowerCase();
+        const lower = (name || '').toLowerCase();
         const words = lower.split(/\W+/);
         for (const rule of CAT_ICON_RULES) {
             if (rule.keywords.some(kw =>
@@ -69,12 +69,12 @@ window.WikiSB = {
     const LEADING_EMOJI_RE = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u;
 
     function parseCatName(name) {
-        const match = name.match(LEADING_EMOJI_RE);
+        const match = (name || '').match(LEADING_EMOJI_RE);
         if (match) {
             const displayName = name.slice(match[0].length).trim();
             return { icon: match[1], displayName: displayName || name };
         }
-        return { icon: getCatIcon(name), displayName: name };
+        return { icon: getCatIcon(name), displayName: name || '' };
     }
 
     // Same pattern for campaign names — returns null icon if no leading emoji.
@@ -98,6 +98,10 @@ window.WikiSB = {
 
     // ── Campaign cache (for accent colour lookup in showCampaign) ─────────────
     let _campaignCache = [];
+
+    // Set to true while a campaign-view search query has ≥2 chars.
+    // showEntries checks this flag and skips DOM updates when set.
+    let _campSearchActive = false;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -259,9 +263,16 @@ window.WikiSB = {
                     </div>`;
                     break;
 
-                case 'quote':
-                    out += `<blockquote>${c.html || ''}</blockquote>`;
+                case 'quote': {
+                    const _qs  = c.style        || 'none';
+                    const _qta = c.textAlign    || 'left';
+                    const _qca = c.captionAlign || 'right';
+                    out += `<figure class="wiki-quote wiki-quote--${esc(_qs)}">
+                        <blockquote style="text-align:${_qta}">${c.html || ''}</blockquote>
+                        ${c.caption ? `<figcaption style="text-align:${_qca}">— ${esc(c.caption)}</figcaption>` : ''}
+                    </figure>`;
                     break;
+                }
 
                 case 'callout':
                     out += `<div class="notion-callout notion-callout--${esc(c.variant || 'info')}">
@@ -500,18 +511,53 @@ window.WikiSB = {
 
     // ── URL helpers ───────────────────────────────────────────────────────────
 
-    function pushParam(key, val) {
+    function _pushState() {
         const u = new URL(location.href);
-        if (!key) { u.search = ''; }
-        else { u.searchParams.set(key, val); }
+        u.search = '';
+        const { campaign, category, entryId } = WikiSB.state;
+        if (campaign) u.searchParams.set('campaign', campaign.name);
+        if (category) u.searchParams.set('category', category.name);
+        if (entryId)  u.searchParams.set('entry', entryId);
         history.pushState({}, '', u);
+        _renderBreadcrumbs();
+    }
+
+    function _renderBreadcrumbs() {
+        const bc = document.getElementById('wiki-breadcrumb');
+        if (!bc) return;
+        const { campaign, category, entryId, entryName } = WikiSB.state;
+        if (!campaign) { bc.hidden = true; bc.innerHTML = ''; return; }
+        const campDisplay = parseCampName(campaign.name).displayName;
+        let html = `<a href="#" id="bc-home">Campaigns</a> <span>›</span> `;
+        if (entryId && entryName) {
+            html += `<a href="#" id="bc-camp">${esc(campDisplay)}</a>`;
+            if (category) {
+                html += ` <span>›</span> <a href="#" id="bc-cat">${esc(parseCatName(category.name).displayName)}</a>`;
+            }
+            html += ` <span>›</span> <span>${esc(entryName)}</span>`;
+        } else if (category) {
+            html += `<a href="#" id="bc-camp">${esc(campDisplay)}</a> <span>›</span> <span>${esc(parseCatName(category.name).displayName)}</span>`;
+        } else {
+            html += `<span>${esc(campDisplay)}</span>`;
+        }
+        bc.innerHTML = html;
+        bc.hidden = false;
+        document.getElementById('bc-home')?.addEventListener('click', e => { e.preventDefault(); showCampaignList(); });
+        document.getElementById('bc-camp')?.addEventListener('click', e => {
+            e.preventDefault();
+            showCampaign(campaign.id, campaign.name, category ? { initialCategoryId: category.id } : {});
+        });
+        document.getElementById('bc-cat')?.addEventListener('click', e => {
+            e.preventDefault();
+            showCampaign(campaign.id, campaign.name, { initialCategoryId: category.id });
+        });
     }
 
     // ── Campaign list ─────────────────────────────────────────────────────────
 
     async function showCampaignList() {
-        WikiSB.state = { campaign: null, category: null, entryId: null };
-        pushParam(null);
+        WikiSB.state = { campaign: null, category: null, entryId: null, entryName: null };
+        _pushState();
         showLoading('Loading campaigns…');
 
         let campaigns;
@@ -529,7 +575,7 @@ window.WikiSB = {
                 <img src="Assets/TransparentIcons/Crystal_Ball_18x18.png"
                      class="wiki-search-icon" alt="">
                 <input type="text" id="sb-search" class="wiki-search-bar"
-                       placeholder="Search campaigns…" autocomplete="off">
+                       placeholder="Search campaigns or entries…" autocomplete="off">
             </div>`;
 
         if (campaigns.length === 0) {
@@ -562,12 +608,77 @@ window.WikiSB = {
         container.innerHTML = html;
 
         const searchEl = container.querySelector('#sb-search');
+        let _gsTimer = null;
         if (searchEl) {
             searchEl.addEventListener('input', e => {
-                const q = e.target.value.toLowerCase();
+                clearTimeout(_gsTimer);
+                const q = e.target.value.trim();
+
+                // Remove any previous entry results
+                container.querySelector('#sb-entry-results')?.remove();
+
+                if (q.length < 2) {
+                    // Restore full campaign list
+                    container.querySelectorAll('#sb-camp-list li').forEach(li => li.style.display = '');
+                    return;
+                }
+
+                // Filter campaigns by name
                 container.querySelectorAll('#sb-camp-list li').forEach(li => {
-                    li.style.display = li.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+                    li.style.display = li.dataset.name.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
                 });
+
+                // Debounced entry search — results injected below the campaign list
+                const area = document.createElement('div');
+                area.id = 'sb-entry-results';
+                area.innerHTML = `<div class="wiki-loading" style="padding:1rem 0"><div class="wiki-spinner"></div></div>`;
+                container.querySelector('#sb-camp-list')?.after(area);
+
+                _gsTimer = setTimeout(async () => {
+                    try {
+                        const hits = await API.searchEntries(q);
+                        if (!hits.length) { area.remove(); return; }
+                        let h = `<p class="wiki-count" style="margin:12px 0 4px;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em">Entries matching &#8220;${esc(q)}&#8221;</p><ul class="wiki-entry-list">`;
+                        for (const hit of hits) {
+                            const campObj  = hit.categories?.campaigns;
+                            const campName = campObj?.name || '';
+                            const catName  = parseCatName(hit.categories?.name || '').displayName;
+                            const campDisp = campName ? parseCampName(campName).displayName : '';
+                            h += `
+                                <li>
+                                    <a class="wiki-entry-link" href="#"
+                                       data-entry-id="${esc(hit.id)}"
+                                       data-entry-name="${esc(hit.name)}"
+                                       data-camp-id="${esc(campObj?.id || '')}"
+                                       data-camp-name="${esc(campName)}"
+                                       data-cat-id="${esc(hit.category_id)}"
+                                       data-cat-name="${esc(hit.categories?.name || '')}">
+                                        ${hit.profile_image ? `<img src="${esc(hit.profile_image)}" alt="" class="wiki-entry-thumb">` : ''}
+                                        <span>
+                                            <span>${esc(hit.name)}</span>
+                                            <span class="wiki-count"> — ${esc(catName)}${campDisp ? ', ' + esc(campDisp) : ''}</span>
+                                        </span>
+                                    </a>
+                                </li>`;
+                        }
+                        h += '</ul>';
+                        area.innerHTML = h;
+                        area.querySelectorAll('.wiki-entry-link').forEach(a => {
+                            a.addEventListener('click', async ev => {
+                                ev.preventDefault();
+                                const campId   = a.dataset.campId;
+                                const campName = a.dataset.campName;
+                                if (campId && campName) {
+                                    const campData = _campaignCache.find(c => c.id === campId) || {};
+                                    WikiSB.state.campaign = { id: campId, name: campName, ...campData };
+                                    WikiSB.state.category = a.dataset.catId
+                                        ? { id: a.dataset.catId, name: a.dataset.catName } : null;
+                                }
+                                await showEntry(a.dataset.entryId, a.dataset.entryName);
+                            });
+                        });
+                    } catch { area.remove(); }
+                }, 300);
             });
         }
 
@@ -583,14 +694,16 @@ window.WikiSB = {
 
     // ── Campaign view ─────────────────────────────────────────────────────────
 
-    async function showCampaign(campaignId, campaignName) {
+    async function showCampaign(campaignId, campaignName, opts = {}) {
+        _campSearchActive = false;
         const campData = _campaignCache.find(c => c.id === campaignId) || {};
         WikiSB.state = {
-            campaign: { id: campaignId, name: campaignName, ...campData },
-            category: null,
-            entryId:  null,
+            campaign:  { id: campaignId, name: campaignName, ...campData },
+            category:  null,
+            entryId:   null,
+            entryName: null,
         };
-        pushParam('campaign', campaignName);
+        _pushState();
         showLoading('Loading campaign…');
 
         // Apply campaign accent colour as CSS custom property
@@ -620,6 +733,12 @@ window.WikiSB = {
         }
 
         html += `<h2 style="margin-top:0">${esc(campaignName)}</h2>
+            <div class="wiki-search-wrap">
+                <img src="Assets/TransparentIcons/Crystal_Ball_18x18.png"
+                     class="wiki-search-icon" alt="">
+                <input type="text" id="sb-camp-search" class="wiki-search-bar"
+                       placeholder="Search categories or entries…" autocomplete="off">
+            </div>
             <div class="wiki-category-pills" id="sb-cat-pills">`;
 
         for (const cat of categories) {
@@ -635,7 +754,7 @@ window.WikiSB = {
                      </button>`;
         }
 
-        html += `</div><div id="sb-entry-area"></div>`;
+        html += `</div><div id="sb-search-results" style="display:none"></div><div id="sb-entry-area"></div>`;
         container.innerHTML = html;
 
         document.getElementById('sb-back-camp').addEventListener('click', showCampaignList);
@@ -645,12 +764,123 @@ window.WikiSB = {
             pill.addEventListener('click', () => {
                 pills.forEach(p => p.classList.remove('active'));
                 pill.classList.add('active');
-                WikiSB.state.category = { id: pill.dataset.id, name: pill.dataset.name };
+                // Clear search and show normal entry area
+                const campSrch = container.querySelector('#sb-camp-search');
+                if (campSrch) campSrch.value = '';
+                container.querySelectorAll('.wiki-cat-pill').forEach(p => p.style.display = '');
+                const sr = document.getElementById('sb-search-results');
+                const ea = document.getElementById('sb-entry-area');
+                if (sr) { sr.style.display = 'none'; sr.innerHTML = ''; }
+                if (ea) ea.style.display = '';
+                WikiSB.state.category  = { id: pill.dataset.id, name: pill.dataset.name };
+                WikiSB.state.entryId   = null;
+                WikiSB.state.entryName = null;
+                _pushState();
                 showEntries(pill.dataset.id, pill.dataset.name);
             });
         });
 
-        if (pills.length) pills[0].click();
+        if (opts.initialCategoryId) {
+            const target = pills.find(p => p.dataset.id === opts.initialCategoryId);
+            if (target) target.click();
+            else if (pills.length) pills[0].click();
+        } else if (pills.length) {
+            pills[0].click();
+        }
+
+        // Lazy-load entry counts for category pills
+        Promise.all(categories.map(async cat => {
+            try {
+                const count = await API.getEntryCount(cat.id);
+                const pill  = container.querySelector(`.wiki-cat-pill[data-id="${cat.id}"]`);
+                if (!pill) return;
+                const nameEl = pill.querySelector('.wiki-cat-name');
+                if (nameEl) nameEl.insertAdjacentHTML('beforeend', ` <span class="wiki-count">(${count})</span>`);
+            } catch { /* non-fatal */ }
+        }));
+
+        // Campaign-scoped search
+        const campSearchEl = container.querySelector('#sb-camp-search');
+        const categoryIds  = categories.map(c => c.id);
+        let _campTimer    = null;
+        let _campSearchGen = 0;
+        if (campSearchEl) {
+            campSearchEl.addEventListener('input', e => {
+                clearTimeout(_campTimer);
+                const q   = e.target.value.trim();
+                const gen = ++_campSearchGen;
+
+                // Always filter pills by display name
+                container.querySelectorAll('.wiki-cat-pill').forEach(p => {
+                    const { displayName } = parseCatName(p.dataset.name);
+                    p.style.display = (!q || displayName.toLowerCase().includes(q.toLowerCase())) ? '' : 'none';
+                });
+
+                const sr = document.getElementById('sb-search-results');
+                const ea = document.getElementById('sb-entry-area');
+
+                if (q.length < 2) {
+                    // Restore: hide results pane, show normal entry area
+                    if (sr) { sr.style.display = 'none'; sr.innerHTML = ''; }
+                    if (ea) ea.style.display = '';
+                    const active = container.querySelector('.wiki-cat-pill.active');
+                    if (active) showEntries(active.dataset.id, active.dataset.name);
+                    return;
+                }
+
+                // q ≥ 2 — show dedicated results pane, hide normal entry area
+                if (ea) ea.style.display = 'none';
+                if (sr) {
+                    sr.style.display = '';
+                    sr.innerHTML = `<div class="wiki-loading" style="padding:1rem 0"><div class="wiki-spinner"></div></div>`;
+                }
+
+                _campTimer = setTimeout(async () => {
+                    if (gen !== _campSearchGen) return;
+                    const resultsEl = document.getElementById('sb-search-results');
+                    if (!resultsEl) return;
+                    try {
+                        const allHits = await API.searchEntries(q);
+                        if (gen !== _campSearchGen) return;
+                        const hits = allHits.filter(h => categoryIds.includes(h.category_id));
+                        if (!hits.length) {
+                            resultsEl.innerHTML = `<p class="wiki-empty">No entries found.</p>`;
+                            return;
+                        }
+                        let h = `<ul class="wiki-entry-list">`;
+                        for (const hit of hits) {
+                            const catName = parseCatName(hit.categories?.name || '').displayName;
+                            h += `
+                                <li>
+                                    <a class="wiki-entry-link" href="#"
+                                       data-id="${esc(hit.id)}" data-name="${esc(hit.name)}"
+                                       data-cat-id="${esc(hit.category_id)}"
+                                       data-cat-name="${esc(hit.categories?.name || '')}">
+                                        ${hit.profile_image ? `<img src="${esc(hit.profile_image)}" alt="" class="wiki-entry-thumb">` : ''}
+                                        <span>
+                                            <span>${esc(hit.name)}</span>
+                                            <span class="wiki-count"> — ${esc(catName)}</span>
+                                        </span>
+                                    </a>
+                                </li>`;
+                        }
+                        h += '</ul>';
+                        resultsEl.innerHTML = h;
+                        resultsEl.querySelectorAll('.wiki-entry-link').forEach(a => {
+                            a.addEventListener('click', ev => {
+                                ev.preventDefault();
+                                WikiSB.state.category = a.dataset.catId
+                                    ? { id: a.dataset.catId, name: a.dataset.catName } : null;
+                                showEntry(a.dataset.id, a.dataset.name);
+                            });
+                        });
+                    } catch (err) {
+                        if (gen === _campSearchGen && resultsEl)
+                            resultsEl.innerHTML = `<p class="wiki-error-hint">${esc(err.message)}</p>`;
+                    }
+                }, 300);
+            });
+        }
 
         if (WikiSB.onCampaign) WikiSB.onCampaign(campaignId, categories);
     }
@@ -678,7 +908,7 @@ window.WikiSB = {
             let html = `<ul class="wiki-entry-list" id="sb-entry-list">`;
             for (const entry of entries) {
                 html += `
-                    <li>
+                    <li data-id="${esc(entry.id)}">
                         <a class="wiki-entry-link" href="#"
                            data-id="${esc(entry.id)}" data-name="${esc(entry.name)}">
                             ${entry.profile_image
@@ -705,8 +935,9 @@ window.WikiSB = {
     // ── Entry detail ──────────────────────────────────────────────────────────
 
     async function showEntry(entryId, entryName) {
-        WikiSB.state.entryId = entryId;
-        pushParam('entry', entryId);
+        WikiSB.state.entryId   = entryId;
+        WikiSB.state.entryName = entryName || null;
+        _pushState();
         showLoading(`Loading ${entryName || 'entry'}…`);
 
         let entry;
@@ -822,8 +1053,8 @@ window.WikiSB = {
         container.innerHTML = html;
 
         document.getElementById('sb-back-entry').addEventListener('click', () => {
-            const { campaign } = WikiSB.state;
-            if (campaign) showCampaign(campaign.id, campaign.name);
+            const { campaign, category } = WikiSB.state;
+            if (campaign) showCampaign(campaign.id, campaign.name, category ? { initialCategoryId: category.id } : {});
             else showCampaignList();
         });
 
@@ -837,6 +1068,7 @@ window.WikiSB = {
     async function restoreFromURL() {
         const p            = new URLSearchParams(location.search);
         const campaignName = p.get('campaign');
+        const categoryName = p.get('category');
         const entryId      = p.get('entry');
 
         if (!campaignName) {
@@ -849,13 +1081,23 @@ window.WikiSB = {
             const campaign  = campaigns.find(c => c.name === campaignName);
             if (!campaign) { await showCampaignList(); return; }
 
-            await showCampaign(campaign.id, campaign.name);
-
             if (entryId) {
                 try {
-                    const entry = await API.getEntry(entryId);
+                    const [entry, categories] = await Promise.all([
+                        API.getEntry(entryId),
+                        API.getCategories(campaign.id),
+                    ]);
+                    const cat = categories.find(c => c.id === entry.category_id);
+                    await showCampaign(campaign.id, campaign.name, cat ? { initialCategoryId: cat.id } : {});
+                    if (cat) WikiSB.state.category = { id: cat.id, name: cat.name };
                     await showEntry(entry.id, entry.name);
-                } catch { /* entry not found — stay on campaign view */ }
+                } catch { await showCampaign(campaign.id, campaign.name); }
+            } else if (categoryName) {
+                const categories = await API.getCategories(campaign.id);
+                const cat        = categories.find(c => c.name === categoryName);
+                await showCampaign(campaign.id, campaign.name, cat ? { initialCategoryId: cat.id } : {});
+            } else {
+                await showCampaign(campaign.id, campaign.name);
             }
         } catch {
             await showCampaignList();
