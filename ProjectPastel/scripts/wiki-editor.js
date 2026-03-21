@@ -557,7 +557,7 @@
                     const hasContent = (saved.blocks || []).some(b =>
                         b.data?.text || b.data?.items?.length || b.data?.url || b.data?.rows?.length
                     );
-                    if (hasContent && !confirm('Remove the last column? Its content will be lost.')) return;
+                    if (hasContent && !await _dlgConfirm('Remove Column', 'The last column has content that will be lost.', { okLabel: 'Remove', danger: true })) return;
                     await lastEditor.destroy();
                 } catch {}
                 this._subEditors.pop();
@@ -1835,7 +1835,7 @@
     });
 
     etCancel.addEventListener('click', async () => {
-        if (_isDirty && !confirm('You have unsaved changes. Discard them?')) return;
+        if (_isDirty && !await _dlgConfirm('Unsaved Changes', 'You have unsaved changes. Discard them?', { okLabel: 'Discard', danger: true })) return;
         const entry = _editingEntry; // capture before exitEditMode nulls it
         _isDirty = false;
         exitEditMode();
@@ -1897,6 +1897,97 @@
         panel.querySelector('.wsp-close').addEventListener('click', close);
         if (onOk) panel.querySelector('.wsp-ok').addEventListener('click', () => { onOk(panel); close(); });
         return panel;
+    }
+
+    // ── Themed dialog helpers ─────────────────────────────────────────────────
+
+    function _dlgPrompt(title, { placeholder = '', value = '', okLabel = 'Confirm' } = {}) {
+        return new Promise(resolve => {
+            const panel = document.createElement('div');
+            panel.className = 'wsp-overlay';
+            panel.innerHTML = `
+                <div class="wsp-backdrop"></div>
+                <div class="wsp-box wsp-dialog">
+                    <div class="wsp-header"><span>${title}</span></div>
+                    <div class="wsp-body">
+                        <input class="ej-input wsp-dlg-inp" type="text"
+                               placeholder="${placeholder.replace(/"/g,'&quot;')}"
+                               value="${(value||'').replace(/"/g,'&quot;')}">
+                    </div>
+                    <div class="wsp-footer wsp-footer--gap">
+                        <button class="et-btn wsp-dlg-cancel">Cancel</button>
+                        <button class="et-btn et-primary wsp-dlg-ok">${okLabel}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(panel);
+            const inp = panel.querySelector('.wsp-dlg-inp');
+            const ok     = () => { const v = inp.value.trim(); panel.remove(); resolve(v || null); };
+            const cancel = () => { panel.remove(); resolve(null); };
+            panel.querySelector('.wsp-backdrop').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-cancel').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-ok').addEventListener('click', ok);
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') cancel(); });
+            requestAnimationFrame(() => { inp.focus(); inp.select(); });
+        });
+    }
+
+    function _dlgConfirm(title, message, { okLabel = 'Confirm', danger = false } = {}) {
+        return new Promise(resolve => {
+            const panel = document.createElement('div');
+            panel.className = 'wsp-overlay';
+            panel.innerHTML = `
+                <div class="wsp-backdrop"></div>
+                <div class="wsp-box wsp-dialog">
+                    <div class="wsp-header"><span>${title}</span></div>
+                    ${message ? `<div class="wsp-body"><p class="wsp-dlg-msg">${message}</p></div>` : ''}
+                    <div class="wsp-footer wsp-footer--gap">
+                        <button class="et-btn wsp-dlg-cancel">Cancel</button>
+                        <button class="et-btn ${danger ? 'et-danger' : 'et-primary'} wsp-dlg-ok">${okLabel}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(panel);
+            const ok     = () => { panel.remove(); resolve(true); };
+            const cancel = () => { panel.remove(); resolve(false); };
+            panel.querySelector('.wsp-backdrop').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-cancel').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-ok').addEventListener('click', ok);
+            panel.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
+            requestAnimationFrame(() => panel.querySelector('.wsp-dlg-ok').focus());
+        });
+    }
+
+    function _dlgTypeConfirm(name, kind = 'item') {
+        return new Promise(resolve => {
+            const safe = name.replace(/</g,'&lt;');
+            const panel = document.createElement('div');
+            panel.className = 'wsp-overlay';
+            panel.innerHTML = `
+                <div class="wsp-backdrop"></div>
+                <div class="wsp-box wsp-dialog">
+                    <div class="wsp-header"><span>Confirm Deletion</span></div>
+                    <div class="wsp-body">
+                        <p class="wsp-dlg-msg">This will permanently delete <strong>${safe}</strong> and all its contents.</p>
+                        <p class="wsp-dlg-hint">Type the name of the ${kind} to confirm:</p>
+                        <input class="ej-input wsp-dlg-inp" type="text"
+                               placeholder="${name.replace(/"/g,'&quot;')}">
+                    </div>
+                    <div class="wsp-footer wsp-footer--gap">
+                        <button class="et-btn wsp-dlg-cancel">Cancel</button>
+                        <button class="et-btn et-danger wsp-dlg-ok" disabled>Delete</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(panel);
+            const inp   = panel.querySelector('.wsp-dlg-inp');
+            const okBtn = panel.querySelector('.wsp-dlg-ok');
+            inp.addEventListener('input', () => { okBtn.disabled = inp.value.trim() !== name.trim(); });
+            const ok     = () => { if (inp.value.trim() !== name.trim()) return; panel.remove(); resolve(true); };
+            const cancel = () => { panel.remove(); resolve(false); };
+            panel.querySelector('.wsp-backdrop').addEventListener('click', cancel);
+            panel.querySelector('.wsp-dlg-cancel').addEventListener('click', cancel);
+            okBtn.addEventListener('click', ok);
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') cancel(); });
+            requestAnimationFrame(() => inp.focus());
+        });
     }
 
     // ── Template system ───────────────────────────────────────────────────────
@@ -2011,8 +2102,9 @@
         const saveBtn = panel.querySelector('#wsp-tpl-save');
         if (saveBtn) {
             saveBtn.addEventListener('click', async () => {
-                const name = panel.querySelector('#wsp-tpl-name').value.trim();
-                if (!name) { alert('Please enter a template name.'); return; }
+                const nameInp = panel.querySelector('#wsp-tpl-name');
+                const name = nameInp.value.trim();
+                if (!name) { nameInp.style.borderColor = '#f3b0c3'; nameInp.focus(); return; }
                 try {
                     const editorData  = await _ejInstance.save();
                     let blocks        = editorDataToBlocks(editorData);
@@ -2032,7 +2124,7 @@
             btn.addEventListener('click', async () => {
                 const tpl = templates.find(t => t.id === btn.dataset.id);
                 if (!tpl || !_ejInstance) return;
-                if (!confirm(`Apply template "${tpl.name}"? This replaces the current editor content.`)) return;
+                if (!await _dlgConfirm('Apply Template', `Apply <strong>${tpl.name.replace(/</g,'&lt;')}</strong>? This replaces the current editor content.`, { okLabel: 'Overwrite' })) return;
                 await _ejInstance.render(blocksToEditorData(tpl.blocks || []));
                 if (tpl.layout) _applyEntrySettings(tpl.layout);
                 panel.remove();
@@ -2072,7 +2164,7 @@
             btn.addEventListener('click', async () => {
                 const tpl = templates.find(t => t.id === btn.dataset.id);
                 if (!tpl) return;
-                if (!confirm(`Delete template "${tpl.name}"?`)) return;
+                if (!await _dlgConfirm('Delete Template', `Delete <strong>${tpl.name.replace(/</g,'&lt;')}</strong>? This cannot be undone.`, { okLabel: 'Delete', danger: true })) return;
                 try {
                     await API.deleteTemplate(tpl.id);
                     btn.closest('.wsp-template-row').remove();
@@ -2092,14 +2184,7 @@
         return { icon: '', displayName: name || '' };
     }
 
-    function _typeToConfirm(name) {
-        const typed = prompt(
-            `This will permanently delete "${name}" and all its contents.\n\nType the name to confirm:`
-        );
-        return typed !== null && typed.trim() === name.trim();
-    }
-
-    function _addDeleteBtn(parentEl, label, onConfirm, strong = false) {
+    function _addDeleteBtn(parentEl, label, onConfirm, strong = false, kind = 'item') {
         const btn = document.createElement('button');
         btn.className   = 'wiki-crud-del';
         btn.textContent = '✕';
@@ -2108,8 +2193,8 @@
             e.stopPropagation();
             e.preventDefault();
             const ok = strong
-                ? _typeToConfirm(label)
-                : confirm(`Delete "${label}"? This cannot be undone.`);
+                ? await _dlgTypeConfirm(label, kind)
+                : await _dlgConfirm('Confirm Delete', `Delete <strong>${label.replace(/</g,'&lt;')}</strong>? This cannot be undone.`, { okLabel: 'Delete', danger: true });
             if (!ok) return;
             try { await onConfirm(); }
             catch (err) { setStatus('Delete failed: ' + err.message, true); }
@@ -2126,8 +2211,8 @@
         btn.addEventListener('click', async e => {
             e.stopPropagation();
             e.preventDefault();
-            const newName = prompt('Rename to:', currentName);
-            if (!newName?.trim() || newName.trim() === currentName) return;
+            const newName = await _dlgPrompt('Rename', { value: currentName, okLabel: 'Rename' });
+            if (!newName || newName === currentName) return;
             try { await onRename(newName.trim()); }
             catch (err) { setStatus('Rename failed: ' + err.message, true); }
         });
@@ -2199,8 +2284,8 @@
         document.getElementById('wiki-container').insertAdjacentElement('afterbegin', ctrl);
 
         document.getElementById('sb-add-camp').addEventListener('click', async () => {
-            const name = prompt('Campaign name:');
-            if (!name?.trim()) return;
+            const name = await _dlgPrompt('New Campaign', { placeholder: 'Campaign name…', okLabel: 'Create' });
+            if (!name) return;
             const slug = name.trim().toLowerCase()
                 .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
             try {
@@ -2278,7 +2363,7 @@
             _addDeleteBtn(li, camp.name, async () => {
                 await API.deleteCampaign(camp.id);
                 await WikiSB.nav.showCampaignList();
-            }, true);
+            }, true, 'campaign');
         });
 
         _setupDragSort(
@@ -2342,7 +2427,7 @@
             del.title       = 'Delete category';
             del.addEventListener('click', async e => {
                 e.stopPropagation();
-                if (!_typeToConfirm(cat.name)) return;
+                if (!await _dlgTypeConfirm(cat.name, 'category')) return;
                 try {
                     await API.deleteCategory(cat.id);
                     await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
@@ -2356,8 +2441,8 @@
         addPill.className   = 'wiki-cat-pill wiki-add-pill';
         addPill.textContent = '+ Category';
         addPill.addEventListener('click', async () => {
-            const name = prompt('Category name:');
-            if (!name?.trim()) return;
+            const name = await _dlgPrompt('New Category', { placeholder: 'Category name…', okLabel: 'Create' });
+            if (!name) return;
             try {
                 await API.createCategory(campaignId, { name: name.trim() });
                 await WikiSB.nav.showCampaign(campaignId, WikiSB.state.campaign.name);
@@ -2403,8 +2488,8 @@
         addBtn.style.marginTop = '12px';
         addBtn.textContent = '+ New Entry';
         addBtn.addEventListener('click', async () => {
-            const name = prompt('Entry name:');
-            if (!name?.trim()) return;
+            const name = await _dlgPrompt('New Entry', { placeholder: 'Entry name…', okLabel: 'Create' });
+            if (!name) return;
             try {
                 const row = await API.createEntry(categoryId, { name: name.trim(), extra_props: {} });
                 // Navigate straight to the new entry so the editor can populate it
