@@ -218,16 +218,34 @@ button:hover {
     padding: 2px 4px;
 }
 
-/* Wiki Breadcrumb */
+/* Wiki Breadcrumb — merges visually with the container below */
 #wiki-breadcrumb {
-    font-size: 0.9rem;
-    margin-bottom: 12px;
-    color: #999;
+    font-size: 0.85rem;
+    max-width: 1000px;
+    margin: 20px auto 0;
+    padding: 9px 20px;
+    color: #9a8aaa;
+    background: rgba(22, 13, 30, 0.95);
+    border-top: 2px solid rgba(211, 179, 231, 0.35);
+    border-bottom: 1px solid rgba(211, 179, 231, 0.12);
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* When breadcrumb is visible, container connects seamlessly below */
+main:has(#wiki-breadcrumb:not([hidden])) #wiki-container {
+    margin-top: 0;
+    border-radius: 0 0 10px 10px;
 }
 
 #wiki-breadcrumb a {
     color: #98e6d6;
     font-weight: normal;
+    text-decoration: none;
+}
+
+#wiki-breadcrumb a:hover {
+    color: #d3b3e7;
 }
 
 #wiki-breadcrumb span {
@@ -1190,6 +1208,15 @@ body.wiki-page #music-prompt .music-char {
     body.wiki-page #wiki-container {
         margin: 10px;
         padding: 14px;
+    }
+
+    /* Breadcrumb mobile alignment */
+    #wiki-breadcrumb {
+        margin: 10px 10px 0;
+    }
+
+    main:has(#wiki-breadcrumb:not([hidden])) #wiki-container {
+        margin-top: 0;
     }
 
     /* Hamburger visible, nav becomes a dropdown */
@@ -3085,12 +3112,20 @@ body.wiki-page img.wiki-section-float-img--left {
 /* Template list inside overlay */
 .wsp-save-row {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
-    align-items: center;
 }
 
-.wsp-save-row .ej-input { flex: 1; }
+.wsp-save-row .ej-input { width: 100%; box-sizing: border-box; }
+
+.wsp-tpl-mode-row {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: #c0a8d8;
+}
+.wsp-tpl-mode-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
 .wsp-template-row {
     display: flex;
@@ -3116,6 +3151,70 @@ body.wiki-page img.wiki-section-float-img--left {
     display: flex;
     gap: 6px;
     flex-shrink: 0;
+}
+
+
+/* ── Drag-and-drop reorder ───────────────────────────────────────────────── */
+
+.wiki-dnd-dragging { opacity: 0.4; cursor: grabbing; }
+#sb-camp-list li[data-id],
+#sb-entry-list li[data-id],
+.wiki-cat-pill[data-id] { cursor: grab; }
+.wiki-dnd-ghost {
+    height: 3px;
+    background: linear-gradient(to right, transparent, #98e6d6, transparent);
+    border-radius: 2px;
+    pointer-events: none;
+    margin: 2px 0;
+    list-style: none;
+}
+.wiki-dnd-ghost--h {
+    width: 3px;
+    background: linear-gradient(to bottom, transparent, #98e6d6, transparent);
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+    flex-shrink: 0;
+}
+
+/* ── Quote editor input ──────────────────────────────────────────────────── */
+
+.ej-quote-text {
+    min-height: 48px;
+    font-style: italic;
+    margin-bottom: 6px;
+}
+.ej-quote-text:empty::before {
+    content: attr(data-placeholder);
+    color: #6b5578;
+    font-style: italic;
+    pointer-events: none;
+}
+
+/* ── Quote block styles ──────────────────────────────────────────────────── */
+
+.wiki-quote { margin: 0 0 1em; }
+.wiki-quote figcaption {
+    font-style: italic;
+    color: #a08ab0;
+    font-size: 0.88rem;
+    margin-top: 6px;
+    margin-left: 40px;  /* match browser default blockquote indent */
+    margin-right: 40px;
+}
+.wiki-quote--line {
+    border-left: 3px solid rgba(211, 179, 231, 0.55);
+    padding-left: 14px;
+}
+.wiki-quote--box {
+    border: 1px solid rgba(211, 179, 231, 0.35);
+    border-radius: 6px;
+    padding: 12px 16px;
+}
+.wiki-quote--shade {
+    background: rgba(211, 179, 231, 0.08);
+    border-radius: 6px;
+    padding: 12px 16px;
 }
 
 /* ── Editor.js holder ─────────────────────────────────────────────────────── */
