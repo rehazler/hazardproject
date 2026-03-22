@@ -2523,7 +2523,7 @@
         });
     }
 
-    // ── Banner display controls (fit mode + focal point picker + height) ──────
+    // ── Banner display controls (preview + fit mode + height + drag to position) ─
 
     function _buildBannerControls(containerEl, bannerUrlInputEl, idPrefix, layout) {
         if (!containerEl) return;
@@ -2543,23 +2543,22 @@
         ).join('');
 
         containerEl.innerHTML = `
-            <div class="bsc-section">
-                <span class="bsc-section-label">Fit</span>
-                <div class="bsc-fit-row">
-                    <button type="button" class="bsc-fit-btn${fit === 'cover'   ? ' active' : ''}" data-bsc-fit="cover"  >Fill (cover)</button>
-                    <button type="button" class="bsc-fit-btn${fit === 'contain' ? ' active' : ''}" data-bsc-fit="contain">Fit inside</button>
-                    <button type="button" class="bsc-fit-btn${fit === 'actual'  ? ' active' : ''}" data-bsc-fit="actual" >Actual size</button>
+            <div class="bsc-preview" id="${idPrefix}-preview">
+                <div class="bsc-preview-empty">No banner image — paste a URL above</div>
+                <div class="bsc-preview-hint"></div>
+            </div>
+            <div class="bsc-row">
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Fit</span>
+                    <div class="bsc-fit-row">
+                        <button type="button" class="bsc-fit-btn${fit === 'cover'   ? ' active' : ''}" data-bsc-fit="cover"  >Fill (cover)</button>
+                        <button type="button" class="bsc-fit-btn${fit === 'contain' ? ' active' : ''}" data-bsc-fit="contain">Fit inside</button>
+                        <button type="button" class="bsc-fit-btn${fit === 'actual'  ? ' active' : ''}" data-bsc-fit="actual" >Actual size</button>
+                    </div>
                 </div>
-            </div>
-            <div class="bsc-section">
-                <span class="bsc-section-label">Height</span>
-                <div class="bsc-fit-row">${hBtns}</div>
-            </div>
-            <div class="bsc-section bsc-focal-section">
-                <span class="bsc-section-label">Focal point <span class="bsc-section-hint">(drag to set)</span></span>
-                <div class="bsc-focal-picker" id="${idPrefix}-focal-picker">
-                    <div class="bsc-focal-dot" style="left:${focalX}%;top:${focalY}%"></div>
-                    <div class="bsc-focal-hint">drag</div>
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Height</span>
+                    <div class="bsc-fit-row">${hBtns}</div>
                 </div>
             </div>
             <input type="hidden" id="${idPrefix}-fit"      value="${fit}">
@@ -2572,17 +2571,28 @@
         const fxInp     = containerEl.querySelector(`#${idPrefix}-focal-x`);
         const fyInp     = containerEl.querySelector(`#${idPrefix}-focal-y`);
         const heightInp = containerEl.querySelector(`#${idPrefix}-height`);
-        const picker    = containerEl.querySelector(`#${idPrefix}-focal-picker`);
-        const dot       = picker.querySelector('.bsc-focal-dot');
+        const preview   = containerEl.querySelector(`#${idPrefix}-preview`);
+        const emptyMsg  = preview.querySelector('.bsc-preview-empty');
+        const hint      = preview.querySelector('.bsc-preview-hint');
 
-        // Keep picker preview in sync with URL input
-        const _updateBg = () => {
+        const _fitToSize = { cover: 'cover', contain: 'contain', actual: 'auto' };
+        const _hintText  = { cover: 'Drag to set focal point', actual: 'Drag to pan', contain: '' };
+
+        function _updatePreview() {
             const url = bannerUrlInputEl?.value?.trim();
-            picker.style.backgroundImage = url ? `url('${url}')` : '';
-        };
-        _updateBg();
-        bannerUrlInputEl?.addEventListener('input', _updateBg);
-        bannerUrlInputEl?.addEventListener('change', _updateBg);
+            const f   = fitInp.value;
+            const h   = heightInp.value;
+            preview.style.backgroundImage    = url ? `url('${url}')` : '';
+            preview.style.backgroundSize     = _fitToSize[f] || 'cover';
+            preview.style.backgroundPosition = `${fxInp.value}% ${fyInp.value}%`;
+            preview.style.height             = h ? `${h}px` : '160px';
+            emptyMsg.style.display = url ? 'none' : '';
+            hint.textContent       = url ? (_hintText[f] || '') : '';
+            hint.style.display     = (url && _hintText[f]) ? '' : 'none';
+        }
+        _updatePreview();
+        bannerUrlInputEl?.addEventListener('input',  _updatePreview);
+        bannerUrlInputEl?.addEventListener('change', _updatePreview);
 
         // Fit buttons
         containerEl.querySelectorAll('[data-bsc-fit]').forEach(btn => {
@@ -2590,10 +2600,11 @@
                 containerEl.querySelectorAll('[data-bsc-fit]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 fitInp.value = btn.dataset.bscFit;
+                _updatePreview();
             });
         });
 
-        // Height buttons (toggle — click active to clear)
+        // Height buttons (toggle — click active to reset to default)
         containerEl.querySelectorAll('[data-bsc-height]').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (btn.classList.contains('active')) {
@@ -2604,30 +2615,49 @@
                     btn.classList.add('active');
                     heightInp.value = btn.dataset.bscHeight;
                 }
+                _updatePreview();
             });
         });
 
-        // Focal point drag
-        let _dragging = false;
-        const _setFocal = (clientX, clientY) => {
-            const rect = picker.getBoundingClientRect();
-            const x = Math.max(0, Math.min(100, Math.round((clientX - rect.left)  / rect.width  * 100)));
-            const y = Math.max(0, Math.min(100, Math.round((clientY - rect.top)   / rect.height * 100)));
-            dot.style.left = x + '%';
-            dot.style.top  = y + '%';
-            fxInp.value = x;
-            fyInp.value = y;
-        };
-        picker.addEventListener('mousedown',  e => { _dragging = true;  _setFocal(e.clientX, e.clientY); });
-        picker.addEventListener('touchstart', e => { _dragging = true;  _setFocal(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        // Drag to reposition image in the preview
+        let _dragging = false, _startX, _startY, _startFx, _startFy;
+        preview.addEventListener('mousedown', e => {
+            if (!bannerUrlInputEl?.value?.trim()) return;
+            _dragging = true;
+            _startX = e.clientX; _startY = e.clientY;
+            _startFx = +fxInp.value; _startFy = +fyInp.value;
+            preview.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        preview.addEventListener('touchstart', e => {
+            if (!bannerUrlInputEl?.value?.trim()) return;
+            _dragging = true;
+            _startX = e.touches[0].clientX; _startY = e.touches[0].clientY;
+            _startFx = +fxInp.value; _startFy = +fyInp.value;
+        }, { passive: true });
 
-        // Attach document-level listeners and auto-remove when picker leaves DOM
         const _ac = new AbortController();
-        document.addEventListener('mousemove', e => { if (_dragging) _setFocal(e.clientX, e.clientY); }, { signal: _ac.signal });
-        document.addEventListener('mouseup',   () => { _dragging = false; },                             { signal: _ac.signal });
-        document.addEventListener('touchmove', e => { if (_dragging) _setFocal(e.touches[0].clientX, e.touches[0].clientY); }, { signal: _ac.signal, passive: true });
-        document.addEventListener('touchend',  () => { _dragging = false; },                             { signal: _ac.signal });
-        const _obs = new MutationObserver(() => { if (!document.contains(picker)) { _ac.abort(); _obs.disconnect(); } });
+        document.addEventListener('mousemove', e => {
+            if (!_dragging) return;
+            const rect = preview.getBoundingClientRect();
+            fxInp.value = Math.max(0, Math.min(100, Math.round(_startFx + (e.clientX - _startX) / rect.width  * 100)));
+            fyInp.value = Math.max(0, Math.min(100, Math.round(_startFy + (e.clientY - _startY) / rect.height * 100)));
+            _updatePreview();
+        }, { signal: _ac.signal });
+        document.addEventListener('mouseup', () => {
+            _dragging = false;
+            preview.style.cursor = '';
+        }, { signal: _ac.signal });
+        document.addEventListener('touchmove', e => {
+            if (!_dragging) return;
+            const rect = preview.getBoundingClientRect();
+            fxInp.value = Math.max(0, Math.min(100, Math.round(_startFx + (e.touches[0].clientX - _startX) / rect.width  * 100)));
+            fyInp.value = Math.max(0, Math.min(100, Math.round(_startFy + (e.touches[0].clientY - _startY) / rect.height * 100)));
+            _updatePreview();
+        }, { signal: _ac.signal, passive: true });
+        document.addEventListener('touchend', () => { _dragging = false; }, { signal: _ac.signal });
+
+        const _obs = new MutationObserver(() => { if (!document.contains(preview)) { _ac.abort(); _obs.disconnect(); } });
         _obs.observe(document.body, { childList: true, subtree: true });
     }
 
@@ -2637,29 +2667,30 @@
         const fyInp     = document.getElementById(`${idPrefix}-focal-y`);
         const heightInp = document.getElementById(`${idPrefix}-height`);
         if (!fitInp) return;
-        const wrap = fitInp.closest('[id$="-controls"], .wes-grid > div') || fitInp.parentElement;
 
         const fit    = layout?.bannerFit    || 'cover';
         const focalX = layout?.bannerFocalX ?? 50;
         const focalY = layout?.bannerFocalY ?? 50;
         const height = layout?.bannerHeight || '';
 
-        fitInp.value    = fit;
-        fxInp.value     = focalX;
-        fyInp.value     = focalY;
+        fitInp.value = fit;
+        fxInp.value  = focalX;
+        fyInp.value  = focalY;
         if (heightInp) heightInp.value = height;
 
-        // Sync fit buttons
-        document.querySelectorAll(`[data-bsc-fit]`).forEach(b => {
-            b.classList.toggle('active', b.dataset.bscFit === fit);
-        });
-        // Sync height buttons
-        document.querySelectorAll(`[data-bsc-height]`).forEach(b => {
-            b.classList.toggle('active', b.dataset.bscHeight === String(height));
-        });
-        // Sync focal dot
-        const dot = document.querySelector(`#${idPrefix}-focal-picker .bsc-focal-dot`);
-        if (dot) { dot.style.left = focalX + '%'; dot.style.top = focalY + '%'; }
+        document.querySelectorAll('[data-bsc-fit]').forEach(b =>
+            b.classList.toggle('active', b.dataset.bscFit === fit));
+        document.querySelectorAll('[data-bsc-height]').forEach(b =>
+            b.classList.toggle('active', b.dataset.bscHeight === String(height)));
+
+        // Sync preview element
+        const preview = document.getElementById(`${idPrefix}-preview`);
+        if (preview) {
+            const fitToSize = { cover: 'cover', contain: 'contain', actual: 'auto' };
+            preview.style.backgroundSize     = fitToSize[fit] || 'cover';
+            preview.style.backgroundPosition = `${focalX}% ${focalY}%`;
+            preview.style.height             = height ? `${height}px` : '160px';
+        }
     }
 
     // ── Upload browse button injector ─────────────────────────────────────────
