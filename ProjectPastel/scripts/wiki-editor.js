@@ -98,18 +98,20 @@
         const json = await upRes.json();
         if (json.error) throw new Error(json.error.message);
 
-        // 4. Save metadata to Supabase media library (swallow failures — upload already succeeded)
-        API.createMediaAsset({
-            url:           json.secure_url,
-            public_id:     json.public_id,
-            filename:      file.name || json.original_filename || '',
-            resource_type: json.resource_type || 'image',
-            format:        json.format,
-            bytes:         json.bytes,
-            width:         json.width,
-            height:        json.height,
-            folder,
-        }).catch(() => {});
+        // 4. Save metadata to Supabase media library (await so callers see it immediately; swallow failures)
+        try {
+            await API.createMediaAsset({
+                url:           json.secure_url,
+                public_id:     json.public_id,
+                filename:      file.name || json.original_filename || '',
+                resource_type: json.resource_type || 'image',
+                format:        json.format,
+                bytes:         json.bytes,
+                width:         json.width,
+                height:        json.height,
+                folder,
+            });
+        } catch {}
 
         return json.secure_url;
     }
@@ -2764,7 +2766,7 @@
 
         const box  = panel.querySelector('.wsp-box');
         const body = panel.querySelector('.wsp-body');
-        if (box)  { box.style.maxWidth = '860px'; box.style.height = '70vh'; box.style.display = 'flex'; box.style.flexDirection = 'column'; }
+        if (box)  { box.style.width = 'min(1060px, 96vw)'; box.style.maxWidth = ''; box.style.height = '85vh'; box.style.display = 'flex'; box.style.flexDirection = 'column'; }
         if (body) { body.style.flex = '1'; body.style.minHeight = '0'; body.style.padding = '0'; body.style.overflow = 'hidden'; body.style.display = 'flex'; body.style.flexDirection = 'column'; }
         const layout = panel.querySelector('.ml-layout');
         if (layout) { layout.style.flex = '1'; layout.style.minHeight = '0'; }
@@ -2930,8 +2932,10 @@
             btn.disabled = true;
             btn.textContent = 'Uploading…';
             try {
-                await _cloudinaryUpload(file, activeFolder === 'All Files' ? 'Uncategorized' : activeFolder);
+                const uploadFolder = activeFolder === 'All Files' ? 'Uncategorized' : activeFolder;
+                await _cloudinaryUpload(file, uploadFolder);
                 allAssets = await API.getMediaAssets();
+                activeFolder = uploadFolder;
                 renderSidebar();
                 renderGrid();
             } catch (err) { setStatus('Upload failed: ' + err.message, true); }
