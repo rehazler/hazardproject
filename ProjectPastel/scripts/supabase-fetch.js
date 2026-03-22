@@ -111,6 +111,57 @@ window.WikiSB = {
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // Builds the full banner HTML with all display layers from a layout object.
+    function _bannerHtml(url, layout, cssClass) {
+        const _fitMap  = { contain: 'contain', actual: 'auto', stretch: '100% 100%', tile: 'auto', cover: 'cover' };
+        const fit      = layout.bannerFit || 'cover';
+        const bgSize   = _fitMap[fit] || 'cover';
+        const bgRep    = fit === 'tile' ? 'repeat' : 'no-repeat';
+        const bgPos    = `${layout.bannerFocalX ?? 50}% ${layout.bannerFocalY ?? 50}%`;
+        const bgOpac   = layout.bannerOpacity != null ? (layout.bannerOpacity / 100).toFixed(2) : '1';
+        const bgAttach = layout.bannerParallax ? 'fixed' : 'scroll';
+
+        const _radMap  = { none: '0px', slight: '4px', rounded: '10px', pill: '50px' };
+        const radius   = _radMap[layout.bannerRadius] ?? '10px';
+        const height   = layout.bannerHeight ? `height:${layout.bannerHeight}px;` : '';
+
+        const bgStyle = [
+            `background-image:url('${esc(url)}')`,
+            `background-size:${bgSize}`,
+            `background-repeat:${bgRep}`,
+            `background-position:${bgPos}`,
+            `background-attachment:${bgAttach}`,
+            `opacity:${bgOpac}`,
+        ].join(';');
+
+        let inner = `<div class="wiki-banner-bg" style="${bgStyle}"></div>`;
+
+        if (layout.bannerOverlayColor) {
+            const hex   = layout.bannerOverlayColor.replace('#', '').padEnd(6, '0').slice(0, 6);
+            const r = parseInt(hex.slice(0,2), 16) || 0;
+            const g = parseInt(hex.slice(2,4), 16) || 0;
+            const b = parseInt(hex.slice(4,6), 16) || 0;
+            const a = ((layout.bannerOverlayOpacity ?? 40) / 100).toFixed(2);
+            inner += `<div class="wiki-banner-overlay" style="background:rgba(${r},${g},${b},${a})"></div>`;
+        }
+
+        if (layout.bannerBottomFade) {
+            inner += `<div class="wiki-banner-fade"></div>`;
+        }
+
+        if (layout.bannerText) {
+            const pos   = layout.bannerTextPos   || 'bottom-left';
+            const sz    = layout.bannerTextSize   || 'md';
+            const col   = layout.bannerTextColor  || '#ffffff';
+            inner += `<div class="wiki-banner-text wiki-banner-text--${esc(pos)} wiki-banner-text--${esc(sz)}" style="color:${esc(col)}">${esc(layout.bannerText)}</div>`;
+        }
+
+        const altAttr = layout.bannerAlt ? ` role="img" aria-label="${esc(layout.bannerAlt)}"` : '';
+        return `<div class="${cssClass} wiki-banner-clickable" data-src="${esc(url)}"${altAttr} style="${height}border-radius:${radius}">
+        ${inner}
+    </div>`;
+    }
+
     function showLoading(msg) {
         container.innerHTML = `
             <div class="wiki-loading">
@@ -758,13 +809,7 @@ window.WikiSB = {
             </div>`;
 
         if (campData.banner_image) {
-            const _cbl = campData.layout || {};
-            const _cbSize = _cbl.bannerFit === 'contain' ? 'contain' : _cbl.bannerFit === 'actual' ? 'auto' : 'cover';
-            const _cbPos  = `${_cbl.bannerFocalX ?? 50}% ${_cbl.bannerFocalY ?? 50}%`;
-            const _cbH    = _cbl.bannerHeight ? `height:${_cbl.bannerHeight}px;` : '';
-            html += `<div class="wiki-campaign-banner wiki-banner-clickable"
-                         data-src="${esc(campData.banner_image)}"
-                         style="${_cbH}background-image:url('${esc(campData.banner_image)}');background-size:${_cbSize};background-position:${_cbPos}"></div>`;
+            html += _bannerHtml(campData.banner_image, campData.layout || {}, 'wiki-campaign-banner');
         }
 
         html += `<h2 style="margin-top:0">${esc(campaignName)}</h2>
@@ -1070,13 +1115,7 @@ window.WikiSB = {
                  </section>`;
         } else {
             if (entry.banner_image) {
-                const _ebl = layout;
-                const _ebSize = _ebl.bannerFit === 'contain' ? 'contain' : _ebl.bannerFit === 'actual' ? 'auto' : 'cover';
-                const _ebPos  = `${_ebl.bannerFocalX ?? 50}% ${_ebl.bannerFocalY ?? 50}%`;
-                const _ebH    = _ebl.bannerHeight ? `height:${_ebl.bannerHeight}px;` : '';
-                html += `<div class="wiki-entry-banner wiki-banner-clickable"
-                             data-src="${esc(entry.banner_image)}"
-                             style="${_ebH}background-image:url('${esc(entry.banner_image)}');background-size:${_ebSize};background-position:${_ebPos}"></div>`;
+                html += _bannerHtml(entry.banner_image, layout, 'wiki-entry-banner');
             }
 
             const isFloat = sidebar.startsWith('float-');

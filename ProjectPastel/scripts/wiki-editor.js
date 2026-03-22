@@ -2139,7 +2139,8 @@
     }
 
     function _readEntrySettings() {
-        const bh = document.getElementById('sb-banner-height')?.value || '';
+        const bh       = document.getElementById('sb-banner-height')?.value || '';
+        const ovColor  = document.getElementById('sb-banner-ov-color-val')?.value || '';
         return {
             sidebar:               (document.getElementById('sb-sidebar-pos')?.value        || 'right'),
             accentColor:           (document.getElementById('sb-accent-color')?.value       || ''),
@@ -2150,7 +2151,20 @@
             bannerFit:             (document.getElementById('sb-banner-fit')?.value         || 'cover'),
             bannerFocalX:          +(document.getElementById('sb-banner-focal-x')?.value    ?? 50),
             bannerFocalY:          +(document.getElementById('sb-banner-focal-y')?.value    ?? 50),
+            bannerOpacity:         +(document.getElementById('sb-banner-opacity')?.value    ?? 100),
+            bannerRadius:          (document.getElementById('sb-banner-radius')?.value      || 'rounded'),
+            bannerParallax:        document.getElementById('sb-banner-parallax-val')?.value === 'true',
+            bannerBottomFade:      document.getElementById('sb-banner-fade-val')?.value === 'true',
+            bannerAlt:             (document.getElementById('sb-banner-alt')?.value         || ''),
+            bannerText:            (document.getElementById('sb-banner-text')?.value        || ''),
+            bannerTextPos:         (document.getElementById('sb-banner-textpos')?.value     || 'bottom-left'),
+            bannerTextSize:        (document.getElementById('sb-banner-textsize')?.value    || 'md'),
+            bannerTextColor:       (document.getElementById('sb-banner-text-color')?.value  || '#ffffff'),
             ...(bh ? { bannerHeight: +bh } : {}),
+            ...(ovColor ? {
+                bannerOverlayColor:   ovColor,
+                bannerOverlayOpacity: +(document.getElementById('sb-banner-ov-opacity')?.value ?? 40),
+            } : {}),
         };
     }
 
@@ -2523,37 +2537,61 @@
         });
     }
 
-    // ── Banner display controls (preview + fit mode + height + drag to position) ─
+    // ── Banner display controls ────────────────────────────────────────────────
 
     function _buildBannerControls(containerEl, bannerUrlInputEl, idPrefix, layout) {
         if (!containerEl) return;
-        const fit    = layout?.bannerFit    || 'cover';
-        const focalX = layout?.bannerFocalX ?? 50;
-        const focalY = layout?.bannerFocalY ?? 50;
-        const height = layout?.bannerHeight || '';
+        const L = layout || {};
 
-        const heights = [
-            { val: '120', label: 'Short' },
-            { val: '180', label: 'Medium' },
-            { val: '240', label: 'Tall' },
-            { val: '320', label: 'X-Tall' },
+        // Current values
+        const fit      = L.bannerFit          || 'cover';
+        const focalX   = L.bannerFocalX        ?? 50;
+        const focalY   = L.bannerFocalY        ?? 50;
+        const height   = L.bannerHeight        || '';
+        const opacity  = L.bannerOpacity       ?? 100;
+        const radius   = L.bannerRadius        || 'rounded';
+        const parallax = L.bannerParallax      || false;
+        const ovColor  = L.bannerOverlayColor  || '';
+        const ovOpac   = L.bannerOverlayOpacity ?? 40;
+        const fade     = L.bannerBottomFade    || false;
+        const alt      = L.bannerAlt           || '';
+        const text     = L.bannerText          || '';
+        const textPos  = L.bannerTextPos       || 'bottom-left';
+        const textSize = L.bannerTextSize      || 'md';
+        const textCol  = L.bannerTextColor     || '#ffffff';
+
+        const heights   = [{ val:'120',label:'Short' },{ val:'180',label:'Medium' },{ val:'240',label:'Tall' },{ val:'320',label:'X-Tall' }];
+        const radii     = [{ val:'none',label:'None' },{ val:'slight',label:'Slight' },{ val:'rounded',label:'Rounded' },{ val:'pill',label:'Pill' }];
+        const hBtns     = heights.map(h => `<button type="button" class="bsc-fit-btn${String(height)===h.val?' active':''}" data-bsc-height="${h.val}">${h.label}</button>`).join('');
+        const radBtns   = radii.map(r  => `<button type="button" class="bsc-fit-btn${radius===r.val?' active':''}" data-bsc-radius="${r.val}">${r.label}</button>`).join('');
+
+        const posOptions = [
+            ['top-left','↖'],['top-center','↑'],['top-right','↗'],
+            ['center-left','←'],['center','·'],['center-right','→'],
+            ['bottom-left','↙'],['bottom-center','↓'],['bottom-right','↘'],
         ];
-        const hBtns = heights.map(h =>
-            `<button type="button" class="bsc-fit-btn${String(height) === h.val ? ' active' : ''}" data-bsc-height="${h.val}">${h.label}</button>`
+        const posBtns = posOptions.map(([v,lbl]) =>
+            `<button type="button" class="bsc-pos-btn${textPos===v?' active':''}" data-bsc-textpos="${v}" title="${v}">${lbl}</button>`
         ).join('');
 
         containerEl.innerHTML = `
             <div class="bsc-preview" id="${idPrefix}-preview">
                 <div class="bsc-preview-empty">No banner image — paste a URL above</div>
+                <div class="bsc-preview-overlay" id="${idPrefix}-pv-overlay"></div>
+                <div class="bsc-preview-fade" id="${idPrefix}-pv-fade" style="display:none"></div>
+                <div class="bsc-preview-text" id="${idPrefix}-pv-text"></div>
                 <div class="bsc-preview-hint"></div>
             </div>
+
             <div class="bsc-row">
                 <div class="bsc-section">
                     <span class="bsc-section-label">Fit</span>
                     <div class="bsc-fit-row">
-                        <button type="button" class="bsc-fit-btn${fit === 'cover'   ? ' active' : ''}" data-bsc-fit="cover"  >Fill (cover)</button>
-                        <button type="button" class="bsc-fit-btn${fit === 'contain' ? ' active' : ''}" data-bsc-fit="contain">Fit inside</button>
-                        <button type="button" class="bsc-fit-btn${fit === 'actual'  ? ' active' : ''}" data-bsc-fit="actual" >Actual size</button>
+                        <button type="button" class="bsc-fit-btn${fit==='cover'   ?' active':''}" data-bsc-fit="cover"  >Fill (cover)</button>
+                        <button type="button" class="bsc-fit-btn${fit==='contain' ?' active':''}" data-bsc-fit="contain">Fit inside</button>
+                        <button type="button" class="bsc-fit-btn${fit==='stretch' ?' active':''}" data-bsc-fit="stretch">Stretch</button>
+                        <button type="button" class="bsc-fit-btn${fit==='actual'  ?' active':''}" data-bsc-fit="actual" >Actual size</button>
+                        <button type="button" class="bsc-fit-btn bsc-fit-btn--secondary${fit==='tile'?' active':''}" data-bsc-fit="tile">Tile</button>
                     </div>
                 </div>
                 <div class="bsc-section">
@@ -2561,40 +2599,176 @@
                     <div class="bsc-fit-row">${hBtns}</div>
                 </div>
             </div>
-            <input type="hidden" id="${idPrefix}-fit"      value="${fit}">
-            <input type="hidden" id="${idPrefix}-focal-x"  value="${focalX}">
-            <input type="hidden" id="${idPrefix}-focal-y"  value="${focalY}">
-            <input type="hidden" id="${idPrefix}-height"   value="${height}">
+
+            <div class="bsc-row">
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Image opacity</span>
+                    <div class="bsc-slider-row">
+                        <input type="range" class="bsc-slider" id="${idPrefix}-opacity" min="0" max="100" value="${opacity}">
+                        <span class="bsc-slider-val" id="${idPrefix}-opacity-val">${opacity}%</span>
+                    </div>
+                </div>
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Border radius</span>
+                    <div class="bsc-fit-row">${radBtns}</div>
+                </div>
+            </div>
+
+            <div class="bsc-row">
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Overlay tint</span>
+                    <div class="bsc-color-row">
+                        <input type="color" class="bsc-color-input" id="${idPrefix}-ov-color" value="${ovColor || '#1a0b1e'}">
+                        <button type="button" class="bsc-toggle${ovColor?' active':''}" id="${idPrefix}-ov-enable">
+                            <span class="bsc-toggle-dot"></span>${ovColor ? 'On' : 'Off'}
+                        </button>
+                        <input type="range" class="bsc-slider" id="${idPrefix}-ov-opacity" min="0" max="100" value="${ovOpac}" style="flex:1;min-width:60px">
+                        <span class="bsc-slider-val" id="${idPrefix}-ov-opacity-val">${ovOpac}%</span>
+                    </div>
+                </div>
+                <div class="bsc-section">
+                    <span class="bsc-section-label">Effects</span>
+                    <div class="bsc-fit-row">
+                        <button type="button" class="bsc-toggle${fade?' active':''}" id="${idPrefix}-fade">
+                            <span class="bsc-toggle-dot"></span>Bottom fade
+                        </button>
+                        <button type="button" class="bsc-toggle${parallax?' active':''}" id="${idPrefix}-parallax">
+                            <span class="bsc-toggle-dot"></span>Parallax
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bsc-section">
+                <span class="bsc-section-label">Text overlay</span>
+                <textarea id="${idPrefix}-text" class="ej-input" rows="2" placeholder="Optional text on the banner…" style="resize:vertical;width:100%">${text.replace(/</g,'&lt;')}</textarea>
+                <div class="bsc-text-extra"${text?'':' hidden'}>
+                    <div class="bsc-color-row" style="align-items:flex-start;gap:12px">
+                        <div>
+                            <div class="bsc-section-label" style="margin-bottom:4px">Position</div>
+                            <div class="bsc-pos-grid">${posBtns}</div>
+                        </div>
+                        <div style="flex:1">
+                            <div class="bsc-section-label" style="margin-bottom:4px">Size</div>
+                            <div class="bsc-fit-row">
+                                <button type="button" class="bsc-fit-btn${textSize==='sm'?' active':''}" data-bsc-textsize="sm">S</button>
+                                <button type="button" class="bsc-fit-btn${textSize==='md'?' active':''}" data-bsc-textsize="md">M</button>
+                                <button type="button" class="bsc-fit-btn${textSize==='lg'?' active':''}" data-bsc-textsize="lg">L</button>
+                            </div>
+                            <div class="bsc-section-label" style="margin-top:8px;margin-bottom:4px">Color</div>
+                            <input type="color" class="bsc-color-input" id="${idPrefix}-text-color" value="${textCol}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bsc-section">
+                <span class="bsc-section-label">Alt text <span class="bsc-section-hint">(accessibility)</span></span>
+                <input type="text" id="${idPrefix}-alt" class="ej-input" placeholder="Describe the banner image…" value="${alt.replace(/"/g,'&quot;')}">
+            </div>
+
+            <input type="hidden" id="${idPrefix}-fit"          value="${fit}">
+            <input type="hidden" id="${idPrefix}-focal-x"      value="${focalX}">
+            <input type="hidden" id="${idPrefix}-focal-y"      value="${focalY}">
+            <input type="hidden" id="${idPrefix}-height"       value="${height}">
+            <input type="hidden" id="${idPrefix}-radius"       value="${radius}">
+            <input type="hidden" id="${idPrefix}-parallax-val" value="${parallax}">
+            <input type="hidden" id="${idPrefix}-ov-color-val" value="${ovColor}">
+            <input type="hidden" id="${idPrefix}-fade-val"     value="${fade}">
+            <input type="hidden" id="${idPrefix}-textpos"      value="${textPos}">
+            <input type="hidden" id="${idPrefix}-textsize"     value="${textSize}">
         `;
 
-        const fitInp    = containerEl.querySelector(`#${idPrefix}-fit`);
-        const fxInp     = containerEl.querySelector(`#${idPrefix}-focal-x`);
-        const fyInp     = containerEl.querySelector(`#${idPrefix}-focal-y`);
-        const heightInp = containerEl.querySelector(`#${idPrefix}-height`);
-        const preview   = containerEl.querySelector(`#${idPrefix}-preview`);
-        const emptyMsg  = preview.querySelector('.bsc-preview-empty');
-        const hint      = preview.querySelector('.bsc-preview-hint');
+        // ── Element references ──────────────────────────────────────────────
+        const fitInp      = containerEl.querySelector(`#${idPrefix}-fit`);
+        const fxInp       = containerEl.querySelector(`#${idPrefix}-focal-x`);
+        const fyInp       = containerEl.querySelector(`#${idPrefix}-focal-y`);
+        const heightInp   = containerEl.querySelector(`#${idPrefix}-height`);
+        const opacInp     = containerEl.querySelector(`#${idPrefix}-opacity`);
+        const opacVal     = containerEl.querySelector(`#${idPrefix}-opacity-val`);
+        const radiusInp   = containerEl.querySelector(`#${idPrefix}-radius`);
+        const parallaxInp = containerEl.querySelector(`#${idPrefix}-parallax-val`);
+        const ovColorInp  = containerEl.querySelector(`#${idPrefix}-ov-color`);
+        const ovEnableBtn = containerEl.querySelector(`#${idPrefix}-ov-enable`);
+        const ovColorVal  = containerEl.querySelector(`#${idPrefix}-ov-color-val`);
+        const ovOpacInp   = containerEl.querySelector(`#${idPrefix}-ov-opacity`);
+        const ovOpacVal   = containerEl.querySelector(`#${idPrefix}-ov-opacity-val`);
+        const fadeBtn     = containerEl.querySelector(`#${idPrefix}-fade`);
+        const fadeVal     = containerEl.querySelector(`#${idPrefix}-fade-val`);
+        const parallaxBtn = containerEl.querySelector(`#${idPrefix}-parallax`);
+        const textArea    = containerEl.querySelector(`#${idPrefix}-text`);
+        const textExtra   = containerEl.querySelector('.bsc-text-extra');
+        const textposInp  = containerEl.querySelector(`#${idPrefix}-textpos`);
+        const textsizeInp = containerEl.querySelector(`#${idPrefix}-textsize`);
+        const textColInp  = containerEl.querySelector(`#${idPrefix}-text-color`);
+        const preview     = containerEl.querySelector(`#${idPrefix}-preview`);
+        const emptyMsg    = preview.querySelector('.bsc-preview-empty');
+        const pvOverlay   = containerEl.querySelector(`#${idPrefix}-pv-overlay`);
+        const pvFade      = containerEl.querySelector(`#${idPrefix}-pv-fade`);
+        const pvText      = containerEl.querySelector(`#${idPrefix}-pv-text`);
+        const hint        = preview.querySelector('.bsc-preview-hint');
 
-        const _fitToSize = { cover: 'cover', contain: 'contain', actual: 'auto' };
-        const _hintText  = { cover: 'Drag to set focal point', actual: 'Drag to pan', contain: '' };
+        const _fitToSize   = { cover:'cover', contain:'contain', actual:'auto', stretch:'100% 100%', tile:'auto' };
+        const _fitToRepeat = { tile:'repeat' };
+        const _hintText    = { cover:'Drag to set focal point', actual:'Drag to pan', tile:'Drag to pan', contain:'', stretch:'' };
+        const _radMap      = { none:'0px', slight:'4px', rounded:'10px', pill:'50px' };
+
+        // Show/hide the whole block when URL fills/clears
+        const _bannerLabel = containerEl.previousElementSibling;
+        function _toggleVisible() {
+            const show = !!(bannerUrlInputEl?.value?.trim());
+            containerEl.style.display = show ? '' : 'none';
+            if (_bannerLabel?.tagName === 'LABEL') _bannerLabel.style.display = show ? '' : 'none';
+        }
 
         function _updatePreview() {
             const url = bannerUrlInputEl?.value?.trim();
             const f   = fitInp.value;
             const h   = heightInp.value;
+            const op  = (+opacInp.value / 100).toFixed(2);
+            const r   = _radMap[radiusInp.value] ?? '10px';
+
             preview.style.backgroundImage    = url ? `url('${url}')` : '';
-            preview.style.backgroundSize     = _fitToSize[f] || 'cover';
+            preview.style.backgroundSize     = _fitToSize[f]   || 'cover';
+            preview.style.backgroundRepeat   = _fitToRepeat[f] || 'no-repeat';
             preview.style.backgroundPosition = `${fxInp.value}% ${fyInp.value}%`;
             preview.style.height             = h ? `${h}px` : '160px';
+            preview.style.opacity            = op;
+            preview.style.borderRadius       = r;
+
             emptyMsg.style.display = url ? 'none' : '';
             hint.textContent       = url ? (_hintText[f] || '') : '';
             hint.style.display     = (url && _hintText[f]) ? '' : 'none';
-        }
-        _updatePreview();
-        bannerUrlInputEl?.addEventListener('input',  _updatePreview);
-        bannerUrlInputEl?.addEventListener('change', _updatePreview);
 
-        // Fit buttons
+            // Overlay
+            const ovc = ovColorVal.value;
+            if (ovc) {
+                const hex = ovc.replace('#','').padEnd(6,'0').slice(0,6);
+                const oa = (+ovOpacInp.value / 100).toFixed(2);
+                pvOverlay.style.cssText = `position:absolute;inset:0;background:rgba(${parseInt(hex.slice(0,2),16)||0},${parseInt(hex.slice(2,4),16)||0},${parseInt(hex.slice(4,6),16)||0},${oa});pointer-events:none`;
+            } else { pvOverlay.style.cssText = ''; }
+
+            // Fade
+            pvFade.style.display = fadeVal.value === 'true' ? '' : 'none';
+
+            // Text
+            const txt = textArea.value.trim();
+            if (txt) {
+                const pos = textposInp.value || 'bottom-left';
+                const sz  = textsizeInp.value || 'md';
+                const tc  = textColInp?.value || '#ffffff';
+                pvText.className = `bsc-preview-text wiki-banner-text wiki-banner-text--${pos} wiki-banner-text--${sz}`;
+                pvText.style.color = tc;
+                pvText.textContent = txt;
+            } else { pvText.className = 'bsc-preview-text'; pvText.textContent = ''; }
+        }
+
+        _toggleVisible();
+        _updatePreview();
+        bannerUrlInputEl?.addEventListener('input',  () => { _toggleVisible(); _updatePreview(); });
+        bannerUrlInputEl?.addEventListener('change', () => { _toggleVisible(); _updatePreview(); });
+
+        // ── Fit buttons ─────────────────────────────────────────────────────
         containerEl.querySelectorAll('[data-bsc-fit]').forEach(btn => {
             btn.addEventListener('click', () => {
                 containerEl.querySelectorAll('[data-bsc-fit]').forEach(b => b.classList.remove('active'));
@@ -2604,35 +2778,91 @@
             });
         });
 
-        // Height buttons (toggle — click active to reset to default)
+        // ── Height buttons ───────────────────────────────────────────────────
         containerEl.querySelectorAll('[data-bsc-height]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (btn.classList.contains('active')) {
-                    btn.classList.remove('active');
-                    heightInp.value = '';
-                } else {
-                    containerEl.querySelectorAll('[data-bsc-height]').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    heightInp.value = btn.dataset.bscHeight;
-                }
+                if (btn.classList.contains('active')) { btn.classList.remove('active'); heightInp.value = ''; }
+                else { containerEl.querySelectorAll('[data-bsc-height]').forEach(b => b.classList.remove('active')); btn.classList.add('active'); heightInp.value = btn.dataset.bscHeight; }
                 _updatePreview();
             });
         });
 
-        // Drag to reposition image in the preview
+        // ── Opacity slider ───────────────────────────────────────────────────
+        opacInp.addEventListener('input', () => { opacVal.textContent = opacInp.value + '%'; _updatePreview(); });
+
+        // ── Border radius buttons ────────────────────────────────────────────
+        containerEl.querySelectorAll('[data-bsc-radius]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                containerEl.querySelectorAll('[data-bsc-radius]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                radiusInp.value = btn.dataset.bscRadius;
+                _updatePreview();
+            });
+        });
+
+        // ── Overlay toggle + sliders ─────────────────────────────────────────
+        const _syncOverlay = () => {
+            const on = ovEnableBtn.classList.contains('active');
+            ovColorVal.value = on ? ovColorInp.value : '';
+            _updatePreview();
+        };
+        ovEnableBtn.addEventListener('click', () => {
+            const on = ovEnableBtn.classList.toggle('active');
+            ovEnableBtn.querySelector('.bsc-toggle-dot').nextSibling.textContent = on ? 'On' : 'Off';
+            _syncOverlay();
+        });
+        ovColorInp.addEventListener('input',  _syncOverlay);
+        ovOpacInp.addEventListener('input', () => { ovOpacVal.textContent = ovOpacInp.value + '%'; _updatePreview(); });
+
+        // ── Bottom fade ──────────────────────────────────────────────────────
+        fadeBtn.addEventListener('click', () => {
+            const on = fadeBtn.classList.toggle('active');
+            fadeBtn.querySelector('.bsc-toggle-dot').nextSibling.textContent = on ? 'Bottom fade' : 'Bottom fade';
+            fadeVal.value = on ? 'true' : 'false';
+            _updatePreview();
+        });
+
+        // ── Parallax ────────────────────────────────────────────────────────
+        parallaxBtn.addEventListener('click', () => {
+            const on = parallaxBtn.classList.toggle('active');
+            parallaxInp.value = on ? 'true' : 'false';
+        });
+
+        // ── Text overlay ─────────────────────────────────────────────────────
+        textArea.addEventListener('input', () => {
+            if (textArea.value.trim()) textExtra.removeAttribute('hidden');
+            else textExtra.setAttribute('hidden', '');
+            _updatePreview();
+        });
+        containerEl.querySelectorAll('[data-bsc-textpos]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                containerEl.querySelectorAll('[data-bsc-textpos]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                textposInp.value = btn.dataset.bscTextpos;
+                _updatePreview();
+            });
+        });
+        containerEl.querySelectorAll('[data-bsc-textsize]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                containerEl.querySelectorAll('[data-bsc-textsize]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                textsizeInp.value = btn.dataset.bscTextsize;
+                _updatePreview();
+            });
+        });
+        textColInp?.addEventListener('input', _updatePreview);
+
+        // ── Drag to reposition ───────────────────────────────────────────────
         let _dragging = false, _startX, _startY, _startFx, _startFy;
         preview.addEventListener('mousedown', e => {
             if (!bannerUrlInputEl?.value?.trim()) return;
-            _dragging = true;
-            _startX = e.clientX; _startY = e.clientY;
+            _dragging = true; _startX = e.clientX; _startY = e.clientY;
             _startFx = +fxInp.value; _startFy = +fyInp.value;
-            preview.style.cursor = 'grabbing';
-            e.preventDefault();
+            preview.style.cursor = 'grabbing'; e.preventDefault();
         });
         preview.addEventListener('touchstart', e => {
             if (!bannerUrlInputEl?.value?.trim()) return;
-            _dragging = true;
-            _startX = e.touches[0].clientX; _startY = e.touches[0].clientY;
+            _dragging = true; _startX = e.touches[0].clientX; _startY = e.touches[0].clientY;
             _startFx = +fxInp.value; _startFy = +fyInp.value;
         }, { passive: true });
 
@@ -2644,10 +2874,7 @@
             fyInp.value = Math.max(0, Math.min(100, Math.round(_startFy + (e.clientY - _startY) / rect.height * 100)));
             _updatePreview();
         }, { signal: _ac.signal });
-        document.addEventListener('mouseup', () => {
-            _dragging = false;
-            preview.style.cursor = '';
-        }, { signal: _ac.signal });
+        document.addEventListener('mouseup',   () => { _dragging = false; preview.style.cursor = ''; }, { signal: _ac.signal });
         document.addEventListener('touchmove', e => {
             if (!_dragging) return;
             const rect = preview.getBoundingClientRect();
@@ -2656,40 +2883,42 @@
             _updatePreview();
         }, { signal: _ac.signal, passive: true });
         document.addEventListener('touchend', () => { _dragging = false; }, { signal: _ac.signal });
-
         const _obs = new MutationObserver(() => { if (!document.contains(preview)) { _ac.abort(); _obs.disconnect(); } });
         _obs.observe(document.body, { childList: true, subtree: true });
     }
 
     function _applyBannerControls(idPrefix, layout) {
-        const fitInp    = document.getElementById(`${idPrefix}-fit`);
-        const fxInp     = document.getElementById(`${idPrefix}-focal-x`);
-        const fyInp     = document.getElementById(`${idPrefix}-focal-y`);
-        const heightInp = document.getElementById(`${idPrefix}-height`);
+        const L = layout || {};
+        const fitInp = document.getElementById(`${idPrefix}-fit`);
         if (!fitInp) return;
 
-        const fit    = layout?.bannerFit    || 'cover';
-        const focalX = layout?.bannerFocalX ?? 50;
-        const focalY = layout?.bannerFocalY ?? 50;
-        const height = layout?.bannerHeight || '';
+        const fit    = L.bannerFit    || 'cover';
+        const focalX = L.bannerFocalX ?? 50;
+        const focalY = L.bannerFocalY ?? 50;
+        const height = L.bannerHeight || '';
 
         fitInp.value = fit;
-        fxInp.value  = focalX;
-        fyInp.value  = focalY;
-        if (heightInp) heightInp.value = height;
+        document.getElementById(`${idPrefix}-focal-x`)?.setAttribute('value', focalX);
+        document.getElementById(`${idPrefix}-focal-y`)?.setAttribute('value', focalY);
+        const hInp = document.getElementById(`${idPrefix}-height`); if (hInp) hInp.value = height;
+        const opInp = document.getElementById(`${idPrefix}-opacity`); if (opInp) { opInp.value = L.bannerOpacity ?? 100; const v = document.getElementById(`${idPrefix}-opacity-val`); if (v) v.textContent = opInp.value + '%'; }
+        const rInp = document.getElementById(`${idPrefix}-radius`); if (rInp) rInp.value = L.bannerRadius || 'rounded';
 
-        document.querySelectorAll('[data-bsc-fit]').forEach(b =>
-            b.classList.toggle('active', b.dataset.bscFit === fit));
-        document.querySelectorAll('[data-bsc-height]').forEach(b =>
-            b.classList.toggle('active', b.dataset.bscHeight === String(height)));
+        document.querySelectorAll('[data-bsc-fit]').forEach(b    => b.classList.toggle('active', b.dataset.bscFit    === fit));
+        document.querySelectorAll('[data-bsc-height]').forEach(b  => b.classList.toggle('active', b.dataset.bscHeight === String(height)));
+        document.querySelectorAll('[data-bsc-radius]').forEach(b  => b.classList.toggle('active', b.dataset.bscRadius === (L.bannerRadius || 'rounded')));
 
-        // Sync preview element
         const preview = document.getElementById(`${idPrefix}-preview`);
         if (preview) {
-            const fitToSize = { cover: 'cover', contain: 'contain', actual: 'auto' };
-            preview.style.backgroundSize     = fitToSize[fit] || 'cover';
+            const fsMap = { cover:'cover', contain:'contain', actual:'auto', stretch:'100% 100%', tile:'auto' };
+            const frMap = { tile:'repeat' };
+            const radMap = { none:'0px', slight:'4px', rounded:'10px', pill:'50px' };
+            preview.style.backgroundSize     = fsMap[fit] || 'cover';
+            preview.style.backgroundRepeat   = frMap[fit] || 'no-repeat';
             preview.style.backgroundPosition = `${focalX}% ${focalY}%`;
             preview.style.height             = height ? `${height}px` : '160px';
+            preview.style.opacity            = ((L.bannerOpacity ?? 100) / 100).toFixed(2);
+            preview.style.borderRadius       = radMap[L.bannerRadius] ?? '10px';
         }
     }
 
@@ -3371,12 +3600,26 @@
                             const icon = panel.querySelector('#cst-icon').value.trim();
                             const slug = displayName.toLowerCase()
                                 .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                            const cbh = panel.querySelector('#cst-banner-height')?.value || '';
+                            const cbh     = panel.querySelector('#cst-banner-height')?.value    || '';
+                            const cOvColor = panel.querySelector('#cst-banner-ov-color-val')?.value || '';
                             const campLayout = {
-                                bannerFit:    panel.querySelector('#cst-banner-fit')?.value    || 'cover',
-                                bannerFocalX: +(panel.querySelector('#cst-banner-focal-x')?.value ?? 50),
-                                bannerFocalY: +(panel.querySelector('#cst-banner-focal-y')?.value ?? 50),
+                                bannerFit:       panel.querySelector('#cst-banner-fit')?.value        || 'cover',
+                                bannerFocalX:    +(panel.querySelector('#cst-banner-focal-x')?.value  ?? 50),
+                                bannerFocalY:    +(panel.querySelector('#cst-banner-focal-y')?.value  ?? 50),
+                                bannerOpacity:   +(panel.querySelector('#cst-banner-opacity')?.value  ?? 100),
+                                bannerRadius:     panel.querySelector('#cst-banner-radius')?.value    || 'rounded',
+                                bannerParallax:   panel.querySelector('#cst-banner-parallax-val')?.value === 'true',
+                                bannerBottomFade: panel.querySelector('#cst-banner-fade-val')?.value === 'true',
+                                bannerAlt:        panel.querySelector('#cst-banner-alt')?.value        || '',
+                                bannerText:       panel.querySelector('#cst-banner-text')?.value       || '',
+                                bannerTextPos:    panel.querySelector('#cst-banner-textpos')?.value    || 'bottom-left',
+                                bannerTextSize:   panel.querySelector('#cst-banner-textsize')?.value   || 'md',
+                                bannerTextColor:  panel.querySelector('#cst-banner-text-color')?.value || '#ffffff',
                                 ...(cbh ? { bannerHeight: +cbh } : {}),
+                                ...(cOvColor ? {
+                                    bannerOverlayColor:   cOvColor,
+                                    bannerOverlayOpacity: +(panel.querySelector('#cst-banner-ov-opacity')?.value ?? 40),
+                                } : {}),
                             };
                             const allFields = {
                                 name:         displayName,
