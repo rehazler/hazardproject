@@ -3995,11 +3995,7 @@ body.wiki-page img.wiki-section-float-img--left {
     padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.82rem;
     color: #d3b3e7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .ml-folder-item:hover { background: rgba(211,179,231,0.08); }
 .ml-folder-item.active { background: rgba(152,230,214,0.12); color: #98e6d6; }
@@ -4068,4 +4064,149 @@ body.wiki-page img.wiki-section-float-img--left {
 .ml-browse-btn {
     white-space: nowrap;
     flex-shrink: 0;
+}
+
+/* ── Storage bar ─────────────────────────────────────────────────────────── */
+
+.ml-storage-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(211,179,231,0.12);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.ml-storage-label {
+    font-size: 0.75rem;
+    color: #a08ab0;
+    white-space: nowrap;
+}
+.ml-storage-track {
+    flex: 1;
+    min-width: 80px;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.ml-storage-fill {
+    height: 100%;
+    background: #98e6d6;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.ml-storage-fill--warn   { background: #f3b0c3; }
+.ml-storage-fill--danger { background: #e06060; }
+.ml-storage-text {
+    font-size: 0.75rem;
+    color: #d3b3e7;
+    white-space: nowrap;
+}
+
+/* ── Folder item sizes ───────────────────────────────────────────────────── */
+
+.ml-folder-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.ml-folder-name {
+    font-size: 0.82rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ml-folder-size {
+    font-size: 0.68rem;
+    color: #7a6a8a;
+}
+.ml-folder-item.active .ml-folder-size { color: rgba(152,230,214,0.7); }
+
+/* ── Card file size ──────────────────────────────────────────────────────── */
+
+/* ── Banner display controls ─────────────────────────────────────────────── */
+
+.bsc-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+.bsc-section-label {
+    font-size: 0.73rem;
+    color: #a08ab0;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+.bsc-section-hint {
+    font-size: 0.68rem;
+    color: #7a6a8a;
+    font-weight: 400;
+}
+.bsc-fit-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.bsc-fit-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(211,179,231,0.2);
+    color: #d3b3e7;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.bsc-fit-btn:hover { background: rgba(211,179,231,0.08); }
+.bsc-fit-btn.active {
+    background: rgba(152,230,214,0.12);
+    border-color: rgba(152,230,214,0.5);
+    color: #98e6d6;
+}
+.bsc-focal-section { margin-bottom: 0; }
+.bsc-focal-picker {
+    position: relative;
+    width: 100%;
+    height: 88px;
+    background-color: rgba(255,255,255,0.03);
+    border: 1px solid rgba(211,179,231,0.2);
+    border-radius: 4px;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: crosshair;
+    overflow: hidden;
+    user-select: none;
+}
+.bsc-focal-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    border: 2px solid #98e6d6;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 6px rgba(152,230,214,0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.bsc-focal-hint {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.55);
+    background: rgba(0,0,0,0.45);
+    padding: 1px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* ── Card file size ──────────────────────────────────────────────────────── */
+
+.ml-card-size {
+    font-size: 0.68rem;
+    color: #7a6a8a;
 }
