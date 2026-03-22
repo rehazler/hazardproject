@@ -2151,6 +2151,8 @@
             bannerFit:             (document.getElementById('sb-banner-fit')?.value         || 'cover'),
             bannerFocalX:          +(document.getElementById('sb-banner-focal-x')?.value    ?? 50),
             bannerFocalY:          +(document.getElementById('sb-banner-focal-y')?.value    ?? 50),
+            bannerZoom:            +(document.getElementById('sb-banner-zoom')?.value        ?? 100),
+            bannerTile:            document.getElementById('sb-banner-tile-val')?.value === 'true',
             bannerOpacity:         +(document.getElementById('sb-banner-opacity')?.value    ?? 100),
             bannerRadius:          (document.getElementById('sb-banner-radius')?.value      || 'rounded'),
             bannerParallax:        document.getElementById('sb-banner-parallax-val')?.value === 'true',
@@ -2544,12 +2546,14 @@
         const L = layout || {};
 
         // Current values
-        const fit      = L.bannerFit          || 'cover';
+        const fit      = (L.bannerFit && L.bannerFit !== 'tile') ? L.bannerFit : 'cover';
         const focalX   = L.bannerFocalX        ?? 50;
         const focalY   = L.bannerFocalY        ?? 50;
         const height   = L.bannerHeight        || '';
+        const zoom     = L.bannerZoom          ?? 100;
         const opacity  = L.bannerOpacity       ?? 100;
         const radius   = L.bannerRadius        || 'rounded';
+        const tile     = L.bannerTile          || (L.bannerFit === 'tile') || false;
         const parallax = L.bannerParallax      || false;
         const ovColor  = L.bannerOverlayColor  || '';
         const ovOpac   = L.bannerOverlayOpacity ?? 40;
@@ -2591,12 +2595,19 @@
                         <button type="button" class="bsc-fit-btn${fit==='contain' ?' active':''}" data-bsc-fit="contain">Fit inside</button>
                         <button type="button" class="bsc-fit-btn${fit==='stretch' ?' active':''}" data-bsc-fit="stretch">Stretch</button>
                         <button type="button" class="bsc-fit-btn${fit==='actual'  ?' active':''}" data-bsc-fit="actual" >Actual size</button>
-                        <button type="button" class="bsc-fit-btn bsc-fit-btn--secondary${fit==='tile'?' active':''}" data-bsc-fit="tile">Tile</button>
                     </div>
                 </div>
                 <div class="bsc-section">
                     <span class="bsc-section-label">Height</span>
                     <div class="bsc-fit-row">${hBtns}</div>
+                </div>
+            </div>
+
+            <div class="bsc-section bsc-zoom-row" id="${idPrefix}-zoom-section"${fit==='actual'?'':' hidden'}>
+                <span class="bsc-section-label">Zoom</span>
+                <div class="bsc-slider-row">
+                    <input type="range" class="bsc-slider" id="${idPrefix}-zoom" min="25" max="400" step="5" value="${zoom}">
+                    <span class="bsc-slider-val" id="${idPrefix}-zoom-val">${zoom}%</span>
                 </div>
             </div>
 
@@ -2622,13 +2633,16 @@
                         <button type="button" class="bsc-toggle${ovColor?' active':''}" id="${idPrefix}-ov-enable">
                             <span class="bsc-toggle-dot"></span>${ovColor ? 'On' : 'Off'}
                         </button>
-                        <input type="range" class="bsc-slider" id="${idPrefix}-ov-opacity" min="0" max="100" value="${ovOpac}" style="flex:1;min-width:60px">
+                        <input type="range" class="bsc-slider" id="${idPrefix}-ov-opacity" min="0" max="100" value="${ovOpac}">
                         <span class="bsc-slider-val" id="${idPrefix}-ov-opacity-val">${ovOpac}%</span>
                     </div>
                 </div>
                 <div class="bsc-section">
                     <span class="bsc-section-label">Effects</span>
                     <div class="bsc-fit-row">
+                        <button type="button" class="bsc-toggle${tile?' active':''}" id="${idPrefix}-tile">
+                            <span class="bsc-toggle-dot"></span>Tile
+                        </button>
                         <button type="button" class="bsc-toggle${fade?' active':''}" id="${idPrefix}-fade">
                             <span class="bsc-toggle-dot"></span>Bottom fade
                         </button>
@@ -2672,6 +2686,7 @@
             <input type="hidden" id="${idPrefix}-focal-y"      value="${focalY}">
             <input type="hidden" id="${idPrefix}-height"       value="${height}">
             <input type="hidden" id="${idPrefix}-radius"       value="${radius}">
+            <input type="hidden" id="${idPrefix}-tile-val"      value="${tile}">
             <input type="hidden" id="${idPrefix}-parallax-val" value="${parallax}">
             <input type="hidden" id="${idPrefix}-ov-color-val" value="${ovColor}">
             <input type="hidden" id="${idPrefix}-fade-val"     value="${fade}">
@@ -2684,6 +2699,9 @@
         const fxInp       = containerEl.querySelector(`#${idPrefix}-focal-x`);
         const fyInp       = containerEl.querySelector(`#${idPrefix}-focal-y`);
         const heightInp   = containerEl.querySelector(`#${idPrefix}-height`);
+        const zoomInp     = containerEl.querySelector(`#${idPrefix}-zoom`);
+        const zoomVal     = containerEl.querySelector(`#${idPrefix}-zoom-val`);
+        const zoomSection = containerEl.querySelector(`#${idPrefix}-zoom-section`);
         const opacInp     = containerEl.querySelector(`#${idPrefix}-opacity`);
         const opacVal     = containerEl.querySelector(`#${idPrefix}-opacity-val`);
         const radiusInp   = containerEl.querySelector(`#${idPrefix}-radius`);
@@ -2693,6 +2711,8 @@
         const ovColorVal  = containerEl.querySelector(`#${idPrefix}-ov-color-val`);
         const ovOpacInp   = containerEl.querySelector(`#${idPrefix}-ov-opacity`);
         const ovOpacVal   = containerEl.querySelector(`#${idPrefix}-ov-opacity-val`);
+        const tileBtn     = containerEl.querySelector(`#${idPrefix}-tile`);
+        const tileVal     = containerEl.querySelector(`#${idPrefix}-tile-val`);
         const fadeBtn     = containerEl.querySelector(`#${idPrefix}-fade`);
         const fadeVal     = containerEl.querySelector(`#${idPrefix}-fade-val`);
         const parallaxBtn = containerEl.querySelector(`#${idPrefix}-parallax`);
@@ -2708,9 +2728,8 @@
         const pvText      = containerEl.querySelector(`#${idPrefix}-pv-text`);
         const hint        = preview.querySelector('.bsc-preview-hint');
 
-        const _fitToSize   = { cover:'cover', contain:'contain', actual:'auto', stretch:'100% 100%', tile:'auto' };
-        const _fitToRepeat = { tile:'repeat' };
-        const _hintText    = { cover:'Drag to set focal point', actual:'Drag to pan', tile:'Drag to pan', contain:'', stretch:'' };
+        const _fitToSize   = { cover:'cover', contain:'contain', stretch:'100% 100%' };
+        const _hintText    = { cover:'Drag to set focal point', actual:'Drag to pan', contain:'', stretch:'' };
         const _radMap      = { none:'0px', slight:'4px', rounded:'10px', pill:'50px' };
 
         // Show/hide the whole block when URL fills/clears
@@ -2729,10 +2748,10 @@
             const r   = _radMap[radiusInp.value] ?? '10px';
 
             preview.style.backgroundImage    = url ? `url('${url}')` : '';
-            preview.style.backgroundSize     = _fitToSize[f]   || 'cover';
-            preview.style.backgroundRepeat   = _fitToRepeat[f] || 'no-repeat';
+            preview.style.backgroundSize     = f === 'actual' ? `${zoomInp?.value || 100}%` : (_fitToSize[f] || 'cover');
+            preview.style.backgroundRepeat   = tileVal?.value === 'true' ? 'repeat' : 'no-repeat';
             preview.style.backgroundPosition = `${fxInp.value}% ${fyInp.value}%`;
-            preview.style.height             = h ? `${h}px` : '160px';
+            preview.style.height             = h ? `${h}px` : '';
             preview.style.opacity            = op;
             preview.style.borderRadius       = r;
 
@@ -2774,6 +2793,7 @@
                 containerEl.querySelectorAll('[data-bsc-fit]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 fitInp.value = btn.dataset.bscFit;
+                if (zoomSection) zoomSection.hidden = btn.dataset.bscFit !== 'actual';
                 _updatePreview();
             });
         });
@@ -2786,6 +2806,9 @@
                 _updatePreview();
             });
         });
+
+        // ── Zoom slider (Actual size only) ───────────────────────────────────
+        zoomInp?.addEventListener('input', () => { if (zoomVal) zoomVal.textContent = zoomInp.value + '%'; _updatePreview(); });
 
         // ── Opacity slider ───────────────────────────────────────────────────
         opacInp.addEventListener('input', () => { opacVal.textContent = opacInp.value + '%'; _updatePreview(); });
@@ -2813,6 +2836,13 @@
         });
         ovColorInp.addEventListener('input',  _syncOverlay);
         ovOpacInp.addEventListener('input', () => { ovOpacVal.textContent = ovOpacInp.value + '%'; _updatePreview(); });
+
+        // ── Tile effect ──────────────────────────────────────────────────────
+        tileBtn?.addEventListener('click', () => {
+            const on = tileBtn.classList.toggle('active');
+            tileVal.value = on ? 'true' : 'false';
+            _updatePreview();
+        });
 
         // ── Bottom fade ──────────────────────────────────────────────────────
         fadeBtn.addEventListener('click', () => {
@@ -2903,6 +2933,10 @@
         const hInp = document.getElementById(`${idPrefix}-height`); if (hInp) hInp.value = height;
         const opInp = document.getElementById(`${idPrefix}-opacity`); if (opInp) { opInp.value = L.bannerOpacity ?? 100; const v = document.getElementById(`${idPrefix}-opacity-val`); if (v) v.textContent = opInp.value + '%'; }
         const rInp = document.getElementById(`${idPrefix}-radius`); if (rInp) rInp.value = L.bannerRadius || 'rounded';
+        const zInp = document.getElementById(`${idPrefix}-zoom`); if (zInp) { zInp.value = L.bannerZoom ?? 100; const zv = document.getElementById(`${idPrefix}-zoom-val`); if (zv) zv.textContent = zInp.value + '%'; }
+        const zSec = document.getElementById(`${idPrefix}-zoom-section`); if (zSec) zSec.hidden = fit !== 'actual';
+        const tInp = document.getElementById(`${idPrefix}-tile-val`); if (tInp) tInp.value = L.bannerTile ? 'true' : 'false';
+        const tBtn = document.getElementById(`${idPrefix}-tile`); if (tBtn) tBtn.classList.toggle('active', !!(L.bannerTile || (L.bannerFit === 'tile')));
 
         document.querySelectorAll('[data-bsc-fit]').forEach(b    => b.classList.toggle('active', b.dataset.bscFit    === fit));
         document.querySelectorAll('[data-bsc-height]').forEach(b  => b.classList.toggle('active', b.dataset.bscHeight === String(height)));
@@ -2910,13 +2944,12 @@
 
         const preview = document.getElementById(`${idPrefix}-preview`);
         if (preview) {
-            const fsMap = { cover:'cover', contain:'contain', actual:'auto', stretch:'100% 100%', tile:'auto' };
-            const frMap = { tile:'repeat' };
+            const fsMap = { cover:'cover', contain:'contain', stretch:'100% 100%' };
             const radMap = { none:'0px', slight:'4px', rounded:'10px', pill:'50px' };
-            preview.style.backgroundSize     = fsMap[fit] || 'cover';
-            preview.style.backgroundRepeat   = frMap[fit] || 'no-repeat';
+            preview.style.backgroundSize     = fit === 'actual' ? `${L.bannerZoom ?? 100}%` : (fsMap[fit] || 'cover');
+            preview.style.backgroundRepeat   = (L.bannerTile || L.bannerFit === 'tile') ? 'repeat' : 'no-repeat';
             preview.style.backgroundPosition = `${focalX}% ${focalY}%`;
-            preview.style.height             = height ? `${height}px` : '160px';
+            preview.style.height             = height ? `${height}px` : '';
             preview.style.opacity            = ((L.bannerOpacity ?? 100) / 100).toFixed(2);
             preview.style.borderRadius       = radMap[L.bannerRadius] ?? '10px';
         }
@@ -3606,6 +3639,8 @@
                                 bannerFit:       panel.querySelector('#cst-banner-fit')?.value        || 'cover',
                                 bannerFocalX:    +(panel.querySelector('#cst-banner-focal-x')?.value  ?? 50),
                                 bannerFocalY:    +(panel.querySelector('#cst-banner-focal-y')?.value  ?? 50),
+                                bannerZoom:      +(panel.querySelector('#cst-banner-zoom')?.value     ?? 100),
+                                bannerTile:       panel.querySelector('#cst-banner-tile-val')?.value === 'true',
                                 bannerOpacity:   +(panel.querySelector('#cst-banner-opacity')?.value  ?? 100),
                                 bannerRadius:     panel.querySelector('#cst-banner-radius')?.value    || 'rounded',
                                 bannerParallax:   panel.querySelector('#cst-banner-parallax-val')?.value === 'true',

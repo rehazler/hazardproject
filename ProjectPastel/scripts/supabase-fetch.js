@@ -113,10 +113,10 @@ window.WikiSB = {
 
     // Builds the full banner HTML with all display layers from a layout object.
     function _bannerHtml(url, layout, cssClass) {
-        const _fitMap  = { contain: 'contain', actual: 'auto', stretch: '100% 100%', tile: 'auto', cover: 'cover' };
-        const fit      = layout.bannerFit || 'cover';
-        const bgSize   = _fitMap[fit] || 'cover';
-        const bgRep    = fit === 'tile' ? 'repeat' : 'no-repeat';
+        const _fitMap  = { contain: 'contain', stretch: '100% 100%', cover: 'cover' };
+        const fit      = (layout.bannerFit && layout.bannerFit !== 'tile') ? layout.bannerFit : 'cover';
+        const bgSize   = fit === 'actual' ? `${layout.bannerZoom ?? 100}%` : (_fitMap[fit] || 'cover');
+        const bgRep    = (layout.bannerTile || layout.bannerFit === 'tile') ? 'repeat' : 'no-repeat';
         const bgPos    = `${layout.bannerFocalX ?? 50}% ${layout.bannerFocalY ?? 50}%`;
         const bgOpac   = layout.bannerOpacity != null ? (layout.bannerOpacity / 100).toFixed(2) : '1';
         const bgAttach = layout.bannerParallax ? 'fixed' : 'scroll';
