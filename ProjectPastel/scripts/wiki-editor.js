@@ -25,6 +25,7 @@
             <button id="et-save"      class="et-btn et-primary" style="display:none">✓ Save</button>
             <button id="et-cancel"    class="et-btn"            style="display:none">✗ Cancel</button>
             <button id="et-templates" class="et-btn">📋 Templates</button>
+            <button id="et-media"     class="et-btn">📁 Media</button>
             <button id="et-logout"    class="et-btn et-danger">⏻ Log out</button>
         </div>`;
     document.body.appendChild(toolbar);
@@ -33,6 +34,7 @@
     const etSave      = document.getElementById('et-save');
     const etCancel    = document.getElementById('et-cancel');
     const etTemplates = document.getElementById('et-templates');
+    const etMedia     = document.getElementById('et-media');
     const etLogout    = document.getElementById('et-logout');
     const etStatus    = document.getElementById('et-status');
 
@@ -62,12 +64,62 @@
         return true;
     }
 
+    // ── Cloudinary signed upload ──────────────────────────────────────────────
+    // Credentials never appear here — the Worker signs the request after
+    // verifying the caller holds a valid Supabase editor session.
+
+    const _SIGN_WORKER_URL = 'voidverse-upload-sign.hazardousmadness.workers.dev';
+
+    async function _cloudinaryUpload(file, folder = 'Uncategorized') {
+        // 1. Get the current Supabase session token
+        const session = await API.getSession();
+        if (!session?.access_token) throw new Error('Not logged in');
+
+        // 2. Ask the Worker to sign an upload (verifies editor auth server-side)
+        const sigRes = await fetch(_SIGN_WORKER_URL, {
+            method:  'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+        if (!sigRes.ok) throw new Error('Could not get upload token (' + sigRes.status + ')');
+        const { cloud_name, api_key, signature, timestamp, folder: cloudFolder } = await sigRes.json();
+
+        // 3. Upload directly to Cloudinary using the signed parameters
+        const fd = new FormData();
+        fd.append('file',      file);
+        fd.append('api_key',   api_key);
+        fd.append('timestamp', timestamp);
+        fd.append('signature', signature);
+        fd.append('folder',    cloudFolder);
+        const upRes = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`,
+            { method: 'POST', body: fd }
+        );
+        if (!upRes.ok) throw new Error('Upload failed (' + upRes.status + ')');
+        const json = await upRes.json();
+        if (json.error) throw new Error(json.error.message);
+
+        // 4. Save metadata to Supabase media library (swallow failures — upload already succeeded)
+        API.createMediaAsset({
+            url:           json.secure_url,
+            public_id:     json.public_id,
+            filename:      file.name || json.original_filename || '',
+            resource_type: json.resource_type || 'image',
+            format:        json.format,
+            bytes:         json.bytes,
+            width:         json.width,
+            height:        json.height,
+            folder,
+        }).catch(() => {});
+
+        return json.secure_url;
+    }
+
     // ── Editor.js lazy loading ────────────────────────────────────────────────
 
     const EDITORJS_CDNS = [
         'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest',
         'https://cdn.jsdelivr.net/npm/@editorjs/list@1',
-        'https://cdn.jsdelivr.net/npm/@editorjs/image@latest',
+        // @editorjs/image replaced by local ImageTool below
         // @editorjs/quote replaced by local QuoteTool below
         // @editorjs/delimiter replaced by local DelimiterTool below
         'https://cdn.jsdelivr.net/npm/@editorjs/table@2',
@@ -266,9 +318,25 @@
         render() {
             const wrap = document.createElement('div');
             wrap.className = 'ej-tool-wrap';
+
+            // Upload row
+            const uploadRow = document.createElement('div');
+            uploadRow.className = 'ej-upload-row';
+            const fileInp = document.createElement('input');
+            fileInp.type = 'file'; fileInp.accept = 'audio/*'; fileInp.style.display = 'none';
+            const uploadBtn = document.createElement('button');
+            uploadBtn.type = 'button';
+            uploadBtn.className = 'et-btn ej-upload-btn';
+            uploadBtn.textContent = '⬆ Upload audio';
+            const uploadStatus = document.createElement('span');
+            uploadStatus.className = 'ej-upload-status';
+            uploadRow.appendChild(fileInp);
+            uploadRow.appendChild(uploadBtn);
+            uploadRow.appendChild(uploadStatus);
+
             const urlInp = document.createElement('input');
             urlInp.className = 'ej-input'; urlInp.type = 'url';
-            urlInp.placeholder = 'Audio URL (.mp3, .ogg, .wav)';
+            urlInp.placeholder = 'Audio URL (.mp3, .ogg, .wav) — or upload above';
             urlInp.value = this._data.url || '';
             const capInp = document.createElement('input');
             capInp.className = 'ej-input'; capInp.type = 'text';
@@ -278,11 +346,39 @@
             labelInp.className = 'ej-input ej-label-input'; labelInp.type = 'text';
             labelInp.placeholder = 'Section label (optional, e.g. "SOUNDTRACK")';
             labelInp.value = this._data.label || '';
+
+            uploadBtn.addEventListener('click', () => fileInp.click());
+            fileInp.addEventListener('change', async () => {
+                const file = fileInp.files[0];
+                if (!file) return;
+                uploadBtn.disabled = true;
+                uploadStatus.textContent = 'Uploading…';
+                try {
+                    const url = await _cloudinaryUpload(file);
+                    urlInp.value = url;
+                    uploadStatus.textContent = '✓ ' + file.name;
+                } catch (err) {
+                    uploadStatus.textContent = '✕ ' + err.message;
+                } finally {
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            const browseBtn = document.createElement('button');
+            browseBtn.type = 'button';
+            browseBtn.className = 'et-btn ej-upload-btn';
+            browseBtn.textContent = '📂 Library';
+            browseBtn.addEventListener('click', () =>
+                _showMediaPicker(url => { urlInp.value = url; uploadStatus.textContent = '✓ from library'; }, { accept: 'audio' })
+            );
+            uploadRow.appendChild(browseBtn);
+
+            wrap.appendChild(uploadRow);
             wrap.appendChild(urlInp); wrap.appendChild(capInp); wrap.appendChild(labelInp);
             return wrap;
         }
         save(el) {
-            const [u, c] = el.querySelectorAll('input');
+            const [u, c] = el.querySelectorAll('input[type="url"], input[type="text"]:not(.ej-label-input)');
             const label = el.querySelector('.ej-label-input')?.value.trim() || '';
             return { url: u.value.trim(), caption: c.value.trim(), label };
         }
@@ -509,10 +605,7 @@
             this._tools = {
                 header: { class: HeadingTool, inlineToolbar: true },
                 list:        { class: List,       inlineToolbar: true },
-                image:       { class: ImageTool,  config: { uploader: {
-                    uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
-                    uploadByFile()   { return Promise.resolve({ success: 0 }); },
-                } } },
+                image:       { class: ImageTool },
                 quote:       { class: QuoteTool, inlineToolbar: true },
                 delimiter:   { class: DelimiterTool },
                 audio:       { class: AudioTool },
@@ -825,10 +918,7 @@
             const tools = {
                 header:      { class: HeadingTool, inlineToolbar: true },
                 list:        { class: List,         inlineToolbar: true },
-                image:       { class: ImageTool, config: { uploader: {
-                    uploadByUrl(url) { return Promise.resolve({ success: 1, file: { url } }); },
-                    uploadByFile()   { return Promise.resolve({ success: 0 }); },
-                } } },
+                image:       { class: ImageTool },
                 quote:       { class: QuoteTool, inlineToolbar: true },
                 delimiter:   { class: DelimiterTool },
                 audio:       { class: AudioTool },
@@ -1337,6 +1427,119 @@
         validate(d) { return !!d.url; }
     }
 
+    // ── Custom image tool (replaces @editorjs/image CDN) ─────────────────────
+    // Adds upload, media library picker, and direct URL entry in one block.
+
+    class ImageTool {
+        static get toolbox() {
+            return { title: 'Image', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' };
+        }
+
+        constructor({ data }) {
+            this._data = {
+                file:    data.file    || { url: '' },
+                caption: data.caption || '',
+            };
+        }
+
+        render() {
+            const wrap = document.createElement('div');
+            wrap.className = 'ej-tool-wrap ej-image-wrap';
+
+            // ── Upload row ────────────────────────────────────────────────────
+            const uploadRow = document.createElement('div');
+            uploadRow.className = 'ej-upload-row';
+
+            const fileInp = document.createElement('input');
+            fileInp.type = 'file'; fileInp.accept = 'image/*'; fileInp.style.display = 'none';
+
+            const uploadBtn = document.createElement('button');
+            uploadBtn.type = 'button'; uploadBtn.className = 'et-btn ej-upload-btn';
+            uploadBtn.textContent = '⬆ Upload';
+
+            const libraryBtn = document.createElement('button');
+            libraryBtn.type = 'button'; libraryBtn.className = 'et-btn ej-upload-btn';
+            libraryBtn.textContent = '📂 Library';
+
+            const uploadStatus = document.createElement('span');
+            uploadStatus.className = 'ej-upload-status';
+
+            uploadRow.appendChild(fileInp);
+            uploadRow.appendChild(uploadBtn);
+            uploadRow.appendChild(libraryBtn);
+            uploadRow.appendChild(uploadStatus);
+
+            // ── URL input ─────────────────────────────────────────────────────
+            const urlInp = document.createElement('input');
+            urlInp.className = 'ej-input'; urlInp.type = 'url';
+            urlInp.placeholder = 'Image URL (https://…) — or upload / pick above';
+            urlInp.value = this._data.file?.url || '';
+
+            // ── Preview ───────────────────────────────────────────────────────
+            const preview = document.createElement('img');
+            preview.className = 'ej-img-preview';
+            preview.style.display = this._data.file?.url ? '' : 'none';
+            if (this._data.file?.url) preview.src = this._data.file.url;
+
+            // ── Caption ───────────────────────────────────────────────────────
+            const capInp = document.createElement('input');
+            capInp.className = 'ej-input'; capInp.type = 'text';
+            capInp.placeholder = 'Caption (optional)';
+            capInp.value = this._data.caption || '';
+
+            // ── Wire events ───────────────────────────────────────────────────
+            const _updatePreview = () => {
+                const url = urlInp.value.trim();
+                preview.style.display = url ? '' : 'none';
+                if (url) preview.src = url;
+            };
+            urlInp.addEventListener('input', _updatePreview);
+
+            uploadBtn.addEventListener('click', () => fileInp.click());
+            fileInp.addEventListener('change', async () => {
+                const file = fileInp.files[0];
+                if (!file) return;
+                uploadBtn.disabled = true;
+                uploadStatus.textContent = 'Uploading…';
+                try {
+                    const url = await _cloudinaryUpload(file);
+                    urlInp.value = url;
+                    _updatePreview();
+                    uploadStatus.textContent = '✓ ' + file.name;
+                } catch (err) {
+                    uploadStatus.textContent = '✕ ' + err.message;
+                } finally {
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            libraryBtn.addEventListener('click', () => {
+                _showMediaPicker(url => {
+                    urlInp.value = url;
+                    _updatePreview();
+                    uploadStatus.textContent = '✓ from library';
+                }, { accept: 'image' });
+            });
+
+            wrap.appendChild(uploadRow);
+            wrap.appendChild(urlInp);
+            wrap.appendChild(preview);
+            wrap.appendChild(capInp);
+            return wrap;
+        }
+
+        save(el) {
+            const urlInp = el.querySelector('input[type="url"]');
+            const capInp = el.querySelector('input[type="text"]');
+            return {
+                file:    { url: urlInp?.value.trim() || '' },
+                caption: capInp?.value.trim() || '',
+            };
+        }
+
+        validate(d) { return !!(d.file?.url); }
+    }
+
     // ── Block format converters ───────────────────────────────────────────────
 
     // Internal blocks → Editor.js data format
@@ -1665,20 +1868,7 @@
                         class:         List,
                         inlineToolbar: true,
                     },
-                    image: {
-                        class:  ImageTool,
-                        config: {
-                            uploader: {
-                                // URL-only — no file upload support
-                                uploadByUrl(url) {
-                                    return Promise.resolve({ success: 1, file: { url } });
-                                },
-                                uploadByFile() {
-                                    return Promise.resolve({ success: 0 });
-                                },
-                            },
-                        },
-                    },
+                    image: { class: ImageTool },
                     quote:     { class: QuoteTool, inlineToolbar: true },
                     delimiter: { class: DelimiterTool },
                     table:     { class: Table, inlineToolbar: true },
@@ -1831,6 +2021,10 @@
                         <option value="none"         ${layout.sidebar==='none'                    ? 'selected':''}>Hidden (full-width)</option>
                     </select>
                 </div>`;
+            // Attach upload/browse buttons to image URL fields
+            _attachUploadBtn(settingsEl.querySelector('#sb-img-url'),    'image');
+            _attachUploadBtn(settingsEl.querySelector('#sb-banner-url'), 'image');
+
             mainArea.insertBefore(settingsEl, mainArea.firstChild);
 
             // Image URL → live preview
@@ -2199,6 +2393,329 @@
         });
     }
 
+    // ── Media picker (compact modal) ─────────────────────────────────────────
+
+    async function _showMediaPicker(onSelect, { accept = 'all' } = {}) {
+        let allAssets = [];
+        try { allAssets = await API.getMediaAssets(); } catch { /* empty */ }
+
+        let activeFilter = accept === 'all' ? 'all' : accept;
+        let searchTerm   = '';
+
+        function getFiltered() {
+            return allAssets.filter(a => {
+                const matchesType   = activeFilter === 'all' || a.resource_type === activeFilter;
+                const matchesSearch = !searchTerm || (a.filename || '').toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesType && matchesSearch;
+            });
+        }
+
+        function renderGrid(assets) {
+            const grid = panel.querySelector('.ml-picker-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            if (!assets.length) {
+                grid.innerHTML = '<p style="color:#a08ab0;padding:12px;grid-column:1/-1;margin:0">No media found.</p>';
+                return;
+            }
+            assets.forEach(asset => {
+                const card = document.createElement('div');
+                card.className = 'ml-picker-card';
+                const isAudio = asset.resource_type === 'audio';
+                card.innerHTML = `
+                    ${isAudio
+                        ? '<div class="ml-picker-thumb-audio">🎵</div>'
+                        : `<img src="${asset.url.replace(/"/g,'&quot;')}" alt="" style="width:90px;height:68px;object-fit:cover;border-radius:4px;border:1px solid rgba(211,179,231,0.2)" loading="lazy">`
+                    }
+                    <div class="ml-picker-name" title="${(asset.filename||'').replace(/"/g,'&quot;')}">${(asset.filename||'untitled').replace(/</g,'&lt;')}</div>
+                    <button class="et-btn" style="font-size:0.72rem;padding:2px 8px">Use</button>`;
+                card.querySelector('button').addEventListener('click', () => {
+                    onSelect(asset.url);
+                    close();
+                });
+                grid.appendChild(card);
+            });
+        }
+
+        const panel = document.createElement('div');
+        panel.className = 'wsp-overlay';
+        const fileAccept = accept === 'audio' ? 'audio/*' : accept === 'image' ? 'image/*' : '*/*';
+        panel.innerHTML = `
+            <div class="wsp-backdrop"></div>
+            <div class="wsp-box" style="max-width:640px">
+                <div class="wsp-header">
+                    <span>Media Library</span>
+                    <button class="et-btn wsp-close">✕</button>
+                </div>
+                <div class="wsp-body">
+                    <div class="ml-picker-filter-row">
+                        <input class="ej-input ml-picker-search" type="text" placeholder="Search…" style="flex:1;min-width:100px">
+                        <button class="ml-picker-tab ${activeFilter==='all'  ?'active':''}" data-filter="all">All</button>
+                        <button class="ml-picker-tab ${activeFilter==='image'?'active':''}" data-filter="image">Images</button>
+                        <button class="ml-picker-tab ${activeFilter==='audio'?'active':''}" data-filter="audio">Audio</button>
+                        <button class="et-btn ml-picker-upload-btn" style="margin-left:auto;white-space:nowrap">⬆ Upload New</button>
+                        <input type="file" class="ml-picker-file-inp" style="display:none" accept="${fileAccept}">
+                    </div>
+                    <div class="ml-picker-grid"></div>
+                </div>
+                <div class="wsp-footer">
+                    <button class="et-btn wsp-close">Cancel</button>
+                </div>
+            </div>`;
+        document.body.appendChild(panel);
+
+        renderGrid(getFiltered());
+
+        const close = () => panel.remove();
+
+        panel.querySelectorAll('.wsp-close').forEach(b => b.addEventListener('click', close));
+        panel.querySelector('.wsp-backdrop').addEventListener('click', close);
+
+        panel.querySelectorAll('.ml-picker-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                activeFilter = tab.dataset.filter;
+                panel.querySelectorAll('.ml-picker-tab').forEach(t =>
+                    t.classList.toggle('active', t.dataset.filter === activeFilter));
+                renderGrid(getFiltered());
+            });
+        });
+
+        panel.querySelector('.ml-picker-search').addEventListener('input', e => {
+            searchTerm = e.target.value.trim();
+            renderGrid(getFiltered());
+        });
+
+        const fileInp   = panel.querySelector('.ml-picker-file-inp');
+        const uploadBtn = panel.querySelector('.ml-picker-upload-btn');
+        uploadBtn.addEventListener('click', () => fileInp.click());
+        fileInp.addEventListener('change', async () => {
+            const file = fileInp.files[0];
+            if (!file) return;
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading…';
+            try {
+                const url = await _cloudinaryUpload(file, activeFilter !== 'all' ? activeFilter : 'Uncategorized');
+                allAssets = await API.getMediaAssets();
+                renderGrid(getFiltered());
+                onSelect(url);
+                close();
+            } catch (err) {
+                uploadBtn.textContent = '✕ Failed';
+                setTimeout(() => { uploadBtn.textContent = '⬆ Upload New'; uploadBtn.disabled = false; }, 2000);
+            }
+        });
+    }
+
+    // ── Upload browse button injector ─────────────────────────────────────────
+
+    function _attachUploadBtn(inputEl, accept) {
+        if (!inputEl) return;
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;gap:6px;align-items:center';
+        inputEl.parentNode.insertBefore(wrapper, inputEl);
+        wrapper.appendChild(inputEl);
+        const btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'et-btn ml-browse-btn';
+        btn.textContent = '⬆ Browse / Upload';
+        btn.addEventListener('click', () => {
+            _showMediaPicker(url => {
+                inputEl.value = url;
+                inputEl.dispatchEvent(new Event('input'));
+            }, { accept });
+        });
+        wrapper.appendChild(btn);
+    }
+
+    // ── Media Manager (full file manager panel) ───────────────────────────────
+
+    async function _openMediaManager() {
+        let allAssets = [];
+        try { allAssets = await API.getMediaAssets(); } catch { /* empty */ }
+
+        let activeFolder = 'All Files';
+        let searchTerm   = '';
+
+        function getFolders() {
+            const seen = new Set();
+            allAssets.forEach(a => seen.add(a.folder || 'Uncategorized'));
+            return ['All Files', ...Array.from(seen).sort()];
+        }
+
+        function getFiltered() {
+            return allAssets.filter(a => {
+                const matchesFolder = activeFolder === 'All Files' || (a.folder || 'Uncategorized') === activeFolder;
+                const matchesSearch = !searchTerm || (a.filename || '').toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesFolder && matchesSearch;
+            });
+        }
+
+        const panel = _showPanel('📁 Media Library', `
+            <div class="ml-layout">
+                <div class="ml-sidebar" id="ml-sidebar"></div>
+                <div class="ml-main">
+                    <div class="ml-main-toolbar">
+                        <button class="et-btn" id="ml-upload-btn">⬆ Upload</button>
+                        <input type="file" id="ml-upload-inp" style="display:none">
+                        <input type="text" id="ml-search" class="ej-input" placeholder="Search…" style="flex:1">
+                    </div>
+                    <div class="ml-grid" id="ml-grid"></div>
+                </div>
+            </div>`);
+
+        const box  = panel.querySelector('.wsp-box');
+        const body = panel.querySelector('.wsp-body');
+        if (box)  { box.style.maxWidth  = '860px'; box.style.height = '70vh'; box.style.display = 'flex'; box.style.flexDirection = 'column'; }
+        if (body) { body.style.flex = '1'; body.style.minHeight = '0'; body.style.padding = '0'; body.style.overflow = 'hidden'; body.style.display = 'flex'; body.style.flexDirection = 'column'; }
+        const layout = panel.querySelector('.ml-layout');
+        if (layout) layout.style.height = '100%';
+
+        function renderSidebar() {
+            const sidebar = panel.querySelector('#ml-sidebar');
+            if (!sidebar) return;
+            const folders = getFolders();
+            sidebar.innerHTML = '';
+            folders.forEach(f => {
+                const count = f === 'All Files'
+                    ? allAssets.length
+                    : allAssets.filter(a => (a.folder || 'Uncategorized') === f).length;
+                const item = document.createElement('div');
+                item.className = 'ml-folder-item' + (f === activeFolder ? ' active' : '');
+                item.textContent = `${f} (${count})`;
+                item.addEventListener('click', () => {
+                    activeFolder = f;
+                    renderSidebar();
+                    renderGrid();
+                });
+                sidebar.appendChild(item);
+            });
+
+            const newFolderBtn = document.createElement('button');
+            newFolderBtn.className = 'et-btn';
+            newFolderBtn.style.cssText = 'font-size:0.75rem;margin-top:8px;width:100%';
+            newFolderBtn.textContent = '+ New Folder';
+            newFolderBtn.addEventListener('click', async () => {
+                const name = await _dlgPrompt('New Folder', { placeholder: 'Folder name…', okLabel: 'Create' });
+                if (!name) return;
+                activeFolder = name.trim();
+                renderSidebar();
+                renderGrid();
+            });
+            sidebar.appendChild(newFolderBtn);
+        }
+
+        function renderGrid() {
+            const grid = panel.querySelector('#ml-grid');
+            if (!grid) return;
+            const filtered = getFiltered();
+            grid.innerHTML = '';
+            if (!filtered.length) {
+                grid.innerHTML = '<p style="color:#a08ab0;padding:12px;grid-column:1/-1;margin:0">No media found.</p>';
+                return;
+            }
+
+            const knownFolders = Array.from(new Set(['Uncategorized', ...allAssets.map(a => a.folder || 'Uncategorized')])).sort();
+
+            filtered.forEach(asset => {
+                const card    = document.createElement('div');
+                card.className = 'ml-card';
+                const isAudio  = asset.resource_type === 'audio';
+                const folderOptsHTML = knownFolders.map(f =>
+                    `<option value="${f.replace(/"/g,'&quot;')}" ${(asset.folder||'Uncategorized')===f?'selected':''}>${f.replace(/</g,'&lt;')}</option>`
+                ).join('');
+
+                card.innerHTML = `
+                    ${isAudio
+                        ? '<div class="ml-thumb-audio">🎵</div>'
+                        : `<img class="ml-thumb" src="${asset.url.replace(/"/g,'&quot;')}" alt="" loading="lazy">`
+                    }
+                    <div class="ml-card-body">
+                        <div class="ml-card-name" title="${(asset.filename||'').replace(/"/g,'&quot;')}">${(asset.filename||'untitled').replace(/</g,'&lt;')}</div>
+                        <div class="ml-card-actions">
+                            <button class="et-btn ml-copy-btn" style="font-size:0.7rem;padding:2px 6px">📋 Copy URL</button>
+                            <button class="et-btn et-danger ml-del-btn" style="font-size:0.7rem;padding:2px 6px">✕ Delete</button>
+                        </div>
+                        <select class="ej-input ej-select ml-folder-sel" style="font-size:0.72rem;padding:2px 4px;margin-top:4px;width:100%">${folderOptsHTML}</select>
+                    </div>`;
+
+                card.querySelector('.ml-copy-btn').addEventListener('click', async () => {
+                    const btn = card.querySelector('.ml-copy-btn');
+                    try {
+                        await navigator.clipboard.writeText(asset.url);
+                        btn.textContent = '✓ Copied';
+                    } catch {
+                        btn.textContent = '✕ Failed';
+                    }
+                    setTimeout(() => { btn.textContent = '📋 Copy URL'; }, 1500);
+                });
+
+                card.querySelector('.ml-del-btn').addEventListener('click', async () => {
+                    if (!await _dlgConfirm('Delete Asset',
+                        `Delete <strong>${(asset.filename||'').replace(/</g,'&lt;')}</strong>? This cannot be undone.`,
+                        { okLabel: 'Delete', danger: true })) return;
+                    try {
+                        const session = await API.getSession();
+                        if (session?.access_token && asset.public_id) {
+                            await fetch(`https://${_SIGN_WORKER_URL}/delete`, {
+                                method:  'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${session.access_token}`,
+                                    'Content-Type':  'application/json',
+                                },
+                                body: JSON.stringify({ public_id: asset.public_id, resource_type: asset.resource_type || 'image' }),
+                            });
+                        }
+                        await API.deleteMediaAsset(asset.id);
+                        allAssets = allAssets.filter(a => a.id !== asset.id);
+                        card.remove();
+                        renderSidebar();
+                    } catch (err) { setStatus('Delete failed: ' + err.message, true); }
+                });
+
+                card.querySelector('.ml-folder-sel').addEventListener('change', async e => {
+                    const newFolder = e.target.value;
+                    try {
+                        await API.updateMediaAsset(asset.id, { folder: newFolder });
+                        asset.folder = newFolder;
+                        renderSidebar();
+                        if (activeFolder !== 'All Files' && activeFolder !== newFolder) card.remove();
+                    } catch (err) { setStatus('Folder move failed: ' + err.message, true); }
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        renderSidebar();
+        renderGrid();
+
+        const uploadInp = panel.querySelector('#ml-upload-inp');
+        panel.querySelector('#ml-upload-btn').addEventListener('click', () => uploadInp.click());
+        uploadInp.addEventListener('change', async () => {
+            const file = uploadInp.files[0];
+            if (!file) return;
+            const btn = panel.querySelector('#ml-upload-btn');
+            btn.disabled = true;
+            btn.textContent = 'Uploading…';
+            try {
+                await _cloudinaryUpload(file, activeFolder === 'All Files' ? 'Uncategorized' : activeFolder);
+                allAssets = await API.getMediaAssets();
+                renderSidebar();
+                renderGrid();
+            } catch (err) { setStatus('Upload failed: ' + err.message, true); }
+            finally {
+                btn.textContent = '⬆ Upload';
+                btn.disabled = false;
+                uploadInp.value = '';
+            }
+        });
+
+        panel.querySelector('#ml-search').addEventListener('input', e => {
+            searchTerm = e.target.value.trim();
+            renderGrid();
+        });
+    }
+
     // ── Template system ───────────────────────────────────────────────────────
 
     function _stripBlockContent(blocks) {
@@ -2413,6 +2930,7 @@
     }
 
     etTemplates.addEventListener('click', _openTemplatePanel);
+    etMedia.addEventListener('click', _openMediaManager);
 
     // ── CRUD helpers ──────────────────────────────────────────────────────────
 
@@ -2550,7 +3068,7 @@
             settBtn.title = 'Campaign settings';
             settBtn.addEventListener('click', async e => {
                 e.stopPropagation(); e.preventDefault();
-                _showPanel(`⚙ ${currentDisplayName || camp.name} — Settings`, `
+                const campPanel = _showPanel(`⚙ ${currentDisplayName || camp.name} — Settings`, `
                     <div class="wes-grid">
                         <label>Name</label>
                         <input id="cst-name" class="ej-input" type="text"
@@ -2605,6 +3123,8 @@
                         } catch (err) { setStatus('Save failed: ' + err.message, true); }
                     },
                 });
+                _attachUploadBtn(campPanel.querySelector('#cst-icon'),   'image');
+                _attachUploadBtn(campPanel.querySelector('#cst-banner'), 'image');
             });
             li.appendChild(settBtn);
 
@@ -2644,7 +3164,7 @@
             settBtn.title       = 'Category settings';
             settBtn.addEventListener('click', async e => {
                 e.stopPropagation();
-                _showPanel(`⚙ Category — ${currentCatName || cat.name}`, `
+                const catPanel = _showPanel(`⚙ Category — ${currentCatName || cat.name}`, `
                     <div class="wes-grid">
                         <label>Name</label>
                         <input id="ccat-name" class="ej-input" type="text"
@@ -2673,6 +3193,7 @@
                         } catch (err) { setStatus('Save failed: ' + err.message, true); }
                     },
                 });
+                _attachUploadBtn(catPanel.querySelector('#ccat-icon'), 'image');
             });
             pill.appendChild(settBtn);
 

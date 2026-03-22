@@ -257,6 +257,37 @@ const API = {
         _cacheDel('templates');
     },
 
+    // ── Media assets ──────────────────────────────────────────────────────────
+
+    async createMediaAsset({ url, public_id, filename, resource_type, format, bytes, width, height, folder }) {
+        const { data, error } = await _sb
+            .from('media_assets')
+            .insert({ url, public_id, filename: filename || '', resource_type: resource_type || 'image', format, bytes, width, height, folder: folder || 'Uncategorized' })
+            .select()
+            .single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getMediaAssets() {
+        const { data, error } = await _sb
+            .from('media_assets')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async updateMediaAsset(id, fields) {
+        const { error } = await _sb.from('media_assets').update(fields).eq('id', id);
+        if (error) throw new Error(error.message);
+    },
+
+    async deleteMediaAsset(id) {
+        const { error } = await _sb.from('media_assets').delete().eq('id', id);
+        if (error) throw new Error(error.message);
+    },
+
     // ── Auth ──────────────────────────────────────────────────────────────────
 
     async signIn(email, password) {
