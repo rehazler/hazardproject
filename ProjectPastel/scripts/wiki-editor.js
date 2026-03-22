@@ -2616,8 +2616,10 @@
                 <div class="bsc-section">
                     <span class="bsc-section-label">Image opacity</span>
                     <div class="bsc-slider-row">
-                        <input type="range" class="bsc-slider" id="${idPrefix}-opacity" min="0" max="100" value="${opacity}">
-                        <span class="bsc-slider-val" id="${idPrefix}-opacity-val">${opacity}%</span>
+                        <div class="bsc-slider-wrap">
+                            <span class="bsc-slider-bubble" id="${idPrefix}-opacity-bub">${opacity}%</span>
+                            <input type="range" class="bsc-slider" id="${idPrefix}-opacity" min="0" max="100" value="${opacity}">
+                        </div>
                     </div>
                 </div>
                 <div class="bsc-section">
@@ -2634,8 +2636,10 @@
                         <button type="button" class="bsc-toggle${ovColor?' active':''}" id="${idPrefix}-ov-enable">
                             <span class="bsc-toggle-dot"></span>${ovColor ? 'On' : 'Off'}
                         </button>
-                        <input type="range" class="bsc-slider" id="${idPrefix}-ov-opacity" min="0" max="100" value="${ovOpac}">
-                        <span class="bsc-slider-val" id="${idPrefix}-ov-opacity-val">${ovOpac}%</span>
+                        <div class="bsc-slider-wrap">
+                            <span class="bsc-slider-bubble" id="${idPrefix}-ov-opacity-bub">${ovOpac}%</span>
+                            <input type="range" class="bsc-slider" id="${idPrefix}-ov-opacity" min="0" max="100" value="${ovOpac}">
+                        </div>
                     </div>
                 </div>
                 <div class="bsc-section">
@@ -2704,14 +2708,14 @@
         const zoomVal     = containerEl.querySelector(`#${idPrefix}-zoom-val`);
         const zoomSection = containerEl.querySelector(`#${idPrefix}-zoom-section`);
         const opacInp     = containerEl.querySelector(`#${idPrefix}-opacity`);
-        const opacVal     = containerEl.querySelector(`#${idPrefix}-opacity-val`);
+        const opacBub     = containerEl.querySelector(`#${idPrefix}-opacity-bub`);
         const radiusInp   = containerEl.querySelector(`#${idPrefix}-radius`);
         const parallaxInp = containerEl.querySelector(`#${idPrefix}-parallax-val`);
         const ovColorInp  = containerEl.querySelector(`#${idPrefix}-ov-color`);
         const ovEnableBtn = containerEl.querySelector(`#${idPrefix}-ov-enable`);
         const ovColorVal  = containerEl.querySelector(`#${idPrefix}-ov-color-val`);
         const ovOpacInp   = containerEl.querySelector(`#${idPrefix}-ov-opacity`);
-        const ovOpacVal   = containerEl.querySelector(`#${idPrefix}-ov-opacity-val`);
+        const ovOpacBub   = containerEl.querySelector(`#${idPrefix}-ov-opacity-bub`);
         const tileBtn     = containerEl.querySelector(`#${idPrefix}-tile`);
         const tileVal     = containerEl.querySelector(`#${idPrefix}-tile-val`);
         const fadeBtn     = containerEl.querySelector(`#${idPrefix}-fade`);
@@ -2734,6 +2738,7 @@
         const _fitToSize   = { cover:'cover', contain:'contain', stretch:'100% 100%' };
         const _hintText    = { cover:'Drag to set focal point', actual:'Drag to pan', contain:'', stretch:'' };
         const _radMap      = { none:'0px', slight:'4px', rounded:'10px', pill:'50px' };
+        const _posBubble   = (inp, bub) => { if (!inp || !bub) return; const pct = (+inp.value - +inp.min) / (+inp.max - +inp.min); bub.style.left = `calc(${pct*100}% + ${(0.5-pct)*16}px)`; bub.textContent = inp.value + '%'; };
 
         // Show/hide the whole block when URL fills/clears
         const _bannerLabel = containerEl.previousElementSibling;
@@ -2787,6 +2792,8 @@
 
         _toggleVisible();
         _updatePreview();
+        _posBubble(opacInp, opacBub);
+        _posBubble(ovOpacInp, ovOpacBub);
         bannerUrlInputEl?.addEventListener('input',  () => { _toggleVisible(); _updatePreview(); });
         bannerUrlInputEl?.addEventListener('change', () => { _toggleVisible(); _updatePreview(); });
 
@@ -2814,7 +2821,7 @@
         zoomInp?.addEventListener('input', () => { if (zoomVal) zoomVal.textContent = zoomInp.value + '%'; _updatePreview(); });
 
         // ── Opacity slider ───────────────────────────────────────────────────
-        opacInp.addEventListener('input', () => { opacVal.textContent = opacInp.value + '%'; _updatePreview(); });
+        opacInp.addEventListener('input', () => { _posBubble(opacInp, opacBub); _updatePreview(); });
 
         // ── Border radius buttons ────────────────────────────────────────────
         containerEl.querySelectorAll('[data-bsc-radius]').forEach(btn => {
@@ -2838,7 +2845,7 @@
             _syncOverlay();
         });
         ovColorInp.addEventListener('input',  _syncOverlay);
-        ovOpacInp.addEventListener('input', () => { ovOpacVal.textContent = ovOpacInp.value + '%'; _updatePreview(); });
+        ovOpacInp.addEventListener('input', () => { _posBubble(ovOpacInp, ovOpacBub); _updatePreview(); });
 
         // ── Tile effect ──────────────────────────────────────────────────────
         tileBtn?.addEventListener('click', () => {
@@ -2934,7 +2941,7 @@
         document.getElementById(`${idPrefix}-focal-x`)?.setAttribute('value', focalX);
         document.getElementById(`${idPrefix}-focal-y`)?.setAttribute('value', focalY);
         const hInp = document.getElementById(`${idPrefix}-height`); if (hInp) hInp.value = height;
-        const opInp = document.getElementById(`${idPrefix}-opacity`); if (opInp) { opInp.value = L.bannerOpacity ?? 100; const v = document.getElementById(`${idPrefix}-opacity-val`); if (v) v.textContent = opInp.value + '%'; }
+        const opInp = document.getElementById(`${idPrefix}-opacity`); if (opInp) { opInp.value = L.bannerOpacity ?? 100; const bub = document.getElementById(`${idPrefix}-opacity-bub`); if (bub) { const p = (+opInp.value)/100; bub.style.left=`calc(${p*100}% + ${(0.5-p)*16}px)`; bub.textContent=opInp.value+'%'; } }
         const rInp = document.getElementById(`${idPrefix}-radius`); if (rInp) rInp.value = L.bannerRadius || 'rounded';
         const zInp = document.getElementById(`${idPrefix}-zoom`); if (zInp) { zInp.value = L.bannerZoom ?? 100; const zv = document.getElementById(`${idPrefix}-zoom-val`); if (zv) zv.textContent = zInp.value + '%'; }
         const zSec = document.getElementById(`${idPrefix}-zoom-section`); if (zSec) zSec.hidden = fit !== 'actual';
