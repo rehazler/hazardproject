@@ -76,7 +76,7 @@
         if (!session?.access_token) throw new Error('Not logged in');
 
         // 2. Ask the Worker to sign an upload (verifies editor auth server-side)
-        const sigRes = await fetch(_SIGN_WORKER_URL, {
+        const sigRes = await fetch(`https://${_SIGN_WORKER_URL}`, {
             method:  'POST',
             headers: { 'Authorization': `Bearer ${session.access_token}` },
         });
