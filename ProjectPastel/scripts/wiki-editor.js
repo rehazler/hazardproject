@@ -1978,6 +1978,9 @@
                              style="${entry.banner_image ? '' : 'display:none'}">
                     </div>
 
+                    <label>Banner display</label>
+                    <div id="sb-banner-controls"></div>
+
                     <label>Accent colour</label>
                     <input id="sb-accent-color" class="ej-input ej-color-input" type="color"
                            value="${layout.accentColor || '#98e6d6'}">
@@ -2024,6 +2027,12 @@
             // Attach upload/browse buttons to image URL fields
             _attachUploadBtn(settingsEl.querySelector('#sb-img-url'),    'image');
             _attachUploadBtn(settingsEl.querySelector('#sb-banner-url'), 'image');
+            _buildBannerControls(
+                settingsEl.querySelector('#sb-banner-controls'),
+                settingsEl.querySelector('#sb-banner-url'),
+                'sb-banner',
+                layout
+            );
 
             mainArea.insertBefore(settingsEl, mainArea.firstChild);
 
@@ -2128,6 +2137,7 @@
     }
 
     function _readEntrySettings() {
+        const bh = document.getElementById('sb-banner-height')?.value || '';
         return {
             sidebar:               (document.getElementById('sb-sidebar-pos')?.value        || 'right'),
             accentColor:           (document.getElementById('sb-accent-color')?.value       || ''),
@@ -2135,6 +2145,10 @@
             titleDivider:          (document.getElementById('sb-title-divider')?.value      || 'none'),
             titleDividerColor:     (document.getElementById('sb-divider-color')?.value      || 'default'),
             titleDividerThickness: (document.getElementById('sb-divider-thickness')?.value  || '1'),
+            bannerFit:             (document.getElementById('sb-banner-fit')?.value         || 'cover'),
+            bannerFocalX:          +(document.getElementById('sb-banner-focal-x')?.value    ?? 50),
+            bannerFocalY:          +(document.getElementById('sb-banner-focal-y')?.value    ?? 50),
+            ...(bh ? { bannerHeight: +bh } : {}),
         };
     }
 
@@ -2153,6 +2167,7 @@
         if (titleDivSel) titleDivSel.value = _td;
         if (divColorSel) divColorSel.value = layout.titleDividerColor     || 'default';
         if (divThickSel) divThickSel.value = layout.titleDividerThickness || '1';
+        _applyBannerControls('sb-banner', layout);
     }
 
     etSave.addEventListener('click', async () => {
@@ -2506,6 +2521,145 @@
         });
     }
 
+    // ── Banner display controls (fit mode + focal point picker + height) ──────
+
+    function _buildBannerControls(containerEl, bannerUrlInputEl, idPrefix, layout) {
+        if (!containerEl) return;
+        const fit    = layout?.bannerFit    || 'cover';
+        const focalX = layout?.bannerFocalX ?? 50;
+        const focalY = layout?.bannerFocalY ?? 50;
+        const height = layout?.bannerHeight || '';
+
+        const heights = [
+            { val: '120', label: 'Short' },
+            { val: '180', label: 'Medium' },
+            { val: '240', label: 'Tall' },
+            { val: '320', label: 'X-Tall' },
+        ];
+        const hBtns = heights.map(h =>
+            `<button type="button" class="bsc-fit-btn${String(height) === h.val ? ' active' : ''}" data-bsc-height="${h.val}">${h.label}</button>`
+        ).join('');
+
+        containerEl.innerHTML = `
+            <div class="bsc-section">
+                <span class="bsc-section-label">Fit</span>
+                <div class="bsc-fit-row">
+                    <button type="button" class="bsc-fit-btn${fit === 'cover'   ? ' active' : ''}" data-bsc-fit="cover"  >Fill (cover)</button>
+                    <button type="button" class="bsc-fit-btn${fit === 'contain' ? ' active' : ''}" data-bsc-fit="contain">Fit inside</button>
+                    <button type="button" class="bsc-fit-btn${fit === 'actual'  ? ' active' : ''}" data-bsc-fit="actual" >Actual size</button>
+                </div>
+            </div>
+            <div class="bsc-section">
+                <span class="bsc-section-label">Height</span>
+                <div class="bsc-fit-row">${hBtns}</div>
+            </div>
+            <div class="bsc-section bsc-focal-section">
+                <span class="bsc-section-label">Focal point <span class="bsc-section-hint">(drag to set)</span></span>
+                <div class="bsc-focal-picker" id="${idPrefix}-focal-picker">
+                    <div class="bsc-focal-dot" style="left:${focalX}%;top:${focalY}%"></div>
+                    <div class="bsc-focal-hint">drag</div>
+                </div>
+            </div>
+            <input type="hidden" id="${idPrefix}-fit"      value="${fit}">
+            <input type="hidden" id="${idPrefix}-focal-x"  value="${focalX}">
+            <input type="hidden" id="${idPrefix}-focal-y"  value="${focalY}">
+            <input type="hidden" id="${idPrefix}-height"   value="${height}">
+        `;
+
+        const fitInp    = containerEl.querySelector(`#${idPrefix}-fit`);
+        const fxInp     = containerEl.querySelector(`#${idPrefix}-focal-x`);
+        const fyInp     = containerEl.querySelector(`#${idPrefix}-focal-y`);
+        const heightInp = containerEl.querySelector(`#${idPrefix}-height`);
+        const picker    = containerEl.querySelector(`#${idPrefix}-focal-picker`);
+        const dot       = picker.querySelector('.bsc-focal-dot');
+
+        // Keep picker preview in sync with URL input
+        const _updateBg = () => {
+            const url = bannerUrlInputEl?.value?.trim();
+            picker.style.backgroundImage = url ? `url('${url}')` : '';
+        };
+        _updateBg();
+        bannerUrlInputEl?.addEventListener('input', _updateBg);
+        bannerUrlInputEl?.addEventListener('change', _updateBg);
+
+        // Fit buttons
+        containerEl.querySelectorAll('[data-bsc-fit]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                containerEl.querySelectorAll('[data-bsc-fit]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                fitInp.value = btn.dataset.bscFit;
+            });
+        });
+
+        // Height buttons (toggle — click active to clear)
+        containerEl.querySelectorAll('[data-bsc-height]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.classList.contains('active')) {
+                    btn.classList.remove('active');
+                    heightInp.value = '';
+                } else {
+                    containerEl.querySelectorAll('[data-bsc-height]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    heightInp.value = btn.dataset.bscHeight;
+                }
+            });
+        });
+
+        // Focal point drag
+        let _dragging = false;
+        const _setFocal = (clientX, clientY) => {
+            const rect = picker.getBoundingClientRect();
+            const x = Math.max(0, Math.min(100, Math.round((clientX - rect.left)  / rect.width  * 100)));
+            const y = Math.max(0, Math.min(100, Math.round((clientY - rect.top)   / rect.height * 100)));
+            dot.style.left = x + '%';
+            dot.style.top  = y + '%';
+            fxInp.value = x;
+            fyInp.value = y;
+        };
+        picker.addEventListener('mousedown',  e => { _dragging = true;  _setFocal(e.clientX, e.clientY); });
+        picker.addEventListener('touchstart', e => { _dragging = true;  _setFocal(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+
+        // Attach document-level listeners and auto-remove when picker leaves DOM
+        const _ac = new AbortController();
+        document.addEventListener('mousemove', e => { if (_dragging) _setFocal(e.clientX, e.clientY); }, { signal: _ac.signal });
+        document.addEventListener('mouseup',   () => { _dragging = false; },                             { signal: _ac.signal });
+        document.addEventListener('touchmove', e => { if (_dragging) _setFocal(e.touches[0].clientX, e.touches[0].clientY); }, { signal: _ac.signal, passive: true });
+        document.addEventListener('touchend',  () => { _dragging = false; },                             { signal: _ac.signal });
+        const _obs = new MutationObserver(() => { if (!document.contains(picker)) { _ac.abort(); _obs.disconnect(); } });
+        _obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function _applyBannerControls(idPrefix, layout) {
+        const fitInp    = document.getElementById(`${idPrefix}-fit`);
+        const fxInp     = document.getElementById(`${idPrefix}-focal-x`);
+        const fyInp     = document.getElementById(`${idPrefix}-focal-y`);
+        const heightInp = document.getElementById(`${idPrefix}-height`);
+        if (!fitInp) return;
+        const wrap = fitInp.closest('[id$="-controls"], .wes-grid > div') || fitInp.parentElement;
+
+        const fit    = layout?.bannerFit    || 'cover';
+        const focalX = layout?.bannerFocalX ?? 50;
+        const focalY = layout?.bannerFocalY ?? 50;
+        const height = layout?.bannerHeight || '';
+
+        fitInp.value    = fit;
+        fxInp.value     = focalX;
+        fyInp.value     = focalY;
+        if (heightInp) heightInp.value = height;
+
+        // Sync fit buttons
+        document.querySelectorAll(`[data-bsc-fit]`).forEach(b => {
+            b.classList.toggle('active', b.dataset.bscFit === fit);
+        });
+        // Sync height buttons
+        document.querySelectorAll(`[data-bsc-height]`).forEach(b => {
+            b.classList.toggle('active', b.dataset.bscHeight === String(height));
+        });
+        // Sync focal dot
+        const dot = document.querySelector(`#${idPrefix}-focal-picker .bsc-focal-dot`);
+        if (dot) { dot.style.left = focalX + '%'; dot.style.top = focalY + '%'; }
+    }
+
     // ── Upload browse button injector ─────────────────────────────────────────
 
     function _attachUploadBtn(inputEl, accept) {
@@ -2525,6 +2679,29 @@
             }, { accept });
         });
         wrapper.appendChild(btn);
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+
+    function _fmtBytes(n) {
+        if (!n) return '';
+        if (n < 1024) return n + ' B';
+        if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+        if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+        return (n / 1073741824).toFixed(2) + ' GB';
+    }
+
+    async function _fetchCloudinaryUsage() {
+        const session = await API.getSession();
+        if (!session?.access_token) return null;
+        try {
+            const res = await fetch(`https://${_SIGN_WORKER_URL}/usage`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+            });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch { return null; }
     }
 
     // ── Media Manager (full file manager panel) ───────────────────────────────
@@ -2550,7 +2727,19 @@
             });
         }
 
+        function getFolderBytes(folderName) {
+            const assets = folderName === 'All Files'
+                ? allAssets
+                : allAssets.filter(a => (a.folder || 'Uncategorized') === folderName);
+            return assets.reduce((s, a) => s + (a.bytes || 0), 0);
+        }
+
         const panel = _showPanel('📁 Media Library', `
+            <div class="ml-storage-bar" id="ml-storage-bar">
+                <span class="ml-storage-label">Cloudinary Storage</span>
+                <div class="ml-storage-track"><div id="ml-storage-fill" class="ml-storage-fill" style="width:0%"></div></div>
+                <span id="ml-storage-text" class="ml-storage-text">Loading…</span>
+            </div>
             <div class="ml-layout">
                 <div class="ml-sidebar" id="ml-sidebar"></div>
                 <div class="ml-main">
@@ -2565,28 +2754,58 @@
 
         const box  = panel.querySelector('.wsp-box');
         const body = panel.querySelector('.wsp-body');
-        if (box)  { box.style.maxWidth  = '860px'; box.style.height = '70vh'; box.style.display = 'flex'; box.style.flexDirection = 'column'; }
+        if (box)  { box.style.maxWidth = '860px'; box.style.height = '70vh'; box.style.display = 'flex'; box.style.flexDirection = 'column'; }
         if (body) { body.style.flex = '1'; body.style.minHeight = '0'; body.style.padding = '0'; body.style.overflow = 'hidden'; body.style.display = 'flex'; body.style.flexDirection = 'column'; }
         const layout = panel.querySelector('.ml-layout');
-        if (layout) layout.style.height = '100%';
+        if (layout) { layout.style.flex = '1'; layout.style.minHeight = '0'; }
 
+        // ── Storage bar (async) ───────────────────────────────────────────────
+        _fetchCloudinaryUsage().then(usage => {
+            const fill = panel.querySelector('#ml-storage-fill');
+            const text = panel.querySelector('#ml-storage-text');
+            if (!fill || !text) return;
+            if (!usage?.storage) { text.textContent = 'Storage info unavailable'; return; }
+            const used = usage.storage.usage ?? 0;
+            const limit = usage.storage.limit ?? null;
+            const pct = usage.storage.used_percent ?? (limit ? (used / limit * 100) : 0);
+            fill.style.width = Math.min(100, pct).toFixed(1) + '%';
+            fill.className = 'ml-storage-fill' +
+                (pct >= 90 ? ' ml-storage-fill--danger' : pct >= 70 ? ' ml-storage-fill--warn' : '');
+            const limitStr = limit ? ` / ${_fmtBytes(limit)}` : '';
+            text.textContent = `${_fmtBytes(used)}${limitStr} used  (${pct.toFixed(1)}%)`;
+        }).catch(() => {
+            const text = panel.querySelector('#ml-storage-text');
+            if (text) text.textContent = 'Storage info unavailable';
+        });
+
+        // ── Sidebar ───────────────────────────────────────────────────────────
         function renderSidebar() {
             const sidebar = panel.querySelector('#ml-sidebar');
             if (!sidebar) return;
-            const folders = getFolders();
             sidebar.innerHTML = '';
-            folders.forEach(f => {
-                const count = f === 'All Files'
-                    ? allAssets.length
-                    : allAssets.filter(a => (a.folder || 'Uncategorized') === f).length;
+            getFolders().forEach(f => {
+                const assets = f === 'All Files' ? allAssets : allAssets.filter(a => (a.folder || 'Uncategorized') === f);
+                const count  = assets.length;
+                const bytes  = getFolderBytes(f);
+                const sizeStr = bytes ? _fmtBytes(bytes) : '';
+
                 const item = document.createElement('div');
                 item.className = 'ml-folder-item' + (f === activeFolder ? ' active' : '');
-                item.textContent = `${f} (${count})`;
-                item.addEventListener('click', () => {
-                    activeFolder = f;
-                    renderSidebar();
-                    renderGrid();
-                });
+                item.title = sizeStr ? `${f} — ${count} file${count !== 1 ? 's' : ''}, ${sizeStr}` : f;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'ml-folder-name';
+                nameSpan.textContent = `${f} (${count})`;
+                item.appendChild(nameSpan);
+
+                if (sizeStr) {
+                    const sizeSpan = document.createElement('span');
+                    sizeSpan.className = 'ml-folder-size';
+                    sizeSpan.textContent = sizeStr;
+                    item.appendChild(sizeSpan);
+                }
+
+                item.addEventListener('click', () => { activeFolder = f; renderSidebar(); renderGrid(); });
                 sidebar.appendChild(item);
             });
 
@@ -2604,6 +2823,7 @@
             sidebar.appendChild(newFolderBtn);
         }
 
+        // ── Grid ──────────────────────────────────────────────────────────────
         function renderGrid() {
             const grid = panel.querySelector('#ml-grid');
             if (!grid) return;
@@ -2620,6 +2840,7 @@
                 const card    = document.createElement('div');
                 card.className = 'ml-card';
                 const isAudio  = asset.resource_type === 'audio';
+                const sizeStr  = asset.bytes ? _fmtBytes(asset.bytes) : '';
                 const folderOptsHTML = knownFolders.map(f =>
                     `<option value="${f.replace(/"/g,'&quot;')}" ${(asset.folder||'Uncategorized')===f?'selected':''}>${f.replace(/</g,'&lt;')}</option>`
                 ).join('');
@@ -2631,6 +2852,7 @@
                     }
                     <div class="ml-card-body">
                         <div class="ml-card-name" title="${(asset.filename||'').replace(/"/g,'&quot;')}">${(asset.filename||'untitled').replace(/</g,'&lt;')}</div>
+                        ${sizeStr ? `<div class="ml-card-size">${sizeStr}</div>` : ''}
                         <div class="ml-card-actions">
                             <button class="et-btn ml-copy-btn" style="font-size:0.7rem;padding:2px 6px">📋 Copy URL</button>
                             <button class="et-btn et-danger ml-del-btn" style="font-size:0.7rem;padding:2px 6px">✕ Delete</button>
@@ -3095,6 +3317,8 @@
                                    value="${(camp.banner_image || '').replace(/"/g,'&quot;')}">
                             <span class="wes-hint">Recommended: 1200 × 300 px</span>
                         </div>
+                        <label>Banner display</label>
+                        <div id="cst-banner-controls"></div>
                     </div>`, {
                     onOk: async panel => {
                         try {
@@ -3102,6 +3326,13 @@
                             const icon = panel.querySelector('#cst-icon').value.trim();
                             const slug = displayName.toLowerCase()
                                 .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                            const cbh = panel.querySelector('#cst-banner-height')?.value || '';
+                            const campLayout = {
+                                bannerFit:    panel.querySelector('#cst-banner-fit')?.value    || 'cover',
+                                bannerFocalX: +(panel.querySelector('#cst-banner-focal-x')?.value ?? 50),
+                                bannerFocalY: +(panel.querySelector('#cst-banner-focal-y')?.value ?? 50),
+                                ...(cbh ? { bannerHeight: +cbh } : {}),
+                            };
                             const allFields = {
                                 name:         displayName,
                                 slug,
@@ -3109,14 +3340,15 @@
                                 description:  panel.querySelector('#cst-desc').value.trim(),
                                 accent_color: panel.querySelector('#cst-accent').value,
                                 banner_image: panel.querySelector('#cst-banner').value.trim(),
+                                layout:       campLayout,
                             };
                             try {
                                 await API.updateCampaign(camp.id, allFields);
                             } catch (e2) {
                                 if (e2.message.includes('schema cache') || e2.message.includes('column')) {
-                                    const { icon: _i, ...coreFields } = allFields;
+                                    const { icon: _i, layout: _l, ...coreFields } = allFields;
                                     await API.updateCampaign(camp.id, coreFields);
-                                    setStatus('Saved (icon skipped — run supabase-migration-v3.sql to enable icons)', true);
+                                    setStatus('Saved (icon/layout skipped — run supabase-migration-v3/v5.sql to enable)', true);
                                 } else { throw e2; }
                             }
                             await WikiSB.nav.showCampaignList();
@@ -3125,6 +3357,12 @@
                 });
                 _attachUploadBtn(campPanel.querySelector('#cst-icon'),   'image');
                 _attachUploadBtn(campPanel.querySelector('#cst-banner'), 'image');
+                _buildBannerControls(
+                    campPanel.querySelector('#cst-banner-controls'),
+                    campPanel.querySelector('#cst-banner'),
+                    'cst-banner',
+                    camp.layout || {}
+                );
             });
             li.appendChild(settBtn);
 

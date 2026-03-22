@@ -758,9 +758,13 @@ window.WikiSB = {
             </div>`;
 
         if (campData.banner_image) {
+            const _cbl = campData.layout || {};
+            const _cbSize = _cbl.bannerFit === 'contain' ? 'contain' : _cbl.bannerFit === 'actual' ? 'auto' : 'cover';
+            const _cbPos  = `${_cbl.bannerFocalX ?? 50}% ${_cbl.bannerFocalY ?? 50}%`;
+            const _cbH    = _cbl.bannerHeight ? `height:${_cbl.bannerHeight}px;` : '';
             html += `<div class="wiki-campaign-banner wiki-banner-clickable"
                          data-src="${esc(campData.banner_image)}"
-                         style="background-image:url('${esc(campData.banner_image)}')"></div>`;
+                         style="${_cbH}background-image:url('${esc(campData.banner_image)}');background-size:${_cbSize};background-position:${_cbPos}"></div>`;
         }
 
         html += `<h2 style="margin-top:0">${esc(campaignName)}</h2>
@@ -1066,9 +1070,13 @@ window.WikiSB = {
                  </section>`;
         } else {
             if (entry.banner_image) {
+                const _ebl = layout;
+                const _ebSize = _ebl.bannerFit === 'contain' ? 'contain' : _ebl.bannerFit === 'actual' ? 'auto' : 'cover';
+                const _ebPos  = `${_ebl.bannerFocalX ?? 50}% ${_ebl.bannerFocalY ?? 50}%`;
+                const _ebH    = _ebl.bannerHeight ? `height:${_ebl.bannerHeight}px;` : '';
                 html += `<div class="wiki-entry-banner wiki-banner-clickable"
                              data-src="${esc(entry.banner_image)}"
-                             style="background-image:url('${esc(entry.banner_image)}')"></div>`;
+                             style="${_ebH}background-image:url('${esc(entry.banner_image)}');background-size:${_ebSize};background-position:${_ebPos}"></div>`;
             }
 
             const isFloat = sidebar.startsWith('float-');
