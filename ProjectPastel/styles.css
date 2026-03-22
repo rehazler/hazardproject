@@ -3127,7 +3127,9 @@ body.wiki-page img.wiki-section-float-img--left {
     background: #2e1d32;
     border: 1px solid rgba(211, 179, 231, 0.3);
     border-radius: 12px;
-    width: min(640px, 92vw);
+    width: fit-content;
+    min-width: min(480px, 92vw);
+    max-width: 92vw;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
