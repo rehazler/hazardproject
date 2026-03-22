@@ -2699,9 +2699,19 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${session.access_token}` },
             });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch { return null; }
+            if (!res.ok) {
+                console.error('[media] /usage returned', res.status, res.statusText);
+                return null;
+            }
+            const data = await res.json();
+            if (!data?.storage) {
+                console.warn('[media] /usage response has no storage field — worker may need redeploying:', data);
+            }
+            return data;
+        } catch (err) {
+            console.error('[media] _fetchCloudinaryUsage error:', err);
+            return null;
+        }
     }
 
     // ── Media Manager (full file manager panel) ───────────────────────────────
