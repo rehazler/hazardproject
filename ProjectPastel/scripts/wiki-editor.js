@@ -2584,6 +2584,7 @@
                 <div class="bsc-preview-overlay" id="${idPrefix}-pv-overlay"></div>
                 <div class="bsc-preview-fade" id="${idPrefix}-pv-fade" style="display:none"></div>
                 <div class="bsc-preview-text" id="${idPrefix}-pv-text"></div>
+                <div class="bsc-preview-badge" id="${idPrefix}-pv-badge"></div>
                 <div class="bsc-preview-hint"></div>
             </div>
 
@@ -2726,7 +2727,9 @@
         const pvOverlay   = containerEl.querySelector(`#${idPrefix}-pv-overlay`);
         const pvFade      = containerEl.querySelector(`#${idPrefix}-pv-fade`);
         const pvText      = containerEl.querySelector(`#${idPrefix}-pv-text`);
+        const pvBadge     = containerEl.querySelector(`#${idPrefix}-pv-badge`);
         const hint        = preview.querySelector('.bsc-preview-hint');
+        const _hLabels    = { '120': 'Short', '180': 'Medium', '240': 'Tall', '320': 'X-Tall' };
 
         const _fitToSize   = { cover:'cover', contain:'contain', stretch:'100% 100%' };
         const _hintText    = { cover:'Drag to set focal point', actual:'Drag to pan', contain:'', stretch:'' };
@@ -2751,10 +2754,10 @@
             preview.style.backgroundSize     = f === 'actual' ? `${zoomInp?.value || 100}%` : (_fitToSize[f] || 'cover');
             preview.style.backgroundRepeat   = tileVal?.value === 'true' ? 'repeat' : 'no-repeat';
             preview.style.backgroundPosition = `${fxInp.value}% ${fyInp.value}%`;
-            preview.style.height             = h ? `${h}px` : '';
             preview.style.opacity            = op;
             preview.style.borderRadius       = r;
 
+            if (pvBadge) pvBadge.textContent = h ? (_hLabels[h] || `${h}px`) : '';
             emptyMsg.style.display = url ? 'none' : '';
             hint.textContent       = url ? (_hintText[f] || '') : '';
             hint.style.display     = (url && _hintText[f]) ? '' : 'none';
@@ -2949,9 +2952,11 @@
             preview.style.backgroundSize     = fit === 'actual' ? `${L.bannerZoom ?? 100}%` : (fsMap[fit] || 'cover');
             preview.style.backgroundRepeat   = (L.bannerTile || L.bannerFit === 'tile') ? 'repeat' : 'no-repeat';
             preview.style.backgroundPosition = `${focalX}% ${focalY}%`;
-            preview.style.height             = height ? `${height}px` : '';
             preview.style.opacity            = ((L.bannerOpacity ?? 100) / 100).toFixed(2);
             preview.style.borderRadius       = radMap[L.bannerRadius] ?? '10px';
+            const _hLbls = { '120': 'Short', '180': 'Medium', '240': 'Tall', '320': 'X-Tall' };
+            const pvBadgeEl = preview.querySelector('.bsc-preview-badge');
+            if (pvBadgeEl) pvBadgeEl.textContent = height ? (_hLbls[String(height)] || `${height}px`) : '';
         }
     }
 
