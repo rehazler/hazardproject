@@ -4302,6 +4302,27 @@ body.wiki-page img.wiki-section-float-img--left {
     align-items: center;
     gap: 8px;
 }
+.bsc-slider-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    padding-top: 20px;
+}
+.bsc-slider-bubble {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: #98e6d6;
+    background: rgba(20,10,28,0.85);
+    padding: 1px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.bsc-slider-wrap .bsc-slider {
+    width: 100%;
+}
 .bsc-slider {
     width: 140px;
     flex-shrink: 0;
