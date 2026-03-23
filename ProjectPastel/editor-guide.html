@@ -80,6 +80,11 @@
             color: #f3b0c3;
             border-color: rgba(243, 176, 195, 0.3);
         }
+        .tag-lav {
+            background: rgba(211, 179, 231, 0.15);
+            color: #d3b3e7;
+            border-color: rgba(211, 179, 231, 0.3);
+        }
         .tip {
             background: rgba(152, 230, 214, 0.08);
             border-left: 3px solid #98e6d6;
@@ -90,6 +95,16 @@
             font-size: 0.95em;
         }
         .tip strong { color: #98e6d6; }
+        .warn {
+            background: rgba(243, 176, 195, 0.08);
+            border-left: 3px solid #f3b0c3;
+            border-radius: 0 4px 4px 0;
+            padding: 10px 14px;
+            margin: 1rem 0;
+            color: #ccc;
+            font-size: 0.95em;
+        }
+        .warn strong { color: #f3b0c3; }
         .step {
             display: flex;
             gap: 12px;
@@ -109,7 +124,7 @@
             color: #d3b3e7;
             font-size: 0.9em;
         }
-        .step-body { padding-top: 3px; }
+        .step-body { padding-top: 3px; color: #ddd; line-height: 1.7; }
         code {
             background: rgba(255,255,255,0.08);
             border-radius: 3px;
@@ -129,6 +144,26 @@
             font-weight: normal;
             font-size: 0.95em;
         }
+        .btn-label {
+            display: inline-block;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(211,179,231,0.25);
+            border-radius: 4px;
+            padding: 1px 9px;
+            font-size: 0.88em;
+            color: #d3b3e7;
+            white-space: nowrap;
+        }
+        .btn-label-primary {
+            background: rgba(152,230,214,0.12);
+            border-color: rgba(152,230,214,0.4);
+            color: #98e6d6;
+        }
+        .btn-label-danger {
+            background: rgba(243,176,195,0.10);
+            border-color: rgba(243,176,195,0.35);
+            color: #f3b0c3;
+        }
     </style>
 </head>
 <body class="wiki-page">
@@ -137,249 +172,379 @@
 
     <header>
         <h1>Wiki Editor Guide</h1>
-        <p style="text-align:center;color:#c9aedd;margin-top:-10px;">How to manage the Voidverse wiki in Notion</p>
+        <p style="text-align:center;color:#c9aedd;margin-top:-10px;">Managing the Voidverse wiki with the on-site editor</p>
     </header>
 
     <main>
         <div class="guide-container">
 
+            <!-- TOC -->
             <div class="guide-section">
                 <h2>Quick Navigation</h2>
                 <ul class="toc">
                     <li><a href="#how-it-works">How It Works</a></li>
-                    <li><a href="#new-entry">Creating a New Entry</a></li>
-                    <li><a href="#properties">Database Properties</a></li>
-                    <li><a href="#property-naming">Property Naming &amp; Display</a></li>
-                    <li><a href="#page-body">Page Body &amp; Blocks</a></li>
-                    <li><a href="#use-cases">Common Use Cases</a></li>
-                    <li><a href="#campaigns-categories">Campaigns &amp; Categories</a></li>
-                    <li><a href="#images">Images &amp; Media</a></li>
+                    <li><a href="#logging-in">Logging In</a></li>
+                    <li><a href="#toolbar">The Editor Toolbar</a></li>
+                    <li><a href="#campaigns">Campaigns</a></li>
+                    <li><a href="#categories">Categories</a></li>
+                    <li><a href="#entries">Entries</a></li>
+                    <li><a href="#entry-settings">Entry Settings</a></li>
+                    <li><a href="#banner">Banner Display</a></li>
+                    <li><a href="#blocks">Content Blocks</a></li>
+                    <li><a href="#formatting">Formatting &amp; Shortcuts</a></li>
+                    <li><a href="#media">Media Library</a></li>
+                    <li><a href="#templates">Templates</a></li>
+                    <li><a href="#images">Images &amp; Media Tips</a></li>
                 </ul>
             </div>
 
             <!-- HOW IT WORKS -->
             <div class="guide-section" id="how-it-works">
                 <h2>How It Works</h2>
-                <p>The wiki is powered by a <strong>Notion database</strong>. Every row in the database becomes one page on the wiki. There are two parts to each entry:</p>
+                <p>The Voidverse wiki is fully self-contained — all content is created, edited, and published directly on the site. There is no external tool or third-party CMS to log into. Everything lives in a Supabase database that the site reads and writes to directly.</p>
+                <p>The wiki is organised into three levels:</p>
                 <ul>
-                    <li><strong>Properties</strong> — the structured fields on the right side panel (name, category, stats, etc.). These appear in the profile sidebar on the wiki.</li>
-                    <li><strong>Page body</strong> — the open writing area inside the entry page. You can add anything here: backstory, images, audio clips, tables, and more. This becomes the main content area of the wiki page.</li>
+                    <li><strong>Campaigns</strong> — the top-level grouping (e.g. a campaign name). Each campaign has its own banner, icon, description, and accent colour.</li>
+                    <li><strong>Categories</strong> — sections within a campaign (e.g. NPCs, Locations, Items). Used to group related entries.</li>
+                    <li><strong>Entries</strong> — individual wiki pages. Each entry has a settings panel (name, profile image, banner, layout options) and a full content editor.</li>
                 </ul>
-                <div class="tip"><strong>Tip:</strong> Think of properties as the character sheet, and the page body as a free-form notebook page attached to it.</div>
+                <div class="tip"><strong>Tip:</strong> Changes are saved only when you click <span class="btn-label btn-label-primary">✓ Save</span> or press <code>Ctrl+S</code>. The editor auto-saves a local draft every 2 seconds while you type, but the draft is only a backup — always save to publish your changes.</div>
             </div>
 
-            <!-- CREATING A NEW ENTRY -->
-            <div class="guide-section" id="new-entry">
-                <h2>Creating a New Entry</h2>
+            <!-- LOGGING IN -->
+            <div class="guide-section" id="logging-in">
+                <h2>Logging In</h2>
+                <p>Navigate to <a href="login.html">the login page</a> and sign in with your editor email and password. After a successful login you will be sent directly to the wiki and the editor toolbar will appear at the top of the page.</p>
+                <p>If you are already logged in and visit the login page, you will be redirected to the wiki automatically.</p>
+                <p>To log out, click the <span class="btn-label btn-label-danger">⏻ Log out</span> button in the toolbar.</p>
+                <div class="tip"><strong>Tip:</strong> Your session persists across browser sessions — you normally only need to log in once per device.</div>
+            </div>
+
+            <!-- EDITOR TOOLBAR -->
+            <div class="guide-section" id="toolbar">
+                <h2>The Editor Toolbar</h2>
+                <p>When you are logged in as an editor, a toolbar appears at the top of the wiki page. It is only visible to you — visitors see the normal wiki without any editor controls.</p>
+                <table class="prop-table">
+                    <thead>
+                        <tr><th>Button</th><th>What it does</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="btn-label">✏ Edit</span></td>
+                            <td>Opens the content editor for the currently viewed entry. Only visible when you are on an entry page.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label btn-label-primary">✓ Save</span></td>
+                            <td>Saves the entry content and settings to the database and publishes the changes. Appears only while editing.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label">✗ Cancel</span></td>
+                            <td>Discards any unsaved changes and exits edit mode. You will be prompted to confirm if there are unsaved changes.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label">📋 Templates</span></td>
+                            <td>Opens the template manager. Save the current editor content as a reusable template, or apply a saved template to the current entry.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label">📁 Media</span></td>
+                            <td>Opens the Media Library to upload files or browse and select previously uploaded assets.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label btn-label-danger">⏻ Log out</span></td>
+                            <td>Signs you out and reloads the page.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>A status message appears to the left of the buttons while you are editing — it shows the current block and word count, and any save or error messages.</p>
+            </div>
+
+            <!-- CAMPAIGNS -->
+            <div class="guide-section" id="campaigns">
+                <h2>Campaigns</h2>
+
+                <h3>Creating a Campaign</h3>
                 <div class="step">
                     <div class="step-num">1</div>
-                    <div class="step-body">Open the Voidverse Wiki database in Notion.</div>
+                    <div class="step-body">From the campaign list, click the <span class="btn-label">+ New Campaign</span> button at the top.</div>
                 </div>
                 <div class="step">
                     <div class="step-num">2</div>
-                    <div class="step-body">Click <strong>+ New</strong> at the bottom of the table, or the blue <strong>New</strong> button in the top right.</div>
+                    <div class="step-body">Enter the campaign name in the prompt and click <strong>Create</strong>. The campaign appears in the list immediately.</div>
                 </div>
-                <div class="step">
-                    <div class="step-num">3</div>
-                    <div class="step-body">Fill in the <strong>Name</strong> field — this is the title that appears on the wiki.</div>
-                </div>
-                <div class="step">
-                    <div class="step-num">4</div>
-                    <div class="step-body">Set <strong>Campaign</strong> and <strong>Category</strong> so the wiki knows where to list this entry.</div>
-                </div>
-                <div class="step">
-                    <div class="step-num">5</div>
-                    <div class="step-body">Optionally add a <strong>Profile Image</strong> URL and any stat fields.</div>
-                </div>
-                <div class="step">
-                    <div class="step-num">6</div>
-                    <div class="step-body">Click the entry to <strong>open the page</strong>, then write the main content in the body area below the properties.</div>
-                </div>
-                <div class="tip"><strong>Tip:</strong> Changes appear on the wiki immediately — just refresh the wiki page after saving in Notion.</div>
-            </div>
 
-            <!-- DATABASE PROPERTIES -->
-            <div class="guide-section" id="properties">
-                <h2>Database Properties</h2>
-                <p>These fields are visible when you click on an entry's row. They appear in the <strong>profile sidebar</strong> on the right side of the wiki page.</p>
+                <h3>Reordering Campaigns</h3>
+                <p>Drag any campaign card by its body to reorder it in the list. The new order is saved automatically when you drop it.</p>
 
+                <h3>Campaign Settings</h3>
+                <p>Each campaign card has a <span class="btn-label">⚙</span> button. Click it to open the campaign settings panel.</p>
                 <table class="prop-table">
                     <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>What it does</th>
-                        </tr>
+                        <tr><th>Field</th><th>What it does</th></tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Name</strong></td>
-                            <td><span class="tag">Title</span></td>
-                            <td>The entry's name as it appears on the wiki. Required.</td>
+                            <td>The displayed campaign name. Changing this also updates the URL slug.</td>
                         </tr>
                         <tr>
-                            <td><strong>Campaign</strong></td>
-                            <td><span class="tag">Select</span></td>
-                            <td>Which campaign this entry belongs to. Used to group entries on the wiki's campaign list.</td>
+                            <td><strong>Icon</strong></td>
+                            <td>An emoji (e.g. <code>🐉</code>) or a direct image URL shown alongside the campaign name in the list. Optional.</td>
                         </tr>
                         <tr>
-                            <td><strong>Category</strong></td>
-                            <td><span class="tag">Select</span></td>
-                            <td>The type of entry — e.g. NPCs, Locations, Items, Factions. Used to group entries within a campaign.</td>
+                            <td><strong>Description</strong></td>
+                            <td>A short blurb shown on the campaign card. Optional.</td>
                         </tr>
                         <tr>
-                            <td><strong>Profile Image</strong></td>
-                            <td><span class="tag">URL</span></td>
-                            <td>A direct link to the entry's profile picture. Paste a full image URL (must start with <code>https://</code>). See the <a href="#images">Images section</a> for tips.</td>
+                            <td><strong>Accent colour</strong></td>
+                            <td>A highlight colour used for the campaign's card and themed elements.</td>
                         </tr>
                         <tr>
-                            <td><strong>Any other property</strong></td>
-                            <td><span class="tag">Any</span></td>
-                            <td>Any additional property you add automatically appears in the profile sidebar. Use ALL CAPS names for compact stat attribute boxes, mixed case for body rows. Prefix with a number to control sort order. See <a href="#property-naming">Property Naming &amp; Display</a> for the full guide.</td>
+                            <td><strong>Banner image URL</strong></td>
+                            <td>A wide header image shown at the top of the campaign page. Can be typed in or chosen from the Media Library.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Banner display</strong></td>
+                            <td>All the banner customisation controls — fit, height, zoom, opacity, and more. See the <a href="#banner">Banner Display</a> section for full details.</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <h3>Adding Custom Stat Fields</h3>
-                <p>To add a stat like "Race" or "Affiliation":</p>
-                <ol>
-                    <li>Click the <strong>+</strong> button at the end of the property list in the database.</li>
-                    <li>Choose a type — <span class="tag">Text</span> for freeform values, <span class="tag">Select</span> for a fixed list of options, <span class="tag">Checkbox</span> for yes/no.</li>
-                    <li>Name it and it will appear in every entry's sidebar automatically.</li>
-                </ol>
-                <div class="tip"><strong>Tip:</strong> Properties you leave blank for a specific entry won't show up in that entry's sidebar — only filled-in values are displayed.</div>
+                <h3>Deleting a Campaign</h3>
+                <p>A <span class="btn-label btn-label-danger">✕</span> delete button is available on each campaign card. You will be asked to confirm by typing the campaign name before it is permanently removed. Deleting a campaign also removes all its categories and entries.</p>
+                <div class="warn"><strong>Warning:</strong> Campaign deletion is permanent and cannot be undone. All entries inside the campaign are deleted as well.</div>
             </div>
 
-            <!-- PROPERTY NAMING & DISPLAY -->
-            <div class="guide-section" id="property-naming">
-                <h2>Property Naming &amp; Display</h2>
-                <p>Any property you add beyond the four reserved ones (<strong>Name</strong>, <strong>Campaign</strong>, <strong>Category</strong>, <strong>Profile Image</strong>) shows up in the entry's sidebar. The wiki uses the <strong>property name</strong> to decide how and where to display it.</p>
+            <!-- CATEGORIES -->
+            <div class="guide-section" id="categories">
+                <h2>Categories</h2>
+                <p>Categories group entries within a campaign (e.g. NPCs, Locations, Factions). They appear as collapsible sections inside the campaign view.</p>
 
-                <h3>Two display sections</h3>
-                <p>The sidebar has two distinct areas:</p>
+                <h3>Creating a Category</h3>
+                <p>Inside a campaign, click the <span class="btn-label">+ New Category</span> button. Enter a name and confirm. The category appears immediately with no entries yet.</p>
+
+                <h3>Category Settings</h3>
+                <p>Each category pill has a <span class="btn-label">⚙</span> settings button. The settings panel lets you change the category <strong>Name</strong> and set an optional <strong>Icon</strong> — either an emoji (e.g. <code>🎲</code>) or a direct image URL. The icon appears next to the category name in the wiki.</p>
+
+                <h3>Deleting</h3>
+                <p>A <span class="btn-label btn-label-danger">✕</span> delete button is available on each category pill. You will be asked to type the category name to confirm before it is permanently removed. Deleting a category removes all entries inside it.</p>
+
+                <h3>Reordering Categories</h3>
+                <p>Drag any category pill left or right to reorder the categories within a campaign. The new order is saved automatically.</p>
+                <div class="tip"><strong>Tip:</strong> Keep category names consistent — <span class="tag tag-pink">NPC</span> and <span class="tag tag-pink">NPCs</span> are treated as two separate categories. Pick a convention (plurals are usually clearest) and stick to it.</div>
+            </div>
+
+            <!-- ENTRIES -->
+            <div class="guide-section" id="entries">
+                <h2>Entries</h2>
+                <p>An entry is a single wiki page — a character, location, item, or any piece of lore. Each entry has a <strong>settings panel</strong> (structured metadata) and a <strong>content area</strong> (free-form blocks).</p>
+
+                <h3>Creating an Entry</h3>
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">Navigate to the campaign and category where the new entry should live.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">Click <span class="btn-label">+ New Entry</span>. Enter the entry name and confirm.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">The entry opens in edit mode automatically. Fill in the settings panel and write the content, then save.</div>
+                </div>
+
+                <h3>Editing an Entry</h3>
+                <p>Open the entry you want to edit, then click <span class="btn-label">✏ Edit</span> in the toolbar. The settings panel appears above the content editor. Make your changes and click <span class="btn-label btn-label-primary">✓ Save</span> or press <code>Ctrl+S</code>.</p>
+
+                <h3>Deleting an Entry</h3>
+                <p>From the category list, each entry card has a <span class="btn-label btn-label-danger">✕</span> delete button. You will be asked to confirm before the entry is permanently removed.</p>
+
+                <h3>Moving an Entry</h3>
+                <p>Each entry card has a <span class="btn-label">↕</span> move button. Click it to choose another category within the same campaign to move the entry to. The entry disappears from the current list and reappears in the chosen category.</p>
+
+                <h3>Duplicating an Entry</h3>
+                <p>Each entry card has a <span class="btn-label">⎘</span> duplicate button. Clicking it creates an exact copy of the entry (all blocks, settings, and banner) with " (copy)" appended to the name. The copy opens immediately so you can edit it.</p>
+
+                <h3>Reordering Entries</h3>
+                <p>Drag any entry card up or down within a category to reorder it. The new order is saved automatically.</p>
+            </div>
+
+            <!-- ENTRY SETTINGS -->
+            <div class="guide-section" id="entry-settings">
+                <h2>Entry Settings</h2>
+                <p>When editing an entry, the settings panel appears at the top of the page above the content editor. These fields control the entry's metadata and appearance.</p>
+
+                <table class="prop-table">
+                    <thead>
+                        <tr><th>Field</th><th>What it does</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Name</strong></td>
+                            <td>The entry's title as displayed on the wiki.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Subtitle</strong></td>
+                            <td>An optional tagline or descriptor shown below the name (e.g. "Archmage of the Eastern Tower").</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Profile image URL</strong></td>
+                            <td>A portrait image shown in the sidebar. Paste a direct image URL or click the browse button to choose from the Media Library.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Banner image URL</strong></td>
+                            <td>A wide header image shown above the entry title. Paste a URL or pick from the Media Library. See <a href="#banner">Banner Display</a> for customisation options.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Accent colour</strong></td>
+                            <td>A highlight colour used throughout the entry page (links, headings, decorative elements).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Page style</strong></td>
+                            <td><strong>Full page</strong> (default) — standard layout. <strong>Section</strong> — a tighter, more contained layout for shorter entries.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Title divider</strong></td>
+                            <td>A decorative element beneath the entry title. Options: None, Line only, Moon (split), Moon (full).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Divider colour</strong></td>
+                            <td>The colour of the title divider — Default, Lavender, Mint, or Pink.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Divider thickness</strong></td>
+                            <td>How thick the divider line renders — Very Thin, Thin, Medium, or Thick.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sidebar</strong></td>
+                            <td>Controls where the profile sidebar is placed: Right (default), Left, Float right, Float left, or Hidden (full-width, no sidebar).</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="tip"><strong>Tip:</strong> Any change in the settings panel is treated as an unsaved change — you still need to save for it to take effect on the live wiki.</div>
+            </div>
+
+            <!-- BANNER DISPLAY -->
+            <div class="guide-section" id="banner">
+                <h2>Banner Display Settings</h2>
+                <p>The Banner Display controls appear automatically when a banner image URL is filled in. They let you fine-tune how the image is presented without touching any code. The live preview in the panel updates as you adjust each setting.</p>
+                <p>Drag inside the preview to reposition the image (sets the focal point).</p>
+
+                <h3>Fit</h3>
+                <table class="prop-table">
+                    <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Fill (cover)</strong></td><td>Scales the image to fill the banner completely. Edges are cropped. Best for most images.</td></tr>
+                        <tr><td><strong>Fit inside</strong></td><td>Scales the image so the whole image is visible. Letterboxed if the aspect ratios differ.</td></tr>
+                        <tr><td><strong>Stretch</strong></td><td>Forces the image to fill the banner exactly, ignoring aspect ratio. Can distort the image.</td></tr>
+                        <tr><td><strong>Actual size</strong></td><td>Displays the image at its natural pixel size. A <strong>Zoom</strong> slider and drag-to-pan appear for precise framing.</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Zoom (Actual size only)</h3>
+                <p>Appears when <strong>Actual size</strong> is selected. Ranges from 25% to 400%. Use this alongside drag-to-pan to zoom into a specific part of the image.</p>
+
+                <h3>Height</h3>
+                <p>Sets a fixed pixel height for the banner: <strong>Short</strong> (120 px), <strong>Medium</strong> (180 px), <strong>Tall</strong> (240 px), or <strong>X-Tall</strong> (320 px). Click the active button again to remove the height constraint. The selected height is shown as a badge in the preview corner.</p>
+
+                <h3>Image opacity</h3>
+                <p>Controls how transparent the banner image itself is (0–100%). Useful when you want to layer an overlay tint on top or create a subtle washed-out effect. Does not affect overlay or text layers.</p>
+
+                <h3>Border radius</h3>
+                <p>Rounds the corners of the banner: <strong>None</strong>, <strong>Slight</strong>, <strong>Rounded</strong>, or <strong>Pill</strong>.</p>
+
+                <h3>Overlay tint</h3>
+                <p>Adds a colour wash over the banner image. Click the colour swatch to pick a colour, then toggle it <strong>On/Off</strong>. The opacity slider controls how strong the tint is.</p>
+
+                <h3>Effects</h3>
+                <table class="prop-table">
+                    <thead><tr><th>Effect</th><th>What it does</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Tile</strong></td><td>Repeats the image as a tiled pattern across the banner. Combines with any Fit mode.</td></tr>
+                        <tr><td><strong>Bottom fade</strong></td><td>Adds a gradient that fades the bottom edge of the banner into the page background.</td></tr>
+                        <tr><td><strong>Parallax</strong></td><td>The banner scrolls at a slower rate than the page, creating a depth effect.</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Text overlay</h3>
+                <p>Adds text directly on top of the banner image. Type into the text field to enable it, then configure:</p>
                 <ul>
-                    <li><strong>Stat attribute boxes</strong> — a compact row of labelled value boxes at the top, like a character sheet. Best for short, important values: race, class, HP, AC.</li>
-                    <li><strong>Body rows</strong> — a simple key: value table below the stat boxes. Best for longer or less critical details: alignment, hometown, pronouns, status.</li>
+                    <li><strong>Position</strong> — a 3×3 grid for placing the text (top-left, center, bottom-right, etc.)</li>
+                    <li><strong>Size</strong> — Small, Medium, or Large</li>
+                    <li><strong>Colour</strong> — a colour picker for the text</li>
                 </ul>
-                <p>This same split applies in both the normal sidebar view <em>and</em> the Stat Block toggle view on each entry page.</p>
+                <p>Leave the text field empty to disable the overlay entirely.</p>
 
-                <h3>Rule 1 — ALL CAPS name → stat attribute box</h3>
-                <p>If a property name contains <strong>no lowercase letters</strong>, it is treated as a stat attribute and placed in the compact top row.</p>
-                <table class="prop-table">
-                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Goes into</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>RACE</code></td><td>RACE</td><td>Stat attribute box</td></tr>
-                        <tr><td><code>CLASS</code></td><td>CLASS</td><td>Stat attribute box</td></tr>
-                        <tr><td><code>HP</code></td><td>HP</td><td>Stat attribute box</td></tr>
-                        <tr><td><code>AC</code></td><td>AC</td><td>Stat attribute box</td></tr>
-                        <tr><td><code>Alignment</code></td><td>Alignment</td><td>Body row</td></tr>
-                        <tr><td><code>Hometown</code></td><td>Hometown</td><td>Body row</td></tr>
-                        <tr><td><code>Pronouns</code></td><td>Pronouns</td><td>Body row</td></tr>
-                    </tbody>
-                </table>
-                <div class="tip"><strong>Tip:</strong> Numbers, slashes, and spaces are allowed in ALL CAPS names — <code>HP/MAX</code>, <code>CR</code>, and <code>SAVE DC</code> all count as stat attributes.</div>
-
-                <h3>Rule 2 — Numeric prefix → sort order (stripped on display)</h3>
-                <p>The Notion API does not return properties in column order, so reordering columns in Notion has no effect on the wiki. Instead, prefix the property name with a number followed by a space to set its position explicitly. The number is stripped from the display label.</p>
-                <table class="prop-table">
-                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Sort position</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>01 RACE</code></td><td>RACE</td><td>1st stat attribute</td></tr>
-                        <tr><td><code>02 CLASS</code></td><td>CLASS</td><td>2nd stat attribute</td></tr>
-                        <tr><td><code>03 HP</code></td><td>HP</td><td>3rd stat attribute</td></tr>
-                        <tr><td><code>01 Alignment</code></td><td>Alignment</td><td>1st body row</td></tr>
-                        <tr><td><code>02 Hometown</code></td><td>Hometown</td><td>2nd body row</td></tr>
-                        <tr><td><code>Status</code></td><td>Status</td><td>After numbered rows, alphabetically</td></tr>
-                    </tbody>
-                </table>
-                <div class="tip"><strong>Tip:</strong> Numbering is per-section — stat attributes and body rows each have their own sort order. You can start both at <code>01</code>.</div>
-                <div class="tip"><strong>Tip:</strong> Properties without a number prefix always appear <em>after</em> all numbered ones in their section, sorted alphabetically.</div>
-
-                <h3>Full example</h3>
-                <p>Here is how a fully-named NPC database might look in Notion and how it renders on the wiki:</p>
-                <table class="prop-table">
-                    <thead><tr><th>Notion property name</th><th>Displayed as</th><th>Location on wiki</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Name</code></td><td><em>(entry title)</em></td><td>Page heading</td></tr>
-                        <tr><td><code>Campaign</code></td><td><em>(hidden)</em></td><td>Used for routing only</td></tr>
-                        <tr><td><code>Category</code></td><td><em>(hidden)</em></td><td>Used for routing only</td></tr>
-                        <tr><td><code>Profile Image</code></td><td><em>(image)</em></td><td>Sidebar portrait</td></tr>
-                        <tr><td><code>01 RACE</code></td><td>RACE</td><td>Stat attribute box 1</td></tr>
-                        <tr><td><code>02 CLASS</code></td><td>CLASS</td><td>Stat attribute box 2</td></tr>
-                        <tr><td><code>03 STATUS</code></td><td>STATUS</td><td>Stat attribute box 3</td></tr>
-                        <tr><td><code>01 Alignment</code></td><td>Alignment</td><td>Body row 1</td></tr>
-                        <tr><td><code>02 Affiliation</code></td><td>Affiliation</td><td>Body row 2</td></tr>
-                        <tr><td><code>03 Pronouns</code></td><td>Pronouns</td><td>Body row 3</td></tr>
-                    </tbody>
-                </table>
+                <h3>Alt text</h3>
+                <p>A text description of the banner image for screen readers and accessibility tools. Optional but recommended for important images.</p>
             </div>
 
-            <!-- PAGE BODY & BLOCKS -->
-            <div class="guide-section" id="page-body">
-                <h2>Page Body &amp; Blocks</h2>
-                <p>When you <strong>open an entry</strong> (click to expand it into a full page), the area below the properties panel is the <strong>page body</strong>. You can add any content here — it becomes the main section of the wiki page.</p>
-                <p>Every piece of content you add is called a <strong>block</strong>. To add a block, click into the page and start typing, or press <strong>/</strong> to open the block menu and search for a type.</p>
+            <!-- CONTENT BLOCKS -->
+            <div class="guide-section" id="blocks">
+                <h2>Content Blocks</h2>
+                <p>The content editor is block-based — every piece of content is a distinct block. Click into the editor area and start typing, or press <strong>/</strong> to open the block menu and search for a type.</p>
+                <p>Blocks can be reordered by clicking the drag handle (<code>⠿</code>) that appears to the left of each block and dragging it to a new position. Every block also has a <strong>Duplicate</strong> option in its settings menu (the three-dot icon) — click it to insert an exact copy of the block immediately below.</p>
 
                 <h3>Text &amp; Structure</h3>
                 <table class="prop-table">
                     <thead>
-                        <tr><th>Block</th><th>How to add it</th><th>What it does</th></tr>
+                        <tr><th>Block</th><th>How to insert</th><th>What it does</th></tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>Heading 1 / 2 / 3</strong></td>
-                            <td>Type <code>#</code>, <code>##</code>, or <code>###</code> then space — or use <code>/heading</code></td>
-                            <td>Section headers. Makes the page easy to scan.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Text (Paragraph)</strong></td>
+                            <td><span class="tag tag-lav">Text</span></td>
                             <td>Just start typing</td>
-                            <td>Regular body text. Supports <strong>bold</strong>, <em>italic</em>, underline, strikethrough, and inline links.</td>
+                            <td>Regular body text. Supports bold, italic, inline code, links, and other inline formatting.</td>
                         </tr>
                         <tr>
-                            <td><strong>Bulleted List</strong></td>
-                            <td>Type <code>-</code> then space — or <code>/bullet</code></td>
-                            <td>An unordered list of items.</td>
+                            <td><span class="tag tag-lav">Heading</span></td>
+                            <td>Type <code>#</code>, <code>##</code>, or <code>###</code> then space — or use <code>/heading</code></td>
+                            <td>Section headers at levels H2, H3, and H4. The block settings (⋮ or right-click the block) let you change the level, pick a colour (Default, Lavender, Mint, Pink, White), set alignment (Left, Centre, Right), toggle bold, and add a decorative divider (Full-width line, Text-width line).</td>
                         </tr>
                         <tr>
-                            <td><strong>Numbered List</strong></td>
-                            <td>Type <code>1.</code> then space — or <code>/numbered</code></td>
-                            <td>A numbered list of steps or items.</td>
+                            <td><span class="tag tag-lav">Bulleted list</span></td>
+                            <td>Type <code>-</code> then space, or <code>/list</code></td>
+                            <td>An unordered list. Press <code>Tab</code> to indent an item, <code>Shift+Tab</code> to outdent.</td>
                         </tr>
                         <tr>
-                            <td><strong>Toggle</strong></td>
-                            <td>Type <code>&gt;</code> then space — or <code>/toggle</code></td>
-                            <td>A collapsible section. Readers click to expand. Great for backstory, spoilers, or long lore sections.</td>
+                            <td><span class="tag tag-lav">Numbered list</span></td>
+                            <td>Type <code>1.</code> then space, or <code>/numbered</code></td>
+                            <td>An ordered numbered list.</td>
                         </tr>
                         <tr>
-                            <td><strong>Toggle Heading</strong></td>
-                            <td>Add a heading, then click the <strong>⋮⋮</strong> handle → Turn into → Toggle Heading</td>
-                            <td>A section header that can be collapsed. Keeps long pages tidy.</td>
+                            <td><span class="tag tag-lav">Quote</span></td>
+                            <td>Type <code>"</code> then space, or <code>/quote</code></td>
+                            <td>A styled block quote with optional attribution text. Style options: <strong>None</strong>, <strong>Line</strong> (left border), <strong>Box</strong>, <strong>Shade</strong>. Separate alignment controls for the quote text and the attribution line (Left, Centre, Right each).</td>
                         </tr>
                         <tr>
-                            <td><strong>Quote</strong></td>
-                            <td>Type <code>"</code> then space — or <code>/quote</code></td>
-                            <td>A styled indented quote. Good for in-character dialogue or notable lines.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Callout</strong></td>
+                            <td><span class="tag tag-lav">Callout</span></td>
                             <td><code>/callout</code></td>
-                            <td>A highlighted box with an optional emoji icon. Good for DM notes, warnings, or important lore flags.</td>
+                            <td>A highlighted box with a selectable variant (<strong>Info</strong>, <strong>Warning</strong>, <strong>Danger</strong>, <strong>Success</strong>) and an optional custom emoji. Good for DM notes, lore flags, or important warnings.</td>
                         </tr>
                         <tr>
-                            <td><strong>Divider</strong></td>
-                            <td>Type <code>---</code> — or <code>/divider</code></td>
-                            <td>A horizontal line to separate sections visually.</td>
+                            <td><span class="tag tag-lav">Toggle</span></td>
+                            <td><code>/toggle</code></td>
+                            <td>A collapsible section. Any other block type can be nested inside. The heading supports all the same options as the Heading block (level H2–H4, colour, alignment, bold, divider). Block settings also include an <strong>Outer border</strong> toggle and a <strong>Separator line</strong> between the heading and body. Great for backstory, spoilers, or long lore sections that readers can choose to expand.</td>
                         </tr>
                         <tr>
-                            <td><strong>Table</strong></td>
-                            <td><code>/table</code></td>
-                            <td>A data table. Good for spell lists, item stats, relationship grids, etc.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Columns</strong></td>
+                            <td><span class="tag tag-lav">Columns</span></td>
                             <td><code>/columns</code></td>
-                            <td>Side-by-side layout. Drag blocks into columns to arrange them.</td>
+                            <td>A side-by-side multi-column layout. Starts with 2 columns; use the <strong>+ Add column</strong> and <strong>− Remove last</strong> buttons to go up to 6. Each column can hold any other block type. The <code>⚙</code> icon on each column opens per-column settings: <strong>Width</strong> (relative fr units), <strong>Border</strong> (None, Lavender, Mint, Pink, Subtle), <strong>Background</strong> (None, Dark, Darker, Lavender/Mint/Pink tint), <strong>Padding</strong> (None, Small, Medium, Large), <strong>Radius</strong>, and <strong>Text align</strong>. A section label can be added above the whole block.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="tag tag-lav">Table</span></td>
+                            <td><code>/table</code></td>
+                            <td>A data table. Toggle <strong>With headings</strong> in the block settings to treat the first row as a styled header row. Good for spell lists, item stats, timeline grids, or relationship charts.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="tag tag-lav">Divider</span></td>
+                            <td>Type <code>---</code> or <code>/divider</code></td>
+                            <td>A decorative horizontal section separator. Block settings: <strong>Style</strong> (Line, Moon, Moon full), <strong>Thickness</strong> (Very Thin, Thin, Medium, Thick), and <strong>Color</strong> (Default, Lavender, Mint, Pink). A live preview updates as you adjust each option.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="tag tag-lav">Spacer</span></td>
+                            <td><code>/spacer</code></td>
+                            <td>Adds blank vertical space between blocks. Adjust the height with the slider (10–400 px).</td>
                         </tr>
                     </tbody>
                 </table>
@@ -387,121 +552,257 @@
                 <h3>Media</h3>
                 <table class="prop-table">
                     <thead>
-                        <tr><th>Block</th><th>How to add it</th><th>What it does</th></tr>
+                        <tr><th>Block</th><th>How to insert</th><th>What it does</th></tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>Image</strong></td>
+                            <td><span class="tag">Image</span></td>
                             <td><code>/image</code></td>
-                            <td>Displays an image. You can upload a file or paste a URL. Add a caption below for artist credit or context. See the <a href="#images">Images section</a> for tips on URLs.</td>
+                            <td>Displays an image. Paste a URL, upload a new file, or choose from the Media Library. Supports a caption for context or credits.</td>
                         </tr>
                         <tr>
-                            <td><strong>Audio</strong></td>
+                            <td><span class="tag">Audio</span></td>
                             <td><code>/audio</code></td>
-                            <td>Displays a small themed play button on the wiki. Paste a direct link to a hosted <code>.mp3</code>, <code>.ogg</code>, or <code>.wav</code> file. Click the button to play, click again to pause — only one clip plays at a time. <strong>Add a caption</strong> below the block in Notion to label it; the caption appears as a title next to the button (e.g. <em>"Voiceline — 'I remember the night…'"</em>). Great for voicelines, sound effects, or ambient clips.</td>
+                            <td>A small themed play button that plays a hosted audio file. Paste a direct URL to an <code>.mp3</code>, <code>.ogg</code>, or <code>.wav</code> file, or upload one via the Media Library. Has two optional text fields: <strong>Caption</strong> (shown below the player as a description) and <strong>Section label</strong> (a small all-caps label displayed above the block, e.g. "SOUNDTRACK"). Only one clip plays at a time.</td>
                         </tr>
                         <tr>
-                            <td><strong>Video</strong></td>
-                            <td><code>/video</code></td>
-                            <td>Paste a YouTube link and it will embed as a player on the wiki. Also works with direct video file URLs.</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Embed</strong></td>
+                            <td><span class="tag">Embed</span></td>
                             <td><code>/embed</code></td>
-                            <td>Embed content from external services — YouTube, Spotify, SoundCloud, and more. Paste the URL.</td>
+                            <td>Embeds external content — YouTube videos, Spotify tracks, SoundCloud clips, and more. Paste the URL of the content you want to embed.</td>
                         </tr>
                         <tr>
-                            <td><strong>Bookmark</strong></td>
+                            <td><span class="tag">Link (Bookmark)</span></td>
                             <td><code>/bookmark</code></td>
-                            <td>A styled link block. Good for artist portfolio links, social media pages, or external references. Add a caption to label it.</td>
+                            <td>A styled link card. Paste the URL, add an optional display label (falls back to the URL if left blank), and an optional section label shown above the block. Good for artist portfolio links, social profiles, or external references.</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <h3>Text Formatting Inside a Block</h3>
-                <p>Select any text inside a paragraph or heading to see the formatting toolbar. You can:</p>
-                <ul>
-                    <li>Make text <strong>bold</strong> (<code>Ctrl+B</code>), <em>italic</em> (<code>Ctrl+I</code>), or underlined (<code>Ctrl+U</code>)</li>
-                    <li>Add a <a href="#">link</a> to any selected text (<code>Ctrl+K</code>)</li>
-                    <li>Use inline <code>code</code> style for things like item names or game terms</li>
-                </ul>
+                <h3>Wiki-Specific Blocks</h3>
+                <table class="prop-table">
+                    <thead>
+                        <tr><th>Block</th><th>How to insert</th><th>What it does</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="tag tag-pink">Properties</span></td>
+                            <td><code>/properties</code></td>
+                            <td>A structured key-value data block. Add rows with a label and value (e.g. Race / Human, Class / Wizard). Supports five display modes: <strong>Horizontal</strong> (compact stat boxes), <strong>Vertical</strong> (a list), <strong>Stat Attributes</strong>, <strong>Stat Block</strong>, and <strong>Class Wiki Table</strong>. An <strong>Align</strong> dropdown (Left, Centre, Right) controls the block's horizontal alignment. Use this for character sheets, item stats, or any tabular data. A section label can be added above the block.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="tag tag-pink">Entry Link</span></td>
+                            <td><code>/entry link</code></td>
+                            <td>A clickable card that links to another entry within the wiki. Type a name in the search field to find the entry. Displays the entry's profile image, name, and category. Useful for "see also" references or relationship connections between characters.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <!-- COMMON USE CASES -->
-            <div class="guide-section" id="use-cases">
-                <h2>Common Use Cases</h2>
+            <!-- FORMATTING & SHORTCUTS -->
+            <div class="guide-section" id="formatting">
+                <h2>Inline Formatting &amp; Shortcuts</h2>
 
-                <h3>Character Backstory</h3>
-                <p>Use a <strong>Toggle Heading</strong> labelled "Backstory" so readers can choose to expand it. Keeps the page clean for people who want to avoid spoilers.</p>
+                <h3>Inline Formatting</h3>
+                <p>Select text inside any block to reveal the inline formatting toolbar. You can apply:</p>
+                <table class="prop-table">
+                    <thead><tr><th>Format</th><th>Keyboard shortcut</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Bold</strong></td><td><code>Ctrl+B</code></td></tr>
+                        <tr><td><em>Italic</em></td><td><code>Ctrl+I</code></td></tr>
+                        <tr><td><u>Underline</u></td><td><code>Ctrl+U</code></td></tr>
+                        <tr><td><s>Strikethrough</s></td><td><code>Ctrl+Shift+X</code></td></tr>
+                        <tr><td><code>Inline code</code></td><td><code>Ctrl+E</code></td></tr>
+                        <tr><td>Link</td><td><code>Ctrl+K</code></td></tr>
+                    </tbody>
+                </table>
 
-                <h3>Notable Session Events</h3>
-                <p>Create a <strong>Toggle Heading</strong> for each session (e.g. "Session 12 — The Bridge Encounter"). Write what happened inside. Readers can browse without spoiling future sessions.</p>
+                <h3>Markdown-Style Shortcuts</h3>
+                <p>The editor recognises common Markdown patterns typed inline and converts them automatically:</p>
+                <table class="prop-table">
+                    <thead><tr><th>Type this…</th><th>…to get</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>**text**</code> or <code>__text__</code></td><td><strong>Bold</strong></td></tr>
+                        <tr><td><code>*text*</code> or <code>_text_</code></td><td><em>Italic</em></td></tr>
+                        <tr><td><code>`text`</code></td><td><code>Inline code</code></td></tr>
+                        <tr><td><code>~~text~~</code></td><td><s>Strikethrough</s></td></tr>
+                        <tr><td><code>[text](url)</code></td><td>A hyperlink</td></tr>
+                        <tr><td><code># </code> at the start of a line</td><td>Heading (H2)</td></tr>
+                        <tr><td><code>## </code></td><td>Heading (H3)</td></tr>
+                        <tr><td><code>### </code></td><td>Heading (H4)</td></tr>
+                        <tr><td><code>- </code></td><td>Bulleted list item</td></tr>
+                        <tr><td><code>1. </code></td><td>Numbered list item</td></tr>
+                        <tr><td><code>--- </code></td><td>Divider</td></tr>
+                        <tr><td><code>" </code> at the start of a line</td><td>Quote block</td></tr>
+                    </tbody>
+                </table>
 
-                <h3>Voicelines</h3>
-                <p>Use an <strong>Audio</strong> block. On the wiki it renders as a small circular play button — click to play, click again to pause. Only one clip plays at a time, so multiple voicelines on the same page won't overlap. The audio file must be publicly hosted (not just saved on your computer).</p>
-                <p><strong>Labelling a voiceline:</strong> After inserting the audio block, click it in Notion and type in the caption field that appears below it. The caption becomes the label shown next to the play button on the wiki. Without a caption the button appears alone with no title, so it's good practice to always add one.</p>
-                <ul>
-                    <li>Upload to a file hosting service and paste the direct <code>.mp3</code> or <code>.wav</code> link</li>
-                    <li>If the voiceline is a YouTube clip, use a <strong>Video</strong> or <strong>Embed</strong> block instead</li>
-                </ul>
+                <h3>Editor Shortcuts</h3>
+                <table class="prop-table">
+                    <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Ctrl+S</code> / <code>Cmd+S</code></td><td>Save the entry</td></tr>
+                        <tr><td><code>/</code> at the start of a block</td><td>Open the block type menu</td></tr>
+                        <tr><td><code>Enter</code></td><td>Create a new block below</td></tr>
+                        <tr><td><code>Backspace</code> on an empty block</td><td>Delete the block and move focus up</td></tr>
+                        <tr><td><code>Tab</code> / <code>Shift+Tab</code></td><td>Indent / outdent list items</td></tr>
+                    </tbody>
+                </table>
 
-                <h3>Artwork &amp; Artist Credits</h3>
-                <p>Use an <strong>Image</strong> block and fill in the caption with the artist's name and a link to their portfolio. If you want multiple pieces side by side, use a <strong>Columns</strong> layout with an Image in each column.</p>
-                <p>For linking directly to an artist's page, use a <strong>Bookmark</strong> block — it creates a clearly labelled link card.</p>
-
-                <h3>Campaign Description / Overview</h3>
-                <p>Create a special entry in your campaign's database with Category set to something like "Overview". Use the page body for a full description, session zero notes, tone, themes, etc.</p>
-
-                <h3>Relationship Maps / Connection Lists</h3>
-                <p>Use a <strong>Table</strong> block or a <strong>Bulleted List</strong> with bold names and descriptions to list a character's relationships.</p>
-
-                <h3>Keeping Long Pages Readable</h3>
-                <p>For entries with a lot of content, use <strong>Toggle Headings</strong> for each major section. Readers can collapse sections they've already read or don't want spoiled.</p>
+                <h3>Auto-save Draft</h3>
+                <p>While you are editing, the editor automatically saves a local draft every 2 seconds after you stop typing. If you accidentally close the tab or navigate away, your unsaved work is preserved in the draft. The next time you open that entry in edit mode the draft will be restored.</p>
+                <div class="tip"><strong>Tip:</strong> A draft is a local backup only. Click <span class="btn-label btn-label-primary">✓ Save</span> to permanently publish your changes to the database.</div>
             </div>
 
-            <!-- CAMPAIGNS & CATEGORIES -->
-            <div class="guide-section" id="campaigns-categories">
-                <h2>Adding Campaigns &amp; Categories</h2>
-                <p>You don't need to do any setup before creating a new campaign or category — just type the name when creating an entry.</p>
+            <!-- MEDIA LIBRARY -->
+            <div class="guide-section" id="media">
+                <h2>Media Library</h2>
+                <p>The Media Library stores uploaded images and audio files on Cloudinary, keeping all your media in one place. You can access it from the <span class="btn-label">📁 Media</span> toolbar button, or from the browse button next to any image or audio URL field while editing.</p>
 
-                <h3>New Campaign</h3>
-                <ol>
-                    <li>Create or open any entry in the database.</li>
-                    <li>Click the <strong>Campaign</strong> field.</li>
-                    <li>Type the new campaign name and select <strong>Create [name]</strong>.</li>
-                </ol>
-                <p>The new campaign will immediately appear in the wiki's campaign list.</p>
+                <h3>Storage Bar</h3>
+                <p>At the top of the Media Library a progress bar shows how much Cloudinary storage you have used. It turns yellow at 70% and red at 90%. The bar shows the exact amount used and the total limit (e.g. <em>45.2 MB / 25 GB used (0.2%)</em>). The free Cloudinary tier includes 25 GB of storage and 25 GB of monthly bandwidth.</p>
 
-                <h3>New Category</h3>
-                <ol>
-                    <li>Same process — click the <strong>Category</strong> field on any entry and type a new name.</li>
-                    <li>The new category appears under its campaign automatically once at least one entry has it set.</li>
-                </ol>
+                <h3>Uploading Files</h3>
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">Select a folder in the left panel (or stay in <em>Uncategorized</em>). Uploading while "All Files" is selected sends the file to <em>Uncategorized</em>.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">Click <span class="btn-label">⬆ Upload</span> and choose a file from your device.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">The file uploads and appears in the library automatically. The active folder switches to the folder it was uploaded into.</div>
+                </div>
 
-                <div class="tip"><strong>Tip:</strong> Keep category names consistent — <span class="tag tag-pink">NPC</span> and <span class="tag tag-pink">NPCs</span> will show up as two separate categories on the wiki. Decide on a naming convention (plural is usually clearest) and stick to it.</div>
+                <h3>Browsing &amp; Selecting</h3>
+                <p>Use the left panel to filter by folder. Each folder shows a file count and the total size of its contents. A search bar lets you filter by filename across all folders. Images show a thumbnail, audio files show a 🎵 icon. Each card also shows the file size when available.</p>
+                <p>When the picker is opened from a URL field (e.g. profile image or banner), clicking <strong>Use</strong> on a card inserts its URL into that field. Filter tabs (All / Images / Audio) narrow the picker to the type relevant to the field that opened it.</p>
+
+                <h3>Copying a URL</h3>
+                <p>Click <span class="btn-label">📋 Copy URL</span> on any file card to copy the file's URL to the clipboard. The button briefly shows "✓ Copied" to confirm.</p>
+
+                <h3>Moving Files Between Folders</h3>
+                <p>Each file card has a folder dropdown at the bottom. Change the selection to move the file to a different folder. The URL never changes — only the library organisation is updated.</p>
+
+                <h3>Deleting Files</h3>
+                <p>Click <span class="btn-label btn-label-danger">✕ Delete</span> on a file card and confirm the prompt to permanently remove the file from Cloudinary. This cannot be undone. Any entries that reference the deleted file will show a broken image or missing audio.</p>
+
+                <h3>Folders</h3>
+                <p>Folders organise assets within the library but do not change URLs. <em>All Files</em> shows every asset regardless of folder. Files uploaded without a folder go into <em>Uncategorized</em>.</p>
+                <p>To create a new folder before uploading, click the <span class="btn-label">+ New Folder</span> button at the bottom of the sidebar and enter a name. The folder becomes active immediately so your next upload goes into it. Folders with no files do not persist — they disappear when you reload the manager.</p>
+
+                <div class="tip"><strong>Tip:</strong> For images used as profile pictures or banners, consider using folders named after the campaign to keep things organised (e.g. "Campaign-Name/Characters").</div>
             </div>
 
-            <!-- IMAGES -->
+            <!-- TEMPLATES -->
+            <div class="guide-section" id="templates">
+                <h2>Templates</h2>
+                <p>Templates let you save the content and structure of an entry and reuse it across future entries. Click the <span class="btn-label">📋 Templates</span> toolbar button to open the template panel at any time. The panel can be opened even when you are not editing — to browse, preview, or delete templates.</p>
+
+                <h3>Saving a Template</h3>
+                <p>The save form is only visible while you are in edit mode. If you open the Templates panel outside of edit mode, you will see only the list of saved templates.</p>
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">While editing an entry, open the Templates panel.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">Enter a name (required) and an optional description that reminds you what the template is for.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">Choose a save mode:
+                        <ul style="margin-top:0.4rem">
+                            <li><strong>Structure only</strong> — clears most text content but keeps the block structure, formatting, and heading text. Paragraph text, quote text, audio/image URLs, list items, and property values are cleared. Heading text, callout variant, and property row <em>keys</em> are preserved. Best for reusable page skeletons.</li>
+                            <li><strong>With content</strong> — saves the full entry exactly as it is, including all block text and settings.</li>
+                        </ul>
+                        In both modes the current entry settings (banner, accent colour, sidebar layout, etc.) are saved alongside the blocks.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-body">Click <span class="btn-label btn-label-primary">💾 Save current as template</span>. The panel closes and the template appears in the list immediately.</div>
+                </div>
+
+                <h3>Previewing a Template</h3>
+                <p>Click the <span class="btn-label">▾ Preview</span> button next to any template to expand a compact summary showing the number of blocks and a flow of their types (e.g. <em>5 blocks: Heading → Text → Properties → Divider → Text</em>). Click <span class="btn-label">▴ Preview</span> again to collapse it.</p>
+
+                <h3>Applying a Template</h3>
+                <p>The apply buttons — <strong>Overwrite</strong>, <strong>Append</strong>, and <strong>Smart</strong> — are only visible while you are in edit mode on an entry. If the Templates panel is opened outside of edit mode, only Preview and Delete are shown.</p>
+                <table class="prop-table">
+                    <thead><tr><th>Button</th><th>What it does</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="btn-label">Overwrite</span></td>
+                            <td>Replaces the entire current editor content with the template's blocks. If the template has saved entry settings (banner, layout, etc.), those are also applied. You will be asked to confirm before anything is changed.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label">Append</span></td>
+                            <td>Appends the template's blocks to the end of the current content without removing anything. Entry settings are not affected. Useful for inserting a boilerplate section into an existing entry.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-label">Smart</span></td>
+                            <td>Intelligently merges the template into the current content:
+                                <ul style="margin-top:0.4rem">
+                                    <li><strong>Properties block</strong> — if the current entry already has a Properties block, the template's property rows are merged into it. New keys are added; if the template has a value for an existing key, that value is updated.</li>
+                                    <li><strong>Headings</strong> — a template heading is only inserted if no heading with the same text already exists, preventing duplicate section headers.</li>
+                                    <li><strong>Everything else</strong> — appended to the end of the current content.</li>
+                                </ul>
+                                Entry settings are not affected by Smart mode.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>After applying any mode, the editor shows the merged result. Nothing is saved to the database until you click <span class="btn-label btn-label-primary">✓ Save</span>.</p>
+
+                <h3>Deleting a Template</h3>
+                <p>Click the <span class="btn-label btn-label-danger">✕</span> button on any template row and confirm the prompt. Template deletion is permanent and cannot be undone.</p>
+            </div>
+
+            <!-- IMAGES & MEDIA TIPS -->
             <div class="guide-section" id="images">
                 <h2>Images &amp; Media Tips</h2>
 
-                <h3>Profile Image (property)</h3>
-                <p>The <strong>Profile Image</strong> property expects a <strong>direct image URL</strong> — a link that ends in <code>.jpg</code>, <code>.png</code>, <code>.webp</code>, or similar, and starts with <code>https://</code>.</p>
-                <p>Good sources for permanent image links:</p>
+                <h3>Using the Media Library (Recommended)</h3>
+                <p>The easiest way to add images is to upload them to the Media Library first. Click the browse button (<span class="btn-label">📁</span>) next to any image URL field, upload your file, and it will be inserted automatically. Uploaded files are hosted on Cloudinary and URLs never expire.</p>
+
+                <h3>Using External URLs</h3>
+                <p>You can also paste any direct image URL into a URL field. The URL must point directly to the image file (not a page that contains it) and should start with <code>https://</code>. If you paste the URL into a browser address bar and only the image appears with no surrounding webpage, it is a valid direct URL.</p>
+                <p>Reliable sources for external direct-link images:</p>
                 <ul>
                     <li><strong>Imgur</strong> — right-click an image → Copy image address</li>
-                    <li><strong>Discord</strong> — upload the image to a channel, right-click → Copy link (note: Discord CDN links may expire)</li>
-                    <li><strong>Any direct image host</strong> — the URL must point directly to the image file, not a webpage containing it</li>
+                    <li><strong>Cloudinary</strong> (via the Media Library) — always preferred</li>
                 </ul>
-                <div class="tip"><strong>Tip:</strong> If you paste the URL into a browser address bar and you see only the image (nothing else on the page), it's a valid direct image URL.</div>
+                <div class="warn"><strong>Avoid Discord CDN links</strong> — Discord attachment URLs expire and will show broken images after a short time.</div>
 
-                <h3>Images in the Page Body</h3>
-                <p>For images <em>inside</em> the page body (not the profile picture), you can either:</p>
-                <ul>
-                    <li><strong>Upload directly to Notion</strong> — easiest, but Notion-hosted image URLs expire after ~1 hour. Fine for viewing, but the wiki may show broken images after a while if you use direct Notion uploads.</li>
-                    <li><strong>Use "Embed link"</strong> when adding the image block — paste an external URL. This won't expire.</li>
-                </ul>
-                <p>For artwork that needs to stay reliably visible, host it externally (Imgur, etc.) and paste the link.</p>
+                <h3>Recommended Media Hosting by Type</h3>
+                <table class="prop-table">
+                    <thead><tr><th>Type</th><th>Recommended</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>Images</td>
+                            <td><strong>Media Library (Cloudinary)</strong></td>
+                            <td>Upload directly on-site. 25 GB free storage. URLs never expire.</td>
+                        </tr>
+                        <tr>
+                            <td>Video</td>
+                            <td><strong>YouTube (unlisted)</strong></td>
+                            <td>No storage limit. Use the Embed block and paste the YouTube URL.</td>
+                        </tr>
+                        <tr>
+                            <td>Audio / Voice clips</td>
+                            <td><strong>Media Library</strong> or <strong>SoundCloud</strong></td>
+                            <td>Upload short clips directly. For longer audio, SoundCloud embeds work well.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Profile Images</h3>
+                <p>Profile images are displayed in the entry sidebar as portraits. Square or portrait-oriented images work best. Recommended minimum size: 300×300 px. The image is cropped to a square with rounded corners.</p>
+
+                <h3>Banner Images</h3>
+                <p>Banners are very wide and relatively short — a landscape image with an aspect ratio of roughly 3:1 to 6:1 works best. When using <strong>Fill (cover)</strong> fit, drag in the banner preview to set which part of the image stays centred when the banner is cropped.</p>
             </div>
 
         </div>
