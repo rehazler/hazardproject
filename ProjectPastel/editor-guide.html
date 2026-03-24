@@ -170,12 +170,16 @@
     <div id="navbar-placeholder"></div>
     <script src="scripts/navbar.js"></script>
 
-    <header>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/auth.js"></script>
+
+    <header style="visibility:hidden">
         <h1>Wiki Editor Guide</h1>
         <p style="text-align:center;color:#c9aedd;margin-top:-10px;">Managing the Voidverse wiki with the on-site editor</p>
     </header>
 
-    <main>
+    <main style="visibility:hidden">
         <div class="guide-container">
 
             <!-- TOC -->
@@ -183,7 +187,6 @@
                 <h2>Quick Navigation</h2>
                 <ul class="toc">
                     <li><a href="#how-it-works">How It Works</a></li>
-                    <li><a href="#logging-in">Logging In</a></li>
                     <li><a href="#toolbar">The Editor Toolbar</a></li>
                     <li><a href="#campaigns">Campaigns</a></li>
                     <li><a href="#categories">Categories</a></li>
@@ -209,15 +212,6 @@
                     <li><strong>Entries</strong> — individual wiki pages. Each entry has a settings panel (name, profile image, banner, layout options) and a full content editor.</li>
                 </ul>
                 <div class="tip"><strong>Tip:</strong> Changes are saved only when you click <span class="btn-label btn-label-primary">✓ Save</span> or press <code>Ctrl+S</code>. The editor auto-saves a local draft every 2 seconds while you type, but the draft is only a backup — always save to publish your changes.</div>
-            </div>
-
-            <!-- LOGGING IN -->
-            <div class="guide-section" id="logging-in">
-                <h2>Logging In</h2>
-                <p>Navigate to <a href="login.html">the login page</a> and sign in with your editor email and password. After a successful login you will be sent directly to the wiki and the editor toolbar will appear at the top of the page.</p>
-                <p>If you are already logged in and visit the login page, you will be redirected to the wiki automatically.</p>
-                <p>To log out, click the <span class="btn-label btn-label-danger">⏻ Log out</span> button in the toolbar.</p>
-                <div class="tip"><strong>Tip:</strong> Your session persists across browser sessions — you normally only need to log in once per device.</div>
             </div>
 
             <!-- EDITOR TOOLBAR -->
@@ -256,6 +250,7 @@
                     </tbody>
                 </table>
                 <p>A status message appears to the left of the buttons while you are editing — it shows the current block and word count, and any save or error messages.</p>
+                <div class="tip"><strong>Session:</strong> Your login persists across browser sessions — you normally only need to log in once per device. To sign out, click <span class="btn-label btn-label-danger">⏻ Log out</span>. You will be redirected to the login page to get back in.</div>
             </div>
 
             <!-- CAMPAIGNS -->
@@ -811,5 +806,17 @@
     <footer>
         <p>&copy; 2026 VoidDoll. All rights reserved.</p>
     </footer>
+
+    <script>
+    (async function () {
+        await auth.init();
+        if (!auth.isEditor()) {
+            window.location.replace('login.html');
+            return;
+        }
+        document.querySelector('header').style.visibility = '';
+        document.querySelector('main').style.visibility   = '';
+    }());
+    </script>
 </body>
 </html>
