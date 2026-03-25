@@ -10,7 +10,7 @@ function loadNavbar() {
             <li><a href="livestreams.html">Livestreams &amp; Playlists</a></li>
             <li><a href="wiki-supabase.html">Wiki</a></li>
             <li><a href="forms.html">Forms</a></li>
-            <li><a href="editor-guide.html">Editor Guide</a></li>
+            <li id="nav-editor-guide" style="display:none"><a href="editor-guide.html">Editor Guide</a></li>
         </ul>
     `;
     document.getElementById('navbar-placeholder').appendChild(nav);
