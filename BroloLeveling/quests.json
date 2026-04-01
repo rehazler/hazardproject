@@ -1,0 +1,29 @@
+{
+  "beginner": [
+    { "id": "abs", "name": "Abs" },
+    { "id": "weight-lifting", "name": "Weight Lifting" },
+    { "id": "cardio", "name": "Cardio" },
+    { "id": "stretching", "name": "Stretching" },
+    { "id": "swimming", "name": "Swimming" }
+  ],
+  "intermediate": [
+    { "id": "abs", "name": "Abs" },
+    { "id": "weight-lifting", "name": "Weight Lifting" },
+    { "id": "cardio", "name": "Cardio" },
+    { "id": "boxing", "name": "Boxing" },
+    { "id": "hiit", "name": "HIIT" },
+    { "id": "cycling", "name": "Cycling" },
+    { "id": "swimming", "name": "Swimming" },
+    { "id": "stretching", "name": "Stretching" }
+  ],
+  "rest": [
+    { "name": "Rest Day", "tip": "Active recovery is key. Try light stretching or a short walk." },
+    { "name": "Cheat/Rest Day", "tip": "Rest and recharge. Muscles grow during recovery!" }
+  ],
+  "milestones": [
+    { "level": 10, "title": "NOVICE WARRIOR", "bonusXP": 50 },
+    { "level": 25, "title": "BATTLE HARDENED", "bonusXP": 150 },
+    { "level": 50, "title": "ELITE ATHLETE", "bonusXP": 500 },
+    { "level": 100, "title": "LEGENDARY STATUS", "bonusXP": 1000 }
+  ]
+}

@@ -18,40 +18,59 @@
         </div>
     </div>
     <div class="container">
+        <!-- FORM SECTION -->
         <form id="fitness-form">
             <div class="nav-buttons">
                 <button class="left highlight" type="button" onclick="showForm()">Form</button>
+                <button class="middle" type="button" onclick="showStats()">Stats</button>
                 <button class="right" type="button" onclick="showProfile()">Profile</button>
+            </div>
+            <div id="submitted-banner" class="submitted-banner" style="display:none;">
+                ✓ Already submitted today. See you tomorrow, Hunter!
             </div>
             <div id="daily-quest-items"></div>
             <div class="input-group">
-            <label>Quest Items:</label>
-            <div class="input-group" id="calorie-count-group">
-                <label>Calorie Count:</label>
-                <input type="number" id="calories" name="calories" placeholder="Enter # of calories eaten" onchange="updateQuestStatus()">
+                <label>Quest Items:</label>
+                <div class="input-group" id="calorie-count-group">
+                    <label>Calorie Count:</label>
+                    <input type="number" id="calories" name="calories" placeholder="Enter # of calories eaten" onchange="updateQuestStatus()">
+                </div>
+                <div id="workout-blocks-group">
+                    <span>30 Minute Workout Blocks</span>
+                    <input type="number" name="workout-blocks" id="workout-blocks" placeholder="Enter # of workout blocks">
+                </div>
             </div>
-                <span>30 Minute Workout Blocks</span>
-                <input type="number" name="workout-blocks" id="workout-blocks" placeholder="Enter # of workout blocks">
-            </div>
-            <div class="input-group">
-                <span>Miles Run</span>
-                <input type="number" name="mile-count" id="mile-count" placeholder="Enter # of miles run" onchange="updateQuestStatus()">
+            <div class="input-group" id="step-count-group" style="display:none;">
+                <span>Steps Today</span>
+                <input type="number" name="step-count" id="step-count" placeholder="Enter # of steps today" onchange="updateQuestStatus()">
             </div>
             <div class="input-group" id="weigh-in-group">
                 <label>Weigh In:</label>
-                <input type="number" id="weight" name="weight" placeholder="Enter weight">
+                <input type="number" id="weight" name="weight" placeholder="Enter weight" onchange="updateQuestStatus()">
             </div>
             <button class="submit" type="button" onclick="calculateExperience()">Submit</button>
         </form>
 
+        <!-- STATS SECTION -->
+        <div id="stats-section" style="display: none;">
+            <div class="nav-buttons">
+                <button class="left" type="button" onclick="showForm()">Form</button>
+                <button class="middle highlight" type="button" onclick="showStats()">Stats</button>
+                <button class="right" type="button" onclick="showProfile()">Profile</button>
+            </div>
+            <div id="stats-content"></div>
+        </div>
+
+        <!-- PROFILE SECTION -->
         <div id="profile-section" style="display: none;">
             <div class="nav-buttons">
                 <button class="left" type="button" onclick="showForm()">Form</button>
+                <button class="middle" type="button" onclick="showStats()">Stats</button>
                 <button class="right highlight" type="button" onclick="showProfile()">Profile</button>
             </div>
             <div class="input-group">
                 <label>Previous Weight:</label>
-                <input type="number" id="previous-weight" name="previous-weight">
+                <input type="number" id="previous-weight" name="previous-weight" placeholder="Enter previous weight">
             </div>
             <div class="input-group">
                 <label>Goal Weight:</label>
@@ -69,6 +88,7 @@
                 <input type="number" id="step-goal" name="step-goal" placeholder="Enter step goal">
             </div>
             <button class="submit" type="button" onclick="saveProfile()">Save Profile</button>
+            <p id="profile-save-msg" class="save-msg" style="display:none;">Profile saved!</p>
         </div>
 
         <div id="level-section">
