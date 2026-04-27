@@ -1,0 +1,45 @@
+name: Supabase Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'   # every Sunday at 02:00 UTC
+  workflow_dispatch:        # allow manual trigger from Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch tables from Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          DIR="backups/$DATE"
+          mkdir -p "$DIR"
+
+          for TABLE in campaigns categories entries blocks; do
+            curl -sf \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/$TABLE?select=*" \
+              -o "$DIR/$TABLE.json"
+            echo "Fetched $TABLE → $DIR/$TABLE.json"
+          done
+
+      - name: Commit backup
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          if git diff --cached --quiet; then
+            echo "No changes — skipping commit"
+          else
+            git commit -m "chore: weekly Supabase backup $(date -u +%Y-%m-%d)"
+            git push
+          fi

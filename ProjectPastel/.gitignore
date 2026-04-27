@@ -1,0 +1,36 @@
+# Local dev
+*.DS_Store
+Thumbs.db
+
+# Sensitive / not for upload
+"../DON'T UPLOAD/"
+../DON'T UPLOAD/
+
+# Backups (kept locally, committed via GitHub Actions only)
+../PastelBackups/
+"../ProjectPastel copy/"
+
+# Wrangler local state
+.wrangler/
+
+# Assets not yet approved for upload
+Assets/TransparentAnimatedDecorations/Originals/
+Assets/TransparentIcons/Card_36x36.png
+Assets/TransparentIcons/Card_72x72.png
+Assets/TransparentIcons/Crystal_18x18.png
+Assets/TransparentIcons/Crystal_36x36.png
+Assets/TransparentIcons/Crystal_72x72.png
+Assets/TransparentIcons/Crystal_Ball_36x36.png
+Assets/TransparentIcons/Crystal_Ball_72x72.png
+Assets/TransparentIcons/Hat_1x18.png
+Assets/TransparentIcons/Hat_72x72.png
+Assets/TransparentIcons/Lolipop_18x18.png
+Assets/TransparentIcons/Lolipop_36x36.png
+Assets/TransparentIcons/Lolipop_72x72.png
+Assets/TransparentIcons/Moon_36x36.png
+Assets/TransparentIcons/Moon_72x72.png
+Assets/TransparentIcons/Potion_18x18.png
+Assets/TransparentIcons/Potion_72x72.png
+Assets/TransparentIcons/Pumpkin_18x18.png
+Assets/TransparentIcons/Pumpkin_36x36.png
+Assets/TransparentIcons/Pumpkin_72x72.png
