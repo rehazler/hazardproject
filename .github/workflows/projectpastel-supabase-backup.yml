@@ -1,4 +1,4 @@
-name: Supabase Backup
+name: ProjectPastel Supabase Backup
 
 on:
   schedule:
@@ -14,13 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch tables from Supabase
+      - name: Fetch ProjectPastel tables from Supabase
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.PROJECTPASTEL_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.PROJECTPASTEL_SUPABASE_ANON_KEY }}
         run: |
           DATE=$(date -u +%Y-%m-%d)
-          DIR="backups/$DATE"
+          DIR="ProjectPastel/backups/$DATE"
           mkdir -p "$DIR"
 
           for TABLE in campaigns categories entries blocks; do
@@ -36,10 +36,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add backups/
+          git add ProjectPastel/backups/
           if git diff --cached --quiet; then
             echo "No changes — skipping commit"
           else
-            git commit -m "chore: weekly Supabase backup $(date -u +%Y-%m-%d)"
+            git commit -m "chore(ProjectPastel): weekly Supabase backup $(date -u +%Y-%m-%d)"
             git push
           fi
