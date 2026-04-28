@@ -5,6 +5,9 @@ on:
     - cron: '0 2 * * 0'   # every Sunday at 02:00 UTC
   workflow_dispatch:        # allow manual trigger from Actions tab
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -13,6 +16,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          if [ -z "${{ secrets.PROJECTPASTEL_SUPABASE_URL }}" ] || [ -z "${{ secrets.PROJECTPASTEL_SUPABASE_ANON_KEY }}" ]; then
+            echo "ERROR: PROJECTPASTEL_SUPABASE_URL or PROJECTPASTEL_SUPABASE_ANON_KEY secret is not set."
+            exit 1
+          fi
 
       - name: Fetch ProjectPastel tables from Supabase
         env:
@@ -28,7 +38,8 @@ jobs:
               -H "apikey: $SUPABASE_ANON_KEY" \
               -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
               "$SUPABASE_URL/rest/v1/$TABLE?select=*" \
-              -o "$DIR/$TABLE.json"
+              -o "$DIR/$TABLE.json" \
+              || { echo "ERROR: failed to fetch $TABLE"; exit 1; }
             echo "Fetched $TABLE → $DIR/$TABLE.json"
           done
 
