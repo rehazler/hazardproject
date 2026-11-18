@@ -4408,3 +4408,118 @@ body.wiki-page img.wiki-section-float-img--left {
 /* Text overlay expand section */
 .bsc-text-extra { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
 .bsc-text-extra[hidden] { display: none; }
+
+/* ── Session summarizer (summarizer.html) ─────────────────────────────────── */
+
+.sum-page { max-width: 860px; margin: 0 auto; }
+
+.sum-usage { margin: 20px 0; text-align: center; color: #a08ab0; font-size: 0.85rem; }
+.sum-usage progress { width: 100%; height: 10px; accent-color: #98e6d6; }
+
+.sum-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.sum-panel textarea,
+.sum-panel select,
+.sum-panel input[type="text"] {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 8px;
+    color: #f4f4f4;
+    font-family: 'Spectral', serif;
+    font-size: 0.95rem;
+    resize: vertical;
+}
+.sum-panel select option { background: #2b1b2e; }
+.sum-panel textarea:focus,
+.sum-panel select:focus,
+.sum-panel input[type="text"]:focus { border-color: #d3b3e7; outline: none; }
+
+.sum-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.sum-secondary { opacity: 0.75; }
+.sum-hint { color: #a08ab0; font-size: 0.85rem; margin: 0; }
+.sum-hint a { color: #98e6d6; }
+
+.sum-question {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border-left: 2px solid #f3b0c3;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+.sum-q-loc { margin: 0; font-size: 0.8rem; color: #98e6d6; font-family: monospace; }
+.sum-question blockquote,
+.sum-doc blockquote { margin: 0; padding-left: 12px; border-left: 2px solid #d3b3e7; color: #c9b8d6; font-style: italic; }
+
+.sum-save { border: 1px solid #503554; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.sum-save legend { color: #d3b3e7; padding: 0 6px; }
+
+.sum-doc { line-height: 1.6; }
+.sum-doc code { color: #98e6d6; }
+.sum-draft-wrap summary { cursor: pointer; color: #d3b3e7; }
+.sum-ref-panel { display: flex; flex-direction: column; gap: 10px; }
+.sum-panel + .sum-panel { margin-top: 20px; }
+
+/* Waiting indicator: each letter bobs up and down, staggered into a wave */
+.sum-wave {
+    font-family: 'Cinzel', serif;
+    font-size: 1.15rem;
+    color: #d3b3e7;
+    text-align: center;
+    min-height: 2.2em;
+    margin: 8px 0;
+}
+.sum-wave span {
+    display: inline-block;
+    animation: sum-wave 1.4s ease-in-out infinite;
+}
+@keyframes sum-wave {
+    0%, 60%, 100% { transform: translateY(0);    color: #d3b3e7; }
+    30%           { transform: translateY(-7px); color: #98e6d6; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sum-wave span { animation: none; }
+}
+
+.sum-danger { background: transparent; border: 1px solid #f3b0c3; color: #f3b0c3; }
+
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.sum-models { border: 1px solid #503554; border-radius: 8px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.sum-models legend { color: #d3b3e7; padding: 0 6px; }
+.sum-model { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 0.92rem; color: #c9b8d6; }
+.sum-model input { margin-top: 5px; accent-color: #98e6d6; }
+.sum-model strong { display: block; color: #f4f4f4; }
+
+/* Change review (line edits) */
+.sum-diff-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.sum-diff-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; border: 1px solid #503554; border-radius: 8px; background: rgba(255, 255, 255, 0.03);
+}
+.sum-diff-item input { margin-top: 4px; accent-color: #98e6d6; }
+.sum-diff-item.is-conflict { opacity: 0.6; border-style: dashed; }
+.sum-diff-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sum-diff-meta { font-size: 0.8rem; color: #a08ab0; }
+.sum-diff-reason { font-size: 0.9rem; color: #f4f4f4; }
+.sum-diff-old, .sum-diff-new, .sum-diff-ctx {
+    margin: 0; padding: 6px 8px; border-radius: 4px; font-size: 0.85rem;
+    white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
+}
+.sum-diff-old { background: rgba(243, 176, 195, 0.12); color: #f3b0c3; text-decoration: line-through; }
+.sum-diff-new { background: rgba(152, 230, 214, 0.12); color: #98e6d6; }
+.sum-diff-ctx { color: #a08ab0; }

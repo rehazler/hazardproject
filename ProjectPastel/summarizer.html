@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voidverse | Session Summarizer</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+    <script src="scripts/navbar.js"></script>
+
+    <header>
+        <h1>Session Summarizer</h1>
+        <p>Turn a session transcript into archive-ready notes</p>
+    </header>
+
+    <main class="sum-page">
+        <section class="sum-usage" aria-live="polite">
+            <progress id="sum-usage-bar" max="100" value="0"></progress>
+            <p id="sum-usage-text">Checking usage…</p>
+        </section>
+
+        <!-- Campaign + reference doc -->
+        <section class="sum-panel">
+            <div class="login-field">
+                <label for="sum-campaign">Campaign</label>
+                <select id="sum-campaign"></select>
+            </div>
+            <p class="sum-hint"><span id="sum-ref-status"></span>
+                · <a href="#reference" id="sum-ref-toggle">View / edit reference doc</a></p>
+
+            <div id="sum-ref-panel" class="sum-ref-panel" hidden>
+                <p class="sum-hint">Characters, NPCs and locations for this campaign. Claude uses it for name spellings
+                    and facts, and proposes updates to it after every summary. Fix anything here at any time.</p>
+                <textarea id="sum-ref-text" rows="18" placeholder="No reference doc yet. Paste or upload one, or let the first summary create it."></textarea>
+                <div class="sum-actions">
+                    <input id="sum-ref-file" type="file" accept=".txt,.md,text/plain">
+                    <button id="sum-ref-save" type="button">Save reference doc</button>
+                </div>
+                <div class="sum-actions">
+                    <select id="sum-ref-versions" aria-label="Earlier versions"></select>
+                    <button id="sum-ref-restore" type="button" class="sum-secondary">Load this version</button>
+                </div>
+                <p id="sum-ref-msg" class="sum-hint" hidden></p>
+            </div>
+        </section>
+
+        <!-- Step 1 -->
+        <section id="sum-step-input" class="sum-panel" hidden>
+            <h2>1 · Transcript</h2>
+            <div class="login-field">
+                <label for="sum-transcript">Session transcript</label>
+                <textarea id="sum-transcript" rows="12" placeholder="Paste the transcript here…"></textarea>
+                <input id="sum-transcript-file" type="file" accept=".txt,.md,.srt,.vtt,text/plain">
+            </div>
+            <fieldset class="sum-models">
+                <legend>Which Claude should write it?</legend>
+                <label class="sum-model">
+                    <input type="radio" name="sum-model" value="opus" checked>
+                    <span><strong>Opus — most accurate</strong>
+                        Best for long, messy sessions with lots of characters and crosstalk, where small details
+                        matter. Uses about twice as much of the monthly credits.</span>
+                </label>
+                <label class="sum-model">
+                    <input type="radio" name="sum-model" value="sonnet">
+                    <span><strong>Sonnet — good and economical</strong>
+                        Very good for most sessions at about half the cost, so the monthly credits last roughly twice as
+                        long. May miss a few more small details on long or chaotic sessions.</span>
+                </label>
+            </fieldset>
+            <p id="sum-input-err" class="login-error" hidden></p>
+            <button id="sum-run" type="button">Summarize</button>
+        </section>
+
+        <!-- Waiting on a batch -->
+        <section id="sum-step-wait" class="sum-panel" hidden>
+            <h2 id="sum-wait-title">Claude is working…</h2>
+            <p id="sum-wave" class="sum-wave" aria-hidden="true"></p>
+            <p class="sr-only">Working on your summary. This page updates by itself when it is ready.</p>
+            <p>This usually takes a few minutes, sometimes longer. You can close this page and come back
+                any time — progress is saved.</p>
+            <p id="sum-wait-status" class="sum-hint"></p>
+            <div class="sum-actions">
+                <button id="sum-wait-check" type="button" class="sum-secondary">Check now</button>
+                <button class="sum-discard sum-danger" type="button">Cancel this run</button>
+            </div>
+        </section>
+
+        <!-- Failed run -->
+        <section id="sum-step-error" class="sum-panel" hidden>
+            <h2>Something went wrong</h2>
+            <p id="sum-error-text" class="login-error"></p>
+            <div class="sum-actions">
+                <button id="sum-retry" type="button">Try again</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section id="sum-step-clarify" class="sum-panel" hidden>
+            <h2>2 · Clarifications (<span id="sum-clarify-count">0</span>)</h2>
+            <p>Claude wasn't sure about these parts of the transcript. Answer what you can — answers save as you type.</p>
+            <div id="sum-questions"></div>
+            <p id="sum-clarify-err" class="login-error" hidden></p>
+            <div class="sum-actions">
+                <button id="sum-finalize" type="button">Create final summary</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+            <details class="sum-draft-wrap">
+                <summary>View draft summary</summary>
+                <div id="sum-draft" class="sum-doc"></div>
+            </details>
+        </section>
+
+        <!-- Step 3 -->
+        <section id="sum-step-review" class="sum-panel" hidden>
+          <!-- 3a: review Claude's proposed changes -->
+          <div id="sum-diff">
+            <h2>3 · Review changes</h2>
+            <p>Claude applied your answers as a list of changes. Untick anything you don't want, then apply.
+                Red is removed, green is added.</p>
+            <h3>Summary (<span id="sum-diff-sum-count">0</span>)</h3>
+            <div id="sum-diff-summary" class="sum-diff-list"></div>
+            <h3>Reference doc (<span id="sum-diff-ref-count">0</span>)</h3>
+            <div id="sum-diff-reference" class="sum-diff-list"></div>
+            <div class="sum-actions">
+                <button id="sum-diff-apply" type="button">Apply selected changes</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+          </div>
+
+          <!-- 3b: final output -->
+          <div id="sum-output">
+            <h2>3 · Final summary</h2>
+            <div class="sum-actions">
+                <button id="sum-copy" type="button">Copy Markdown</button>
+                <button id="sum-download" type="button">Download .md</button>
+            </div>
+
+            <fieldset class="sum-save">
+                <legend>Save to wiki</legend>
+                <div class="login-field">
+                    <label for="sum-category">Category</label>
+                    <select id="sum-category"></select>
+                </div>
+                <div class="login-field" id="sum-new-cat-field" hidden>
+                    <label for="sum-new-cat">New category name</label>
+                    <input id="sum-new-cat" type="text" value="Session Recaps">
+                </div>
+                <div class="login-field">
+                    <label for="sum-entry-name">Entry name</label>
+                    <input id="sum-entry-name" type="text">
+                </div>
+                <div class="login-field">
+                    <label for="sum-entry-subtitle">Subtitle (optional, shown under the title)</label>
+                    <input id="sum-entry-subtitle" type="text">
+                </div>
+                <p class="sum-hint">Creates a normal wiki entry at the end of the chosen category. You can edit, move or
+                    delete it in the wiki like any other entry.</p>
+                <button id="sum-save" type="button">Create wiki entry</button>
+                <p id="sum-save-msg" class="sum-hint" hidden></p>
+            </fieldset>
+
+            <fieldset class="sum-save" id="sum-ref-update">
+                <legend>Reference doc update</legend>
+                <p class="sum-hint">The reference doc with the changes you accepted. Nothing changes until you
+                    save. Check name spellings and edit freely.</p>
+                <textarea id="sum-ref-proposed" rows="14"></textarea>
+                <button id="sum-ref-apply" type="button">Save as reference doc</button>
+                <p id="sum-ref-apply-msg" class="sum-hint" hidden></p>
+            </fieldset>
+
+            <div id="sum-final" class="sum-doc"></div>
+
+            <div class="sum-actions">
+                <button id="sum-diff-back" type="button" class="sum-secondary">← Back to the change list</button>
+                <button id="sum-finish" type="button">Finish — start a new session</button>
+            </div>
+          </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 VoidDoll. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/summarizer-edits.js"></script>
+    <script src="scripts/summarizer.js"></script>
+</body>
+</html>

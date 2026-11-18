@@ -301,6 +301,90 @@ const API = {
         if (error) throw new Error(error.message);
     },
 
+    // ── AI summarizer (editor-only tables, never cached) ──────────────────────
+
+    // One row per Claude message; message_id makes repeat calls a no-op.
+    // cost_usd is computed by the DB.
+    async logAiUsage(kind, message) {
+        const u = message.usage;
+        const { error } = await _sb.from('ai_usage').upsert({
+            message_id:         message.id,
+            kind,
+            batch:              true,
+            model:              message.model,
+            input_tokens:       u.input_tokens || 0,
+            output_tokens:      u.output_tokens || 0,
+            cache_write_tokens: u.cache_creation_input_tokens || 0,
+            cache_read_tokens:  u.cache_read_input_tokens || 0,
+        }, { onConflict: 'message_id', ignoreDuplicates: true });
+        if (error) throw new Error(error.message);
+    },
+
+    async getCampaignReference(campaignId) {
+        const { data, error } = await _sb
+            .from('campaign_references').select('content, updated_at').eq('campaign_id', campaignId).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data || { content: '', updated_at: null };
+    },
+
+    // Previous text is kept automatically by a DB trigger.
+    async saveCampaignReference(campaignId, content) {
+        const { error } = await _sb
+            .from('campaign_references').upsert({ campaign_id: campaignId, content }, { onConflict: 'campaign_id' });
+        if (error) throw new Error(error.message);
+    },
+
+    async getCampaignReferenceVersions(campaignId) {
+        const { data, error } = await _sb
+            .from('campaign_reference_versions').select('id, content, created_at')
+            .eq('campaign_id', campaignId).order('created_at', { ascending: false }).limit(20);
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    // Latest unfinished summarizer job for a campaign, or null.
+    async getOpenSummaryJob(campaignId) {
+        const { data, error } = await _sb
+            .from('summary_jobs').select('*').eq('campaign_id', campaignId).neq('stage', 'done')
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async createSummaryJob(fields) {
+        const { data, error } = await _sb.from('summary_jobs').insert(fields).select().single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    // Atomic compare-and-set: applies `fields` only if the row still matches
+    // `match`. Returns the updated row, or null if another tab got there first.
+    async claimSummaryJob(id, match, fields) {
+        let q = _sb.from('summary_jobs').update(fields).eq('id', id);
+        for (const [k, v] of Object.entries(match)) q = q.eq(k, v);
+        const { data, error } = await q.select();
+        if (error) throw new Error(error.message);
+        return data[0] || null;
+    },
+
+    async getSummaryJob(id) {
+        const { data, error } = await _sb.from('summary_jobs').select('*').eq('id', id).single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getCanceledSummaryJobs() {
+        const { data, error } = await _sb.from('summary_jobs').select('id, stage, batch_id').eq('status', 'canceled');
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async updateSummaryJob(id, fields) {
+        const { data, error } = await _sb.from('summary_jobs').update(fields).eq('id', id).select().single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
     async getSession() {
         const { data } = await _sb.auth.getSession();
         return data.session;

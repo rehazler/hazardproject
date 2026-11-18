@@ -816,8 +816,10 @@
         }
         document.querySelector('header').style.visibility = '';
         document.querySelector('main').style.visibility   = '';
-        const navLink = document.getElementById('nav-editor-guide');
-        if (navLink) navLink.style.display = '';
+        ['nav-editor-guide', 'nav-summarizer'].forEach(id => {
+            const navLink = document.getElementById(id);
+            if (navLink) navLink.style.display = '';
+        });
     }());
     </script>
 </body>

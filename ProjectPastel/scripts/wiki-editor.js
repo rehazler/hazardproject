@@ -61,8 +61,10 @@
     function editorGuard() {
         if (!auth.isEditor()) return false;
         toolbar.style.display = '';
-        const navLink = document.getElementById('nav-editor-guide');
-        if (navLink) navLink.style.display = '';
+        ['nav-editor-guide', 'nav-summarizer'].forEach(id => {
+            const navLink = document.getElementById(id);
+            if (navLink) navLink.style.display = '';
+        });
         return true;
     }
 
