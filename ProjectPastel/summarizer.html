@@ -19,35 +19,29 @@
     </header>
 
     <main class="sum-page">
-        <section class="sum-usage" aria-live="polite">
-            <progress id="sum-usage-bar" max="100" value="0"></progress>
-            <p id="sum-usage-text">Checking usage…</p>
-        </section>
-
-        <!-- Campaign + reference doc -->
-        <section class="sum-panel">
-            <div class="login-field">
-                <label for="sum-campaign">Campaign</label>
-                <select id="sum-campaign"></select>
+        <!-- Always visible: which campaign, its reference doc, monthly usage -->
+        <div class="sum-bar">
+            <div class="sum-bar-row">
+                <span class="sum-campaign-pick">
+                    <label for="sum-campaign">Campaign</label>
+                    <select id="sum-campaign"></select>
+                </span>
+                <button id="sum-ref-open" type="button" class="sum-secondary">
+                    Reference doc <span id="sum-ref-status" class="sum-bar-small"></span>
+                </button>
             </div>
-            <p class="sum-hint"><span id="sum-ref-status"></span>
-                · <a href="#reference" id="sum-ref-toggle">View / edit reference doc</a></p>
-
-            <div id="sum-ref-panel" class="sum-ref-panel" hidden>
-                <p class="sum-hint">Characters, NPCs and locations for this campaign. Claude uses it for name spellings
-                    and facts, and proposes updates to it after every summary. Fix anything here at any time.</p>
-                <textarea id="sum-ref-text" rows="18" placeholder="No reference doc yet. Paste or upload one, or let the first summary create it."></textarea>
-                <div class="sum-actions">
-                    <input id="sum-ref-file" type="file" accept=".txt,.md,text/plain">
-                    <button id="sum-ref-save" type="button">Save reference doc</button>
-                </div>
-                <div class="sum-actions">
-                    <select id="sum-ref-versions" aria-label="Earlier versions"></select>
-                    <button id="sum-ref-restore" type="button" class="sum-secondary">Load this version</button>
-                </div>
-                <p id="sum-ref-msg" class="sum-hint" hidden></p>
+            <div class="sum-usage" aria-live="polite">
+                <progress id="sum-usage-bar" max="100" value="0"></progress>
+                <p id="sum-usage-text">Checking usage…</p>
             </div>
-        </section>
+        </div>
+
+        <ol id="sum-stepper" class="sum-stepper" aria-label="Progress">
+            <li data-n="1">Transcript</li>
+            <li data-n="2">Questions</li>
+            <li data-n="3">Review changes</li>
+            <li data-n="4">Save</li>
+        </ol>
 
         <!-- Step 1 -->
         <section id="sum-step-input" class="sum-panel" hidden>
@@ -102,7 +96,7 @@
 
         <!-- Step 2 -->
         <section id="sum-step-clarify" class="sum-panel" hidden>
-            <h2>2 · Clarifications (<span id="sum-clarify-count">0</span>)</h2>
+            <h2>2 · Questions (<span id="sum-clarify-count">0</span>)</h2>
             <p>Claude wasn't sure about these parts of the transcript. Answer what you can — answers save as you type.</p>
             <div id="sum-questions"></div>
             <p id="sum-clarify-err" class="login-error" hidden></p>
@@ -116,33 +110,50 @@
             </details>
         </section>
 
-        <!-- Step 3 -->
+        <!-- Steps 3 and 4 -->
         <section id="sum-step-review" class="sum-panel" hidden>
-          <!-- 3a: review Claude's proposed changes -->
-          <div id="sum-diff">
+
+          <!-- 3: review Claude's proposed changes -->
+          <div id="sum-diff" class="sum-tabgroup">
             <h2>3 · Review changes</h2>
             <p>Claude applied your answers as a list of changes. Untick anything you don't want, then apply.
                 Red is removed, green is added.</p>
-            <h3>Summary (<span id="sum-diff-sum-count">0</span>)</h3>
-            <div id="sum-diff-summary" class="sum-diff-list"></div>
-            <h3>Reference doc (<span id="sum-diff-ref-count">0</span>)</h3>
-            <div id="sum-diff-reference" class="sum-diff-list"></div>
+            <div class="sum-tabs" role="tablist">
+                <button type="button" role="tab" class="sum-tab is-active" data-pane="sum-diff-pane-summary">Summary (<span id="sum-diff-sum-count">0</span>)</button>
+                <button type="button" role="tab" class="sum-tab" data-pane="sum-diff-pane-reference">Reference doc (<span id="sum-diff-ref-count">0</span>)</button>
+            </div>
+            <div id="sum-diff-pane-summary" class="sum-pane" role="tabpanel">
+                <div id="sum-diff-summary" class="sum-diff-list"></div>
+            </div>
+            <div id="sum-diff-pane-reference" class="sum-pane" role="tabpanel" hidden>
+                <p class="sum-hint">Changes to this campaign's characters, NPCs and locations.
+                    <button type="button" class="sum-linkish" id="sum-ref-open-2">View the full reference doc</button></p>
+                <div id="sum-diff-reference" class="sum-diff-list"></div>
+            </div>
             <div class="sum-actions">
                 <button id="sum-diff-apply" type="button">Apply selected changes</button>
                 <button class="sum-discard sum-secondary" type="button">Discard this run</button>
             </div>
           </div>
 
-          <!-- 3b: final output -->
-          <div id="sum-output">
-            <h2>3 · Final summary</h2>
-            <div class="sum-actions">
-                <button id="sum-copy" type="button">Copy Markdown</button>
-                <button id="sum-download" type="button">Download .md</button>
+          <!-- 4: final output -->
+          <div id="sum-output" class="sum-tabgroup">
+            <h2>4 · Save your summary</h2>
+            <div class="sum-tabs" role="tablist">
+                <button type="button" role="tab" class="sum-tab is-active" data-pane="sum-out-pane-summary">Summary</button>
+                <button type="button" role="tab" class="sum-tab" data-pane="sum-out-pane-wiki">Save to wiki</button>
+                <button type="button" role="tab" class="sum-tab" id="sum-tab-ref-out" data-pane="sum-out-pane-ref">Reference doc</button>
             </div>
 
-            <fieldset class="sum-save">
-                <legend>Save to wiki</legend>
+            <div id="sum-out-pane-summary" class="sum-pane" role="tabpanel">
+                <div class="sum-actions">
+                    <button id="sum-copy" type="button">Copy Markdown</button>
+                    <button id="sum-download" type="button">Download .md</button>
+                </div>
+                <div id="sum-final" class="sum-doc"></div>
+            </div>
+
+            <div id="sum-out-pane-wiki" class="sum-pane" role="tabpanel" hidden>
                 <div class="login-field">
                     <label for="sum-category">Category</label>
                     <select id="sum-category"></select>
@@ -163,18 +174,15 @@
                     delete it in the wiki like any other entry.</p>
                 <button id="sum-save" type="button">Create wiki entry</button>
                 <p id="sum-save-msg" class="sum-hint" hidden></p>
-            </fieldset>
+            </div>
 
-            <fieldset class="sum-save" id="sum-ref-update">
-                <legend>Reference doc update</legend>
+            <div id="sum-out-pane-ref" class="sum-pane" role="tabpanel" hidden>
                 <p class="sum-hint">The reference doc with the changes you accepted. Nothing changes until you
                     save. Check name spellings and edit freely.</p>
                 <textarea id="sum-ref-proposed" rows="14"></textarea>
                 <button id="sum-ref-apply" type="button">Save as reference doc</button>
                 <p id="sum-ref-apply-msg" class="sum-hint" hidden></p>
-            </fieldset>
-
-            <div id="sum-final" class="sum-doc"></div>
+            </div>
 
             <div class="sum-actions">
                 <button id="sum-diff-back" type="button" class="sum-secondary">← Back to the change list</button>
@@ -183,6 +191,28 @@
           </div>
         </section>
     </main>
+
+    <!-- Reference doc editor. Wide and tall on purpose: the same dialog can also host a side-by-side diff. -->
+    <dialog id="sum-ref-dialog" class="sum-dialog" aria-labelledby="sum-ref-title">
+        <header class="sum-dialog-head">
+            <h2 id="sum-ref-title">Reference doc</h2>
+            <button id="sum-ref-close" type="button" class="sum-secondary" aria-label="Close">✕</button>
+        </header>
+        <p class="sum-hint">Characters, NPCs and locations for this campaign. Claude uses it for name spellings and
+            facts, and proposes updates to it after every summary. Fix anything here at any time.</p>
+        <div class="sum-dialog-tools">
+            <input id="sum-ref-file" type="file" accept=".txt,.md,text/plain" aria-label="Upload a reference file">
+            <span class="sum-dialog-versions">
+                <select id="sum-ref-versions" aria-label="Earlier versions"></select>
+                <button id="sum-ref-restore" type="button" class="sum-secondary">Load this version</button>
+            </span>
+        </div>
+        <textarea id="sum-ref-text" class="sum-dialog-text" placeholder="No reference doc yet. Paste or upload one, or let the first summary create it."></textarea>
+        <footer class="sum-dialog-foot">
+            <p id="sum-ref-msg" class="sum-hint" hidden></p>
+            <button id="sum-ref-save" type="button">Save reference doc</button>
+        </footer>
+    </dialog>
 
     <footer>
         <p>&copy; 2026 VoidDoll. All rights reserved.</p>

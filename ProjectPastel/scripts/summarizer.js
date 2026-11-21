@@ -36,7 +36,34 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const time = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-    function show(step) { STEPS.forEach(s => { $('sum-step-' + s).hidden = s !== step; }); }
+    // Only the current step is visible; the stepper shows where the editor is.
+    function show(step) {
+        STEPS.forEach(s => { $('sum-step-' + s).hidden = s !== step; });
+        const n = step === 'input' ? 1 : step === 'clarify' ? 2
+            : step === 'review' ? (job?.final_md ? 4 : 3)
+            : (job?.stage === 'final' ? 2 : 1);   // waiting / error
+        document.querySelectorAll('#sum-stepper li').forEach(li => {
+            const i = Number(li.dataset.n);
+            li.classList.toggle('is-current', i === n);
+            li.classList.toggle('is-done', i < n);
+            li.toggleAttribute('aria-current', i === n);
+        });
+    }
+
+    // Tabs inside a step: a .sum-tabgroup holds .sum-tab buttons (data-pane) and .sum-pane panels.
+    function selectTab(group, paneId) {
+        group.querySelectorAll('.sum-tab').forEach(t => {
+            const on = t.dataset.pane === paneId;
+            t.classList.toggle('is-active', on);
+            t.setAttribute('aria-selected', on);
+        });
+        group.querySelectorAll('.sum-pane').forEach(p => { p.hidden = p.id !== paneId; });
+    }
+    document.addEventListener('click', e => {
+        const tab = e.target.closest('.sum-tab');
+        if (tab) selectTab(tab.closest('.sum-tabgroup'), tab.dataset.pane);
+    });
+    const firstTab = group => selectTab(group, group.querySelector('.sum-tab').dataset.pane);
 
     function note(id, text, isError) {
         const el = $(id);
@@ -461,12 +488,16 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
 
     // ── Campaign + reference doc ──────────────────────────────────────────────
 
+    let refSaved = '';   // text as last saved, to detect unsaved edits in the dialog
+
     async function loadReference() {
         const ref = await API.getCampaignReference(campaign.id);
+        refSaved = ref.content;
         $('sum-ref-text').value = ref.content;
+        $('sum-ref-title').textContent = `Reference doc — ${campaign.name}`;
         $('sum-ref-status').textContent = ref.content
-            ? `Reference doc: ${(ref.content.length / 1024).toFixed(1)} KB, updated ${new Date(ref.updated_at).toLocaleDateString()}`
-            : 'No reference doc yet';
+            ? `· ${(ref.content.length / 1024).toFixed(1)} KB`
+            : '· none yet';
         const versions = await API.getCampaignReferenceVersions(campaign.id);
         $('sum-ref-versions').innerHTML = versions.length
             ? versions.map(v => `<option value="${v.id}">${new Date(v.created_at).toLocaleString()}</option>`).join('')
@@ -495,16 +526,30 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     $('sum-campaign').innerHTML = camps.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     $('sum-campaign').addEventListener('change', e => selectCampaign(e.target.value));
 
-    function toggleRef(open) {
-        $('sum-ref-panel').hidden = !open;
-        $('sum-ref-toggle').textContent = open ? 'Hide reference doc' : 'View / edit reference doc';
+    // ── Reference doc dialog ──────────────────────────────────────────────────
+
+    const refDialog = $('sum-ref-dialog');
+    const refDirty = () => $('sum-ref-text').value.trim() !== refSaved.trim();
+
+    function openRef() {
+        if (!campaign || refDialog.open) return;
+        note('sum-ref-msg', '');
+        refDialog.showModal();
+        history.replaceState(null, '', location.pathname + location.search + '#reference');
     }
-    $('sum-ref-toggle').addEventListener('click', e => {
-        e.preventDefault();
-        const open = $('sum-ref-panel').hidden;
-        toggleRef(open);
-        history.replaceState(null, '', open ? '#reference' : location.pathname + location.search);
-    });
+
+    // Esc, ✕ and any other close route go through here so unsaved edits aren't lost by accident.
+    function closeRef() {
+        if (refDirty() && !confirm('You have unsaved changes to the reference doc.\n\nClose without saving them?')) return;
+        $('sum-ref-text').value = refSaved;
+        refDialog.close();
+    }
+
+    $('sum-ref-open').addEventListener('click', openRef);
+    $('sum-ref-open-2').addEventListener('click', openRef);
+    $('sum-ref-close').addEventListener('click', closeRef);
+    refDialog.addEventListener('cancel', e => { e.preventDefault(); closeRef(); });
+    refDialog.addEventListener('close', () => history.replaceState(null, '', location.pathname + location.search));
 
     $('sum-ref-file').addEventListener('change', async e => {
         const f = e.target.files[0];
@@ -687,6 +732,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         renderEditList('sum-diff-reference', 'sum-diff-ref-count', job.reference_base || '', job.reference_edits, 'reference');
         $('sum-diff').hidden = false;
         $('sum-output').hidden = true;
+        firstTab($('sum-diff'));
         show('review');
     }
 
@@ -719,7 +765,8 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         if (!job.final_md) { renderDiff(); return; }
         $('sum-diff').hidden = true;
         $('sum-output').hidden = false;
-        $('sum-ref-update').hidden = job.reference_proposed == null;
+        $('sum-tab-ref-out').hidden = job.reference_proposed == null;
+        firstTab($('sum-output'));
         $('sum-final').innerHTML = renderMd(job.final_md);
         const title = titleOf(job.final_md);
         const num = sessionNumber();
@@ -830,11 +877,11 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     sweepCanceled().catch(e => console.warn('[summarizer] cancel sweep failed', e));
     let startId = new URLSearchParams(location.search).get('campaign');
     try { startId ||= localStorage.getItem(_CAMPAIGN_KEY); } catch { /* private mode */ }
-    toggleRef(location.hash === '#reference');
     try {
         const m = localStorage.getItem(_MODEL_KEY);
         const radio = m && document.querySelector(`input[name="sum-model"][value="${m}"]`);
         if (radio) radio.checked = true;
     } catch { /* private mode */ }
     await selectCampaign(startId);
+    if (location.hash === '#reference') openRef();
 })();
