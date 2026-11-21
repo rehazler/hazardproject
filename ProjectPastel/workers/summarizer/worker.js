@@ -13,7 +13,7 @@
 //   ANTHROPIC_API_KEY   key from the Console org linked to the Max plan
 //   SUPABASE_URL        e.g. https://lzvvdjnjgvhdwlimidge.supabase.co
 //   SUPABASE_ANON_KEY   the public anon key (same one as api-client.js)
-//   EDITOR_USER_ID      Supabase auth user id allowed to use this worker
+//   EDITOR_USER_ID      Supabase auth user id(s) allowed to use this worker; several editors = comma-separated (uid1,uid2)
 //   BILLING_CYCLE_DAY   day of month the Max plan renews (credits refresh), e.g. 14
 //
 // Routes (all POST, all require the editor's Supabase Bearer token):
@@ -131,7 +131,8 @@ async function verifyEditor(request, env, cors) {
     });
     if (!res.ok) return json({ error: 'Unauthorized' }, 401, cors);
     const user = await res.json();
-    if (user.id !== env.EDITOR_USER_ID) return json({ error: 'Forbidden' }, 403, cors);
+    const editors = (env.EDITOR_USER_ID || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (!editors.includes(user.id)) return json({ error: 'Forbidden' }, 403, cors);
     return token;
 }
 
