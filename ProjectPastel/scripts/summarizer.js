@@ -884,4 +884,11 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     } catch { /* private mode */ }
     await selectCampaign(startId);
     if (location.hash === '#reference') openRef();
-})();
+})().catch(e => {
+    // Never fail silently: show why the page could not start.
+    console.error('[summarizer]', e);
+    const el = document.getElementById('sum-fatal');
+    if (el) { el.hidden = false; el.textContent = 'The summarizer could not start: ' + (e.message || e); }
+    const u = document.getElementById('sum-usage-text');
+    if (u) u.textContent = 'Usage unavailable.';
+});
