@@ -4588,3 +4588,20 @@ body.wiki-page img.wiki-section-float-img--left {
 .sum-dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .sum-dialog-foot p { margin: 0; }
 .sum-tabgroup > h2 { text-align: center; margin: 0 0 4px; }
+
+/* Reference dialog views + finish dialog */
+.sum-dialog-view { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; }
+.sum-dialog-scroll { flex: 1; overflow-y: auto; min-height: 0; padding-right: 4px; }
+.sum-dialog-foot > span { display: flex; gap: 8px; flex-wrap: wrap; }
+.sum-dialog-small { width: min(560px, 94vw); height: fit-content; max-height: 90vh; }
+.sum-checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.sum-checks li {
+    display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid #503554; border-radius: 8px;
+}
+.sum-checks li.is-ok { border-color: #3f7a6e; }
+.sum-checks li.is-todo { border-color: #f3b0c3; background: rgba(243, 176, 195, 0.06); }
+.sum-checks .sum-check-text { flex: 1; min-width: 12em; }
+.sum-checks a { color: #98e6d6; }
+.sum-ack { display: flex; gap: 8px; align-items: flex-start; color: #f3b0c3; font-size: 0.92rem; cursor: pointer; }
+.sum-ack input { margin-top: 4px; accent-color: #f3b0c3; }

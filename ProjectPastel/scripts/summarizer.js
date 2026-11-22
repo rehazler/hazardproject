@@ -61,7 +61,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     }
     document.addEventListener('click', e => {
         const tab = e.target.closest('.sum-tab');
-        if (tab) selectTab(tab.closest('.sum-tabgroup'), tab.dataset.pane);
+        if (tab?.dataset.pane) selectTab(tab.closest('.sum-tabgroup'), tab.dataset.pane);
     });
     const firstTab = group => selectTab(group, group.querySelector('.sum-tab').dataset.pane);
 
@@ -529,11 +529,36 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     // ── Reference doc dialog ──────────────────────────────────────────────────
 
     const refDialog = $('sum-ref-dialog');
-    const refDirty = () => $('sum-ref-text').value.trim() !== refSaved.trim();
+    const refDirty = () => !$('sum-ref-view-text').hidden && $('sum-ref-text').value.trim() !== refSaved.trim();
 
-    function openRef() {
+    // Claude's proposed reference changes are "pending" until the editor saves or skips them.
+    // reference_proposed is null while pending; once handled it holds the text that was saved.
+    const refPending = () => !!job && job.stage === 'review' && !!job.final_md
+        && (job.reference_edits || []).length > 0 && job.reference_proposed == null;
+
+    function refView(view) {
+        $('sum-ref-view-changes').hidden = view !== 'changes';
+        $('sum-ref-view-text').hidden = view !== 'text';
+        $('sum-ref-tab-changes').classList.toggle('is-active', view === 'changes');
+        $('sum-ref-tab-text').classList.toggle('is-active', view === 'text');
+    }
+    $('sum-ref-views').addEventListener('click', e => {
+        const v = e.target.closest('[data-view]')?.dataset.view;
+        if (!v || (v === 'changes' && $('sum-ref-view-changes').hidden === false)) return;
+        if (v === 'changes' && refDirty() && !confirm('You have unsaved changes in the full text.\n\nSwitch without saving them?')) return;
+        refView(v);
+    });
+
+    // view: 'changes' | 'text'; default = the proposed changes when there are any waiting.
+    async function openRef(view) {
         if (!campaign || refDialog.open) return;
-        note('sum-ref-msg', '');
+        note('sum-ref-msg', ''); note('sum-ref-apply-msg', '');
+        const showChanges = refPending();
+        $('sum-ref-tab-changes').hidden = !showChanges;
+        if (showChanges) {
+            renderEditList('sum-diff-reference', 'sum-ref-changes-count', job.reference_base || '', job.reference_edits, 'reference');
+        }
+        refView(showChanges && view !== 'text' ? 'changes' : 'text');
         refDialog.showModal();
         history.replaceState(null, '', location.pathname + location.search + '#reference');
     }
@@ -545,11 +570,63 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         refDialog.close();
     }
 
-    $('sum-ref-open').addEventListener('click', openRef);
-    $('sum-ref-open-2').addEventListener('click', openRef);
+    $('sum-ref-open').addEventListener('click', () => openRef());
+    $('sum-ref-review-open').addEventListener('click', () => openRef('changes'));
     $('sum-ref-close').addEventListener('click', closeRef);
     refDialog.addEventListener('cancel', e => { e.preventDefault(); closeRef(); });
-    refDialog.addEventListener('close', () => history.replaceState(null, '', location.pathname + location.search));
+    refDialog.addEventListener('close', () => { history.replaceState(null, '', location.pathname + location.search); updateRefOut(); });
+
+    // Step 4 → "Reference doc" tab: what is waiting, what is done.
+    function updateRefOut() {
+        if (!job || !job.final_md) return;
+        const n = (job.reference_edits || []).length;
+        const tab = $('sum-tab-ref-out');
+        if (!n) {
+            tab.textContent = 'Reference doc';
+            $('sum-ref-out-status').textContent = 'Claude proposed no changes to the reference doc this session.';
+            $('sum-ref-review-open').hidden = true;
+        } else if (job.reference_proposed == null) {
+            tab.textContent = `Reference doc (${n} to review)`;
+            $('sum-ref-out-status').textContent = `${n} proposed change${n === 1 ? '' : 's'} waiting for your review.`;
+            $('sum-ref-review-open').hidden = false;
+        } else {
+            tab.textContent = 'Reference doc ✓';
+            $('sum-ref-out-status').textContent = 'Reference doc changes are done. You can still edit the full text from the Reference doc button at the top.';
+            $('sum-ref-review-open').hidden = true;
+        }
+    }
+
+    // Save the ticked changes (applied to the version Claude saw), or skip them.
+    async function finishRefChanges(skip) {
+        const msg = 'sum-ref-apply-msg';
+        $('sum-ref-apply').disabled = $('sum-ref-skip').disabled = true;
+        try {
+            if (skip) {
+                if (!confirm('Skip all of Claude\'s proposed reference doc changes?\n\nThe reference doc stays as it is.')) return;
+                job = await API.updateSummaryJob(job.id, { reference_proposed: refSaved });
+            } else {
+                const picked = [...document.querySelectorAll('#sum-diff-reference input[data-kind="reference"]:checked')]
+                    .map(cb => job.reference_edits[cb.dataset.i]);
+                if (!picked.length) { note(msg, 'No changes are ticked. Tick some, or use "Skip these changes".', true); return; }
+                const text = SummarizerEdits.apply(job.reference_base || '', picked).text.trim();
+                // Line edits were made against reference_base; warn if the doc was edited since.
+                const current = (await API.getCampaignReference(campaign.id)).content.trim();
+                if (current !== (job.reference_base || '') && !confirm('The reference doc was edited after this run started.\n\n'
+                    + 'Saving replaces it with the original plus your ticked changes, so those later edits would be lost '
+                    + '(the old version is still kept in history). Save anyway?')) return;
+                await API.saveCampaignReference(campaign.id, text);
+                job = await API.updateSummaryJob(job.id, { reference_proposed: text });
+                await loadReference();
+            }
+            refDialog.close();
+        } catch (e) { note(msg, e.message, true); }
+        finally { $('sum-ref-apply').disabled = $('sum-ref-skip').disabled = false; }
+    }
+    $('sum-ref-apply').addEventListener('click', () => finishRefChanges(false));
+    $('sum-ref-skip').addEventListener('click', () => finishRefChanges(true));
+    const tickAll = on => document.querySelectorAll('#sum-diff-reference input:not(:disabled)').forEach(cb => { cb.checked = on; });
+    $('sum-ref-all').addEventListener('click', () => tickAll(true));
+    $('sum-ref-none').addEventListener('click', () => tickAll(false));
 
     $('sum-ref-file').addEventListener('change', async e => {
         const f = e.target.files[0];
@@ -703,7 +780,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     function renderEditList(listId, countId, base, edits, kind) {
         // Edits that can't apply even when all are selected (bad line numbers / overlaps) are flagged.
         const { conflicts } = SummarizerEdits.apply(base, edits);
-        $(countId).textContent = edits.length;
+        if (countId) $(countId).textContent = edits.length;
         $(listId).innerHTML = edits.length ? edits.map((e, i) => {
             const bad = conflicts.includes(i);
             const last = Math.max(e.end_line || e.line, e.line);
@@ -728,34 +805,27 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     }
 
     function renderDiff() {
-        renderEditList('sum-diff-summary', 'sum-diff-sum-count', job.draft, job.summary_edits, 'summary');
-        renderEditList('sum-diff-reference', 'sum-diff-ref-count', job.reference_base || '', job.reference_edits, 'reference');
+        renderEditList('sum-diff-summary', null, job.draft, job.summary_edits, 'summary');
         $('sum-diff').hidden = false;
         $('sum-output').hidden = true;
-        firstTab($('sum-diff'));
         show('review');
     }
 
     $('sum-diff-apply').addEventListener('click', async () => {
-        const picked = kind => [...document.querySelectorAll(`#sum-step-review input[data-kind="${kind}"]:checked`)]
-            .map(cb => job[kind + '_edits'][cb.dataset.i]);
-        const summary = SummarizerEdits.apply(job.draft, picked('summary'));
-        const reference = SummarizerEdits.apply(job.reference_base || '', picked('reference'));
+        const picked = [...document.querySelectorAll('#sum-diff-summary input[data-kind="summary"]:checked')]
+            .map(cb => job.summary_edits[cb.dataset.i]);
+        const summary = SummarizerEdits.apply(job.draft, picked);
         $('sum-diff-apply').disabled = true;
         try {
-            job = await API.updateSummaryJob(job.id, {
-                final_md: summary.text.trim(),
-                // null = no reference changes accepted, nothing to save
-                reference_proposed: picked('reference').length ? reference.text.trim() : null,
-            });
+            job = await API.updateSummaryJob(job.id, { final_md: summary.text.trim() });
             renderReview();
         } catch (e) { alert('Could not save: ' + e.message); }
         finally { $('sum-diff-apply').disabled = false; }
     });
 
     $('sum-diff-back').addEventListener('click', async () => {
-        if (!confirm('Go back to the change list?\n\nAny edits you typed into the reference doc box below will be lost.')) return;
-        job = await API.updateSummaryJob(job.id, { final_md: null, reference_proposed: null });
+        if (!confirm('Go back to the change list?\n\nThe summary returns to the draft plus the changes list. Anything you saved to the wiki or the reference doc stays saved.')) return;
+        job = await API.updateSummaryJob(job.id, { final_md: null });
         renderDiff();
     });
 
@@ -765,17 +835,16 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         if (!job.final_md) { renderDiff(); return; }
         $('sum-diff').hidden = true;
         $('sum-output').hidden = false;
-        $('sum-tab-ref-out').hidden = job.reference_proposed == null;
         firstTab($('sum-output'));
+        summaryExported = false;
+        updateRefOut();
         $('sum-final').innerHTML = renderMd(job.final_md);
         const title = titleOf(job.final_md);
         const num = sessionNumber();
         $('sum-entry-name').value = title || (num ? `Session ${num} Recap` : 'Session Recap');
         $('sum-entry-subtitle').value = num ? `Session ${num} recap · ${new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}` : '';
         showSaved();
-        $('sum-ref-proposed').value = job.reference_proposed || '';
         note('sum-save-msg', '');
-        note('sum-ref-apply-msg', '');
         show('review');
         loadCategories().catch(e => note('sum-save-msg', e.message, true));
     }
@@ -784,8 +853,11 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         $('sum-new-cat-field').hidden = $('sum-category').value !== NEW_CAT;
     });
 
+    let summaryExported = false;   // copied or downloaded during this page visit
+
     $('sum-copy').addEventListener('click', async () => {
         await navigator.clipboard.writeText(job.final_md);
+        summaryExported = true;
         $('sum-copy').textContent = 'Copied!';
         setTimeout(() => { $('sum-copy').textContent = 'Copy Markdown'; }, 1500);
     });
@@ -797,6 +869,8 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         a.download = n ? `session-${n}-summary.md` : 'session-summary.md';
         a.click();
         URL.revokeObjectURL(a.href);
+        summaryExported = true;
+        if (finishDialog.open) renderFinish();
     });
 
     // Session number from the summary title or the transcript header ("Chapter_10", "Session 31").
@@ -852,23 +926,58 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         finally { $('sum-save').disabled = false; }
     });
 
-    $('sum-ref-apply').addEventListener('click', async () => {
-        // Line edits were made against reference_base; warn if the doc was edited since.
-        const current = (await API.getCampaignReference(campaign.id)).content.trim();
-        if (current !== (job.reference_base || '') && !confirm('The reference doc was edited after this run started.\n\n'
-            + 'Saving replaces it with the version below, so those later edits would be lost (the old version is still kept in history). Save anyway?')) return;
-        saveReferenceFromReview();
-    });
-    const saveReferenceFromReview = () =>
-        saveReference($('sum-ref-proposed').value.trim(), 'sum-ref-apply-msg').catch(e => note('sum-ref-apply-msg', e.message, true));
+    // ── Finish dialog: nothing is lost by accident ────────────────────────────
 
-    $('sum-finish').addEventListener('click', async () => {
-        const ok = confirm('Finish this session?\n\nThis closes the run. Make sure you copied, downloaded or saved the summary, '
-            + 'and saved the reference doc update if you want it. They cannot be recovered from this page afterwards.');
-        if (!ok) return;
-        await API.updateSummaryJob(job.id, { stage: 'done', status: 'closed' });
-        job = null;
-        render();
+    const finishDialog = $('sum-finish-dialog');
+
+    function renderFinish() {
+        const wikiSaved = !!job.wiki_entry_url;
+        const safe = wikiSaved || summaryExported;
+        const pending = refPending();
+        const rows = [
+            { ok: wikiSaved,
+              text: wikiSaved ? `Saved to the wiki. <a href="${esc(job.wiki_entry_url)}" target="_blank" rel="noopener">Open it</a>` : 'Not saved to the wiki yet.',
+              btn: wikiSaved ? '' : '<button type="button" data-do="wiki">Save to wiki</button>' },
+            { ok: summaryExported,
+              text: summaryExported ? 'Downloaded or copied.' : 'Not downloaded as a .md file.',
+              btn: summaryExported ? '' : '<button type="button" class="sum-secondary" data-do="download">Download .md</button>' },
+            { ok: !pending,
+              text: !pending ? 'Reference doc is up to date.' : `${job.reference_edits.length} proposed reference doc change${job.reference_edits.length === 1 ? '' : 's'} not reviewed.`,
+              btn: pending ? '<button type="button" data-do="ref">Review changes</button>' : '' },
+        ];
+        $('sum-checks').innerHTML = rows.map(r => `<li class="${r.ok ? 'is-ok' : 'is-todo'}">
+            <span class="sum-check-text">${r.ok ? '✓' : '✗'} ${r.text}</span>${r.btn}</li>`).join('');
+        // Unsaved = the summary has no copy anywhere, or reference changes are waiting.
+        const unsaved = !safe || pending;
+        $('sum-finish-ack-row').hidden = !unsaved;
+        $('sum-finish-ack').checked = false;
+        $('sum-finish-go').disabled = unsaved;
+        $('sum-finish-go').textContent = unsaved ? 'Discard and start over' : 'Finish and start over';
+    }
+    $('sum-finish-ack').addEventListener('change', e => { $('sum-finish-go').disabled = !e.target.checked; });
+
+    $('sum-checks').addEventListener('click', e => {
+        const what = e.target.closest('[data-do]')?.dataset.do;
+        if (!what) return;
+        if (what === 'download') { $('sum-download').click(); return; }
+        finishDialog.close();
+        if (what === 'wiki') {
+            selectTab($('sum-output'), 'sum-out-pane-wiki');
+            $('sum-entry-name').focus();
+        } else if (what === 'ref') openRef('changes');
+    });
+
+    $('sum-finish').addEventListener('click', () => { renderFinish(); finishDialog.showModal(); });
+    $('sum-finish-keep').addEventListener('click', () => finishDialog.close());
+    $('sum-finish-x').addEventListener('click', () => finishDialog.close());
+    $('sum-finish-go').addEventListener('click', async () => {
+        $('sum-finish-go').disabled = true;
+        try {
+            await API.updateSummaryJob(job.id, { stage: 'done', status: 'closed' });
+            finishDialog.close();
+            job = null;
+            render();
+        } catch (e) { alert('Could not finish: ' + e.message); $('sum-finish-go').disabled = false; }
     });
 
     // ── Start ─────────────────────────────────────────────────────────────────
