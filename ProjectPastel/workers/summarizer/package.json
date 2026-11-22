@@ -1,0 +1,13 @@
+{
+  "name": "voidverse-summarizer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predeploy": "cp ~/.claude/skills/ttrpg-summarizer/SKILL.md ./SKILL.md",
+    "deploy": "wrangler deploy",
+    "test": "node test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.164.0"
+  }
+}

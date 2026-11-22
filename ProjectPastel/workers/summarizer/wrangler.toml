@@ -1,0 +1,13 @@
+name = "voidverse-summarizer"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+# SKILL.md is bundled as a plain string (import SKILL from './SKILL.md').
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true
+
+[vars]
+BILLING_CYCLE_DAY = "1"   # set to the day of month your Max plan renews
+SUPABASE_URL = "https://lzvvdjnjgvhdwlimidge.supabase.co"

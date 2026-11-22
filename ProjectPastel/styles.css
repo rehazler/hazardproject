@@ -4408,3 +4408,207 @@ body.wiki-page img.wiki-section-float-img--left {
 /* Text overlay expand section */
 .bsc-text-extra { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
 .bsc-text-extra[hidden] { display: none; }
+
+/* ── Session summarizer (summarizer.html) ─────────────────────────────────── */
+
+
+.sum-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: #2b1b2e;
+    border: 1px solid #503554;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.sum-panel textarea,
+.sum-panel select,
+.sum-panel input[type="text"] {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #503554;
+    border-radius: 8px;
+    color: #f4f4f4;
+    font-family: 'Spectral', serif;
+    font-size: 0.95rem;
+    resize: vertical;
+}
+.sum-panel select option { background: #2b1b2e; }
+.sum-panel textarea:focus,
+.sum-panel select:focus,
+.sum-panel input[type="text"]:focus { border-color: #d3b3e7; outline: none; }
+
+.sum-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.sum-secondary { opacity: 0.75; }
+.sum-hint { color: #a08ab0; font-size: 0.85rem; margin: 0; }
+.sum-hint a { color: #98e6d6; }
+
+.sum-question {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border-left: 2px solid #f3b0c3;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+.sum-q-loc { margin: 0; font-size: 0.8rem; color: #98e6d6; font-family: monospace; }
+.sum-question blockquote,
+.sum-doc blockquote { margin: 0; padding-left: 12px; border-left: 2px solid #d3b3e7; color: #c9b8d6; font-style: italic; }
+
+.sum-save { border: 1px solid #503554; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.sum-save legend { color: #d3b3e7; padding: 0 6px; }
+
+.sum-doc { line-height: 1.6; }
+.sum-doc code { color: #98e6d6; }
+.sum-draft-wrap summary { cursor: pointer; color: #d3b3e7; }
+
+/* Waiting indicator: each letter bobs up and down, staggered into a wave */
+.sum-wave {
+    font-family: 'Cinzel', serif;
+    font-size: 1.15rem;
+    color: #d3b3e7;
+    text-align: center;
+    min-height: 2.2em;
+    margin: 8px 0;
+}
+.sum-wave span {
+    display: inline-block;
+    animation: sum-wave 1.4s ease-in-out infinite;
+}
+@keyframes sum-wave {
+    0%, 60%, 100% { transform: translateY(0);    color: #d3b3e7; }
+    30%           { transform: translateY(-7px); color: #98e6d6; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sum-wave span { animation: none; }
+}
+
+.sum-danger { background: transparent; border: 1px solid #f3b0c3; color: #f3b0c3; }
+
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.sum-models { border: 1px solid #503554; border-radius: 8px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.sum-models legend { color: #d3b3e7; padding: 0 6px; }
+.sum-model { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 0.92rem; color: #c9b8d6; }
+.sum-model input { margin-top: 5px; accent-color: #98e6d6; }
+.sum-model strong { display: block; color: #f4f4f4; }
+
+/* Change review (line edits) */
+.sum-diff-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.sum-diff-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; border: 1px solid #503554; border-radius: 8px; background: rgba(255, 255, 255, 0.03);
+}
+.sum-diff-item input { margin-top: 4px; accent-color: #98e6d6; }
+.sum-diff-item.is-conflict { opacity: 0.6; border-style: dashed; }
+.sum-diff-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sum-diff-meta { font-size: 0.8rem; color: #a08ab0; }
+.sum-diff-reason { font-size: 0.9rem; color: #f4f4f4; }
+.sum-diff-old, .sum-diff-new, .sum-diff-ctx {
+    margin: 0; padding: 6px 8px; border-radius: 4px; font-size: 0.85rem;
+    white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
+}
+.sum-diff-old { background: rgba(243, 176, 195, 0.12); color: #f3b0c3; text-decoration: line-through; }
+.sum-diff-new { background: rgba(152, 230, 214, 0.12); color: #98e6d6; }
+.sum-diff-ctx { color: #a08ab0; }
+
+/* ── Summarizer layout (one step at a time) ───────────────────────────────── */
+
+/* The global `display:flex` rules below would otherwise defeat the hidden attribute. */
+.sum-page [hidden], .sum-dialog [hidden] { display: none !important; }
+
+/* Same width and centering as the step cards (section: 90%, max 800px). */
+.sum-bar, .sum-stepper { width: 90%; max-width: 800px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+.sum-bar { margin-top: 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+.sum-bar-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.sum-campaign-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sum-campaign-pick label { color: #a08ab0; font-size: 0.85rem; }
+.sum-campaign-pick select {
+    padding: 8px 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid #503554;
+    border-radius: 8px; color: #f4f4f4; font-family: 'Spectral', serif; font-size: 0.95rem;
+}
+.sum-campaign-pick select option { background: #2b1b2e; }
+.sum-bar-small { font-size: 0.75rem; opacity: 0.75; margin-left: 4px; }
+.sum-usage { text-align: center; color: #a08ab0; font-size: 0.85rem; }
+.sum-usage progress { width: 100%; height: 10px; accent-color: #98e6d6; }
+.sum-usage p { margin: 4px 0 0; }
+
+.sum-stepper { list-style: none; padding: 0; margin-bottom: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.sum-stepper li {
+    font-size: 0.82rem; padding: 4px 12px; border-radius: 999px;
+    border: 1px solid #503554; color: #7d6a8c;
+}
+.sum-stepper li::before { content: attr(data-n) " · "; }
+.sum-stepper li.is-done { color: #d3b3e7; border-color: #7a5a86; }
+.sum-stepper li.is-current { color: #1a0b1e; background: #98e6d6; border-color: #98e6d6; font-weight: 600; }
+
+.sum-panel { box-sizing: border-box; }
+
+/* Tabs inside a step */
+.sum-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #503554; }
+.sum-tab {
+    background: transparent; border: 1px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0; padding: 8px 14px; color: #a08ab0;
+}
+.sum-tab.is-active { background: #2b1b2e; border-color: #503554; color: #98e6d6; position: relative; top: 1px; }
+.sum-tabgroup { display: flex; flex-direction: column; gap: 14px; }
+.sum-pane { display: flex; flex-direction: column; gap: 14px; }
+.sum-linkish { background: none; border: none; padding: 0; color: #98e6d6; text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* Reference doc dialog */
+.sum-dialog {
+    width: min(1100px, 96vw); height: min(88vh, 900px); max-width: none; max-height: none;
+    padding: 20px; box-sizing: border-box;
+    background: #2b1b2e; color: #f4f4f4; border: 1px solid #503554; border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+.sum-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+.sum-dialog::backdrop { background: rgba(10, 4, 15, 0.75); }
+.sum-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sum-dialog-head h2 { margin: 0; font-size: 1.4rem; }
+.sum-dialog-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.sum-dialog-versions { display: flex; gap: 8px; align-items: center; }
+.sum-dialog-versions select {
+    padding: 8px 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid #503554;
+    border-radius: 8px; color: #f4f4f4; font-family: 'Spectral', serif;
+}
+.sum-dialog-versions select option { background: #2b1b2e; }
+.sum-dialog-text {
+    flex: 1; min-height: 0; resize: none; padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid #503554; border-radius: 8px;
+    color: #f4f4f4; font-family: 'Spectral', serif; font-size: 0.95rem; line-height: 1.5;
+}
+.sum-dialog-text:focus { border-color: #d3b3e7; outline: none; }
+.sum-dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sum-dialog-foot p { margin: 0; }
+.sum-tabgroup > h2 { text-align: center; margin: 0 0 4px; }
+
+/* Reference dialog views + finish dialog */
+.sum-dialog-view { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; }
+.sum-dialog-scroll { flex: 1; overflow-y: auto; min-height: 0; padding-right: 4px; }
+.sum-dialog-foot > span { display: flex; gap: 8px; flex-wrap: wrap; }
+.sum-dialog-small { width: min(560px, 94vw); height: fit-content; max-height: 90vh; }
+.sum-checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.sum-checks li {
+    display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid #503554; border-radius: 8px;
+}
+.sum-checks li.is-ok { border-color: #3f7a6e; }
+.sum-checks li.is-todo { border-color: #f3b0c3; background: rgba(243, 176, 195, 0.06); }
+.sum-checks .sum-check-text { flex: 1; min-width: 12em; }
+.sum-checks a { color: #98e6d6; }
+.sum-ack { display: flex; gap: 8px; align-items: flex-start; color: #f3b0c3; font-size: 0.92rem; cursor: pointer; }
+.sum-ack input { margin-top: 4px; accent-color: #f3b0c3; }
+
+/* Disabled buttons look inert and don't react to hover */
+.sum-page button:disabled, .sum-dialog button:disabled { opacity: 0.45; cursor: not-allowed; }
+.sum-page button:disabled:hover, .sum-dialog button:disabled:hover { background: #4b2e4c; color: #fff; border-color: #f3b0c3; }
+.sum-page .sum-danger:disabled:hover { background: transparent; color: #f3b0c3; }
+.sum-page .sum-linkish:disabled:hover { background: none; color: #98e6d6; border: none; }
+.sum-ack { color: #c9b8d6; }

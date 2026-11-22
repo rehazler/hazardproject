@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voidverse | Session Summarizer</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=20261122c">
+</head>
+<body>
+    <div id="navbar-placeholder"></div>
+    <script src="scripts/navbar.js"></script>
+
+    <header>
+        <h1>Session Summarizer</h1>
+        <p>Turn a session transcript into archive-ready notes</p>
+    </header>
+
+    <main class="sum-page">
+        <!-- Always visible: which campaign, its reference doc, monthly usage -->
+        <div class="sum-bar">
+            <div class="sum-bar-row">
+                <span class="sum-campaign-pick">
+                    <label for="sum-campaign">Campaign</label>
+                    <select id="sum-campaign"></select>
+                </span>
+                <button id="sum-ref-open" type="button" class="sum-secondary">
+                    Reference doc <span id="sum-ref-status" class="sum-bar-small"></span>
+                </button>
+            </div>
+            <div class="sum-usage" aria-live="polite">
+                <progress id="sum-usage-bar" max="100" value="0"></progress>
+                <p id="sum-usage-text">Checking usage…</p>
+            </div>
+        </div>
+
+        <p id="sum-fatal" class="login-error sum-bar" hidden></p>
+
+        <ol id="sum-stepper" class="sum-stepper" aria-label="Progress">
+            <li data-n="1">Transcript</li>
+            <li data-n="2">Questions</li>
+            <li data-n="3">Review changes</li>
+            <li data-n="4">Save</li>
+        </ol>
+
+        <!-- Step 1 -->
+        <section id="sum-step-input" class="sum-panel" hidden>
+            <h2>1 · Transcript</h2>
+            <div class="login-field">
+                <label for="sum-transcript">Session transcript</label>
+                <textarea id="sum-transcript" rows="12" placeholder="Paste the transcript here…"></textarea>
+                <input id="sum-transcript-file" type="file" accept=".txt,.md,.srt,.vtt,text/plain">
+            </div>
+            <fieldset class="sum-models">
+                <legend>Which Claude should write it?</legend>
+                <label class="sum-model">
+                    <input type="radio" name="sum-model" value="opus" checked>
+                    <span><strong>Opus — most accurate</strong>
+                        Best for long, messy sessions with lots of characters and crosstalk, where small details
+                        matter. Uses about twice as much of the monthly credits.</span>
+                </label>
+                <label class="sum-model">
+                    <input type="radio" name="sum-model" value="sonnet">
+                    <span><strong>Sonnet — good and economical</strong>
+                        Very good for most sessions at about half the cost, so the monthly credits last roughly twice as
+                        long. May miss a few more small details on long or chaotic sessions.</span>
+                </label>
+            </fieldset>
+            <p id="sum-input-err" class="login-error" hidden></p>
+            <button id="sum-run" type="button">Summarize</button>
+        </section>
+
+        <!-- Waiting on a batch -->
+        <section id="sum-step-wait" class="sum-panel" hidden>
+            <h2 id="sum-wait-title">Claude is working…</h2>
+            <p id="sum-wave" class="sum-wave" aria-hidden="true"></p>
+            <p class="sr-only">Working on your summary. This page updates by itself when it is ready.</p>
+            <p>This usually takes a few minutes, sometimes longer. You can close this page and come back
+                any time — progress is saved.</p>
+            <p id="sum-wait-status" class="sum-hint"></p>
+            <div class="sum-actions">
+                <button id="sum-wait-check" type="button" class="sum-secondary">Check now</button>
+                <button class="sum-discard sum-danger" type="button">Cancel this run</button>
+            </div>
+        </section>
+
+        <!-- Failed run -->
+        <section id="sum-step-error" class="sum-panel" hidden>
+            <h2>Something went wrong</h2>
+            <p id="sum-error-text" class="login-error"></p>
+            <div class="sum-actions">
+                <button id="sum-retry" type="button">Try again</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section id="sum-step-clarify" class="sum-panel" hidden>
+            <h2>2 · Questions (<span id="sum-clarify-count">0</span>)</h2>
+            <p>Claude wasn't sure about these parts of the transcript. Answer what you can — answers save as you type.</p>
+            <div id="sum-questions"></div>
+            <p id="sum-clarify-err" class="login-error" hidden></p>
+            <div class="sum-actions">
+                <button id="sum-finalize" type="button">Create final summary</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+            <details class="sum-draft-wrap">
+                <summary>View draft summary</summary>
+                <div id="sum-draft" class="sum-doc"></div>
+            </details>
+        </section>
+
+        <!-- Steps 3 and 4 -->
+        <section id="sum-step-review" class="sum-panel" hidden>
+
+          <!-- 3: review Claude's proposed changes to the summary -->
+          <div id="sum-diff">
+            <h2>3 · Review changes</h2>
+            <p>Claude applied your answers as a list of changes. Untick anything you don't want, then apply.
+                Red is removed, green is added. Changes to the reference doc come after you've saved the summary.</p>
+            <div id="sum-diff-summary" class="sum-diff-list"></div>
+            <div class="sum-actions">
+                <button id="sum-diff-apply" type="button">Apply selected changes</button>
+                <button class="sum-discard sum-secondary" type="button">Discard this run</button>
+            </div>
+          </div>
+
+          <!-- 4: final output -->
+          <div id="sum-output" class="sum-tabgroup">
+            <h2>4 · Save your summary</h2>
+            <div class="sum-tabs" role="tablist">
+                <button type="button" role="tab" class="sum-tab is-active" data-pane="sum-out-pane-summary">Summary</button>
+                <button type="button" role="tab" class="sum-tab" data-pane="sum-out-pane-wiki">Save to wiki</button>
+                <button type="button" role="tab" class="sum-tab" id="sum-tab-ref-out" data-pane="sum-out-pane-ref">Reference doc</button>
+            </div>
+
+            <div id="sum-out-pane-summary" class="sum-pane" role="tabpanel">
+                <div class="sum-actions">
+                    <button id="sum-copy" type="button">Copy Markdown</button>
+                    <button id="sum-download" type="button">Download .md</button>
+                </div>
+                <div id="sum-final" class="sum-doc"></div>
+            </div>
+
+            <div id="sum-out-pane-wiki" class="sum-pane" role="tabpanel" hidden>
+                <div class="login-field">
+                    <label for="sum-category">Category</label>
+                    <select id="sum-category"></select>
+                </div>
+                <div class="login-field" id="sum-new-cat-field" hidden>
+                    <label for="sum-new-cat">New category name</label>
+                    <input id="sum-new-cat" type="text" value="Session Recaps">
+                </div>
+                <div class="login-field">
+                    <label for="sum-entry-name">Entry name</label>
+                    <input id="sum-entry-name" type="text">
+                </div>
+                <div class="login-field">
+                    <label for="sum-entry-subtitle">Subtitle (optional, shown under the title)</label>
+                    <input id="sum-entry-subtitle" type="text">
+                </div>
+                <p class="sum-hint">Creates a normal wiki entry at the end of the chosen category. You can edit, move or
+                    delete it in the wiki like any other entry.</p>
+                <button id="sum-save" type="button">Create wiki entry</button>
+                <p id="sum-save-msg" class="sum-hint" hidden></p>
+            </div>
+
+            <div id="sum-out-pane-ref" class="sum-pane" role="tabpanel" hidden>
+                <p id="sum-ref-out-status"></p>
+                <div class="sum-actions">
+                    <button id="sum-ref-review-open" type="button">Review reference doc changes</button>
+                </div>
+                <p class="sum-hint">You choose which of Claude's proposed changes to keep, then save. Nothing changes
+                    in the reference doc until you save.</p>
+            </div>
+
+            <div class="sum-actions">
+                <button id="sum-diff-back" type="button" class="sum-secondary">← Back to the change list</button>
+                <button id="sum-finish" type="button">Finish…</button>
+            </div>
+          </div>
+        </section>
+    </main>
+
+    <!-- Reference doc. Two views: Claude's proposed changes (tick-box diff) and the full text. -->
+    <dialog id="sum-ref-dialog" class="sum-dialog" aria-labelledby="sum-ref-title">
+        <header class="sum-dialog-head">
+            <h2 id="sum-ref-title">Reference doc</h2>
+            <button id="sum-ref-close" type="button" class="sum-secondary" aria-label="Close">✕</button>
+        </header>
+        <div class="sum-tabs" id="sum-ref-views" role="tablist">
+            <button type="button" role="tab" class="sum-tab" id="sum-ref-tab-changes" data-view="changes">Proposed changes (<span id="sum-ref-changes-count">0</span>)</button>
+            <button type="button" role="tab" class="sum-tab" id="sum-ref-tab-text" data-view="text">Full text</button>
+        </div>
+
+        <div id="sum-ref-view-changes" class="sum-dialog-view">
+            <p class="sum-hint">Claude's proposed updates to this campaign's reference doc from this session. Untick any
+                you don't want. Red is removed, green is added.</p>
+            <div id="sum-diff-reference" class="sum-diff-list sum-dialog-scroll"></div>
+            <footer class="sum-dialog-foot">
+                <span>
+                    <button id="sum-ref-all" type="button" class="sum-secondary">Tick all</button>
+                    <button id="sum-ref-none" type="button" class="sum-secondary">Untick all</button>
+                </span>
+                <span>
+                    <button id="sum-ref-skip" type="button" class="sum-secondary">Skip these changes</button>
+                    <button id="sum-ref-apply" type="button">Save ticked changes</button>
+                </span>
+            </footer>
+            <p id="sum-ref-apply-msg" class="sum-hint" hidden></p>
+        </div>
+
+        <div id="sum-ref-view-text" class="sum-dialog-view">
+            <p class="sum-hint">Characters, NPCs and locations for this campaign. Claude uses it for name spellings and
+                facts, and proposes updates to it after every summary. Fix anything here at any time.</p>
+            <div class="sum-dialog-tools">
+                <input id="sum-ref-file" type="file" accept=".txt,.md,text/plain" aria-label="Upload a reference file">
+                <span class="sum-dialog-versions">
+                    <select id="sum-ref-versions" aria-label="Earlier versions"></select>
+                    <button id="sum-ref-restore" type="button" class="sum-secondary">Load this version</button>
+                </span>
+            </div>
+            <textarea id="sum-ref-text" class="sum-dialog-text" placeholder="No reference doc yet. Paste or upload one, or let the first summary create it."></textarea>
+            <footer class="sum-dialog-foot">
+                <p id="sum-ref-msg" class="sum-hint" hidden></p>
+                <button id="sum-ref-save" type="button">Save reference doc</button>
+            </footer>
+        </div>
+    </dialog>
+
+    <!-- Finish: shows what is still unsaved before the run is closed. -->
+    <dialog id="sum-finish-dialog" class="sum-dialog sum-dialog-small" aria-labelledby="sum-finish-title">
+        <header class="sum-dialog-head">
+            <h2 id="sum-finish-title">Before you finish</h2>
+            <button id="sum-finish-x" type="button" class="sum-secondary" aria-label="Keep working">✕</button>
+        </header>
+        <ul id="sum-checks" class="sum-checks"></ul>
+        <label id="sum-finish-ack-row" class="sum-ack" hidden>
+            <input id="sum-finish-ack" type="checkbox">
+            <span>I don't need the unsaved items below. Discard them and start over.</span>
+        </label>
+        <p id="sum-finish-hint" class="sum-hint"></p>
+        <footer class="sum-dialog-foot">
+            <button id="sum-finish-keep" type="button" class="sum-secondary">Keep working</button>
+            <button id="sum-finish-go" type="button">Finish and start over</button>
+        </footer>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/api-client.js?v=20261122c"></script>
+    <script src="scripts/auth.js?v=20261122c"></script>
+    <script src="scripts/summarizer-edits.js?v=20261122c"></script>
+    <script src="scripts/summarizer.js?v=20261122c"></script>
+</body>
+</html>
