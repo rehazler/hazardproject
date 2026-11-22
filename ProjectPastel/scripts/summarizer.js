@@ -965,17 +965,19 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         updateFinishBtn();
     }
 
-    // The button stays disabled until: the box is ticked, the summary is in the wiki or downloaded,
-    // and the reference doc changes are saved or skipped (or there were none).
+    // Everything saved: Finish is enabled. Something unsaved: it stays disabled until the box is
+    // ticked, which means the editor is deliberately discarding that item. The box outranks the rest.
     function updateFinishBtn() {
-        const safe = !!job.wiki_entry_url || summaryExported;
-        const pending = refPending();
         const missing = [];
-        if (!safe) missing.push('save the summary to the wiki or download it');
-        if (pending) missing.push('review the reference doc changes (save or skip them)');
-        if (!$('sum-finish-ack').checked) missing.push('tick the box above');
-        $('sum-finish-go').disabled = missing.length > 0;
-        $('sum-finish-hint').textContent = missing.length ? 'To finish: ' + missing.join('; ') + '.' : '';
+        if (!(job.wiki_entry_url || summaryExported)) missing.push('the summary is not saved to the wiki or downloaded');
+        if (refPending()) missing.push('the reference doc changes are not reviewed');
+        const unsaved = missing.length > 0;
+        $('sum-finish-ack-row').hidden = !unsaved;
+        if (!unsaved) $('sum-finish-ack').checked = false;
+        $('sum-finish-go').disabled = unsaved && !$('sum-finish-ack').checked;
+        $('sum-finish-go').textContent = unsaved ? 'Discard and start over' : 'Finish and start over';
+        $('sum-finish-hint').textContent = unsaved
+            ? `Not done yet: ${missing.join('; ')}. Fix ${missing.length > 1 ? 'them' : 'it'} above, or tick the box to discard anyway.` : '';
     }
     $('sum-finish-ack').addEventListener('change', updateFinishBtn);
 
