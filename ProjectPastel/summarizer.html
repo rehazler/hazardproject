@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex">
     <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261122a">
+    <link rel="stylesheet" href="styles.css?v=20261122b">
 </head>
 <body>
     <div id="navbar-placeholder"></div>
@@ -237,10 +237,11 @@
             <button id="sum-finish-x" type="button" class="sum-secondary" aria-label="Keep working">✕</button>
         </header>
         <ul id="sum-checks" class="sum-checks"></ul>
-        <label id="sum-finish-ack-row" class="sum-ack" hidden>
+        <label id="sum-finish-ack-row" class="sum-ack">
             <input id="sum-finish-ack" type="checkbox">
-            <span>I don't need the unsaved items. Discard them.</span>
+            <span>I'm finished with this run. Close it and start over.</span>
         </label>
+        <p id="sum-finish-hint" class="sum-hint"></p>
         <footer class="sum-dialog-foot">
             <button id="sum-finish-keep" type="button" class="sum-secondary">Keep working</button>
             <button id="sum-finish-go" type="button">Finish and start over</button>
@@ -248,9 +249,9 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="scripts/api-client.js?v=20261122a"></script>
-    <script src="scripts/auth.js?v=20261122a"></script>
-    <script src="scripts/summarizer-edits.js?v=20261122a"></script>
-    <script src="scripts/summarizer.js?v=20261122a"></script>
+    <script src="scripts/api-client.js?v=20261122b"></script>
+    <script src="scripts/auth.js?v=20261122b"></script>
+    <script src="scripts/summarizer-edits.js?v=20261122b"></script>
+    <script src="scripts/summarizer.js?v=20261122b"></script>
 </body>
 </html>

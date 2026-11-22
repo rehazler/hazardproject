@@ -85,6 +85,16 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         try { if (Notification.permission === 'default') Notification.requestPermission(); } catch { /* not supported */ }
     }
 
+    // Click handler that keeps the button disabled while its work runs, so a double click
+    // (or a click on a stale button) can never act twice.
+    function guarded(btn, fn) {
+        btn.addEventListener('click', async e => {
+            if (btn.disabled) return;
+            btn.disabled = true;
+            try { await fn(e); } finally { btn.disabled = false; }
+        });
+    }
+
     function friendly(msg) {
         if (/credit balance is too low/i.test(msg)) return 'Monthly API credits are used up. They refresh with your next Max billing cycle.';
         if (/overloaded|rate.?limit/i.test(msg)) return 'Claude is busy right now. Try again in a minute.';
@@ -152,9 +162,11 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         }
     }
 
+    let polling = false;
     async function poll() {
         const j = job;
-        if (!j || j.status !== 'running') return;
+        if (!j || j.status !== 'running' || polling) return;
+        polling = true;
         try {
             const batch = await (await call('/status', { batch_id: j.batch_id })).json();
             $('sum-wait-status').textContent = `Submitted ${time(batch.created_at)} · last checked ${time(Date.now())}`;
@@ -175,7 +187,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
             // Network hiccup: keep polling, just show it.
             $('sum-wait-status').textContent = `Check failed (${e.message}) — retrying.`;
             schedulePoll();
-        }
+        } finally { polling = false; }
     }
 
     async function fetchResult(batchId) {
@@ -639,7 +651,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         note(msgId, `Saved ${time(Date.now())}. The previous version was kept.`);
     }
 
-    $('sum-ref-save').addEventListener('click', () =>
+    guarded($('sum-ref-save'), () =>
         saveReference($('sum-ref-text').value.trim(), 'sum-ref-msg').catch(e => note('sum-ref-msg', e.message, true)));
 
     $('sum-ref-restore').addEventListener('click', () => {
@@ -662,6 +674,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         if (!transcript) { note('sum-input-err', 'Paste or upload a transcript first.', true); return; }
         note('sum-input-err', '');
         $('sum-run').disabled = true;
+        $('sum-run').textContent = 'Submitting…';
         askNotify();
         try {
             // Another tab may already have started a run for this campaign.
@@ -674,7 +687,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
             $('sum-transcript').value = '';
         } catch (e) {
             note('sum-input-err', e.message, true);
-        } finally { $('sum-run').disabled = false; }
+        } finally { $('sum-run').disabled = false; $('sum-run').textContent = 'Summarize'; }
     });
 
     // ── Waiting / error ───────────────────────────────────────────────────────
@@ -694,7 +707,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
 
     // Discarding a running batch cancels it on Anthropic's side; whatever Claude
     // already finished is still billed, and sweepCanceled() logs that usage.
-    document.querySelectorAll('.sum-discard').forEach(btn => btn.addEventListener('click', async () => {
+    document.querySelectorAll('.sum-discard').forEach(btn => guarded(btn, async () => {
         if (!job) return;
         const live = job.batch_id && ['running', 'processing'].includes(job.status);
         const msg = live
@@ -751,11 +764,12 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     $('sum-finalize').addEventListener('click', async () => {
         clearTimeout(saveAnswersTimer);
         $('sum-finalize').disabled = true;
+        $('sum-finalize').textContent = 'Submitting…';
         try {
             await API.updateSummaryJob(job.id, { answers: job.answers });
             await submit('final', { stage: 'clarify', status: 'ready' }, { draft: job.draft, answers: answersPayload() });
         } catch (e) { note('sum-clarify-err', e.message, true); }
-        finally { $('sum-finalize').disabled = false; }
+        finally { $('sum-finalize').disabled = false; $('sum-finalize').textContent = 'Create final summary'; }
     });
 
     // ── Step 3: review ────────────────────────────────────────────────────────
@@ -823,7 +837,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         finally { $('sum-diff-apply').disabled = false; }
     });
 
-    $('sum-diff-back').addEventListener('click', async () => {
+    guarded($('sum-diff-back'), async () => {
         if (!confirm('Go back to the change list?\n\nThe summary returns to the draft plus the changes list. Anything you saved to the wiki or the reference doc stays saved.')) return;
         job = await API.updateSummaryJob(job.id, { final_md: null });
         renderDiff();
@@ -932,7 +946,6 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
 
     function renderFinish() {
         const wikiSaved = !!job.wiki_entry_url;
-        const safe = wikiSaved || summaryExported;
         const pending = refPending();
         const rows = [
             { ok: wikiSaved,
@@ -945,16 +958,26 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
               text: !pending ? 'Reference doc is up to date.' : `${job.reference_edits.length} proposed reference doc change${job.reference_edits.length === 1 ? '' : 's'} not reviewed.`,
               btn: pending ? '<button type="button" data-do="ref">Review changes</button>' : '' },
         ];
+        const wasTicked = $('sum-finish-ack').checked;   // keep the box through a re-render
         $('sum-checks').innerHTML = rows.map(r => `<li class="${r.ok ? 'is-ok' : 'is-todo'}">
             <span class="sum-check-text">${r.ok ? '✓' : '✗'} ${r.text}</span>${r.btn}</li>`).join('');
-        // Unsaved = the summary has no copy anywhere, or reference changes are waiting.
-        const unsaved = !safe || pending;
-        $('sum-finish-ack-row').hidden = !unsaved;
-        $('sum-finish-ack').checked = false;
-        $('sum-finish-go').disabled = unsaved;
-        $('sum-finish-go').textContent = unsaved ? 'Discard and start over' : 'Finish and start over';
+        $('sum-finish-ack').checked = wasTicked;
+        updateFinishBtn();
     }
-    $('sum-finish-ack').addEventListener('change', e => { $('sum-finish-go').disabled = !e.target.checked; });
+
+    // The button stays disabled until: the box is ticked, the summary is in the wiki or downloaded,
+    // and the reference doc changes are saved or skipped (or there were none).
+    function updateFinishBtn() {
+        const safe = !!job.wiki_entry_url || summaryExported;
+        const pending = refPending();
+        const missing = [];
+        if (!safe) missing.push('save the summary to the wiki or download it');
+        if (pending) missing.push('review the reference doc changes (save or skip them)');
+        if (!$('sum-finish-ack').checked) missing.push('tick the box above');
+        $('sum-finish-go').disabled = missing.length > 0;
+        $('sum-finish-hint').textContent = missing.length ? 'To finish: ' + missing.join('; ') + '.' : '';
+    }
+    $('sum-finish-ack').addEventListener('change', updateFinishBtn);
 
     $('sum-checks').addEventListener('click', e => {
         const what = e.target.closest('[data-do]')?.dataset.do;
@@ -967,17 +990,18 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         } else if (what === 'ref') openRef('changes');
     });
 
-    $('sum-finish').addEventListener('click', () => { renderFinish(); finishDialog.showModal(); });
+    $('sum-finish').addEventListener('click', () => { $('sum-finish-ack').checked = false; renderFinish(); finishDialog.showModal(); });
     $('sum-finish-keep').addEventListener('click', () => finishDialog.close());
     $('sum-finish-x').addEventListener('click', () => finishDialog.close());
     $('sum-finish-go').addEventListener('click', async () => {
+        if ($('sum-finish-go').disabled) return;
         $('sum-finish-go').disabled = true;
         try {
             await API.updateSummaryJob(job.id, { stage: 'done', status: 'closed' });
             finishDialog.close();
             job = null;
             render();
-        } catch (e) { alert('Could not finish: ' + e.message); $('sum-finish-go').disabled = false; }
+        } catch (e) { alert('Could not finish: ' + e.message); updateFinishBtn(); }
     });
 
     // ── Start ─────────────────────────────────────────────────────────────────

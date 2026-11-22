@@ -4605,3 +4605,10 @@ body.wiki-page img.wiki-section-float-img--left {
 .sum-checks a { color: #98e6d6; }
 .sum-ack { display: flex; gap: 8px; align-items: flex-start; color: #f3b0c3; font-size: 0.92rem; cursor: pointer; }
 .sum-ack input { margin-top: 4px; accent-color: #f3b0c3; }
+
+/* Disabled buttons look inert and don't react to hover */
+.sum-page button:disabled, .sum-dialog button:disabled { opacity: 0.45; cursor: not-allowed; }
+.sum-page button:disabled:hover, .sum-dialog button:disabled:hover { background: #4b2e4c; color: #fff; border-color: #f3b0c3; }
+.sum-page .sum-danger:disabled:hover { background: transparent; color: #f3b0c3; }
+.sum-page .sum-linkish:disabled:hover { background: none; color: #98e6d6; border: none; }
+.sum-ack { color: #c9b8d6; }
