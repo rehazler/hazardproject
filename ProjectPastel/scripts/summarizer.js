@@ -424,6 +424,10 @@ const _MODEL_KEY = 'ppastel-summarizer-model';
     const WAVE_PHRASES = [
         'Rolling for Insight',
         'Reading the transcript (again)',
+        'Looking up how to spell that town',
+        'Fact-checking the bard',
+        'Consulting the campaign archives',
+        'Jacking into the transcript',
         'Untangling crosstalk',
         'Spell-checking NPC names',
         'Bribing the scribe',
