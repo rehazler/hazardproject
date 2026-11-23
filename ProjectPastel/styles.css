@@ -4612,3 +4612,23 @@ body.wiki-page img.wiki-section-float-img--left {
 .sum-page .sum-danger:disabled:hover { background: transparent; color: #f3b0c3; }
 .sum-page .sum-linkish:disabled:hover { background: none; color: #98e6d6; border: none; }
 .sum-ack { color: #c9b8d6; }
+
+/* Estimated progress bar while a run is working */
+.sum-eta { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.sum-eta-fill {
+    height: 100%; width: 0; border-radius: 6px;
+    background: linear-gradient(90deg, #d3b3e7, #98e6d6);
+    transition: width 0.9s ease;
+}
+.sum-eta-text { text-align: center; margin: 0; }
+
+/* Proposed text in a change card is editable */
+.sum-diff-edit {
+    width: 100%; box-sizing: border-box; resize: vertical; margin: 0; padding: 6px 8px;
+    font-family: inherit; font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap;
+    background: rgba(152, 230, 214, 0.12); color: #98e6d6;
+    border: 1px solid transparent; border-radius: 4px;
+}
+.sum-diff-edit:focus { outline: none; border-color: #98e6d6; }
+#sum-final-edit { width: 100%; box-sizing: border-box; font-family: monospace; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .sum-eta-fill { transition: none; } }

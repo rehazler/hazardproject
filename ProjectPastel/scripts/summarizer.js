@@ -13,10 +13,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SUMMARIZER_WORKER_URL = 'https://voidverse-summarizer.hazardousmadness.workers.dev';
-const _POLL_MS = 30 * 1000;
+const _POLL_MS = 15 * 1000;
 const _CAMPAIGN_KEY = 'ppastel-summarizer-campaign';
 const _MODEL_KEY = 'ppastel-summarizer-model';
-const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
 
 (async function () {
     await auth.init();
@@ -170,12 +169,15 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         try {
             const batch = await (await call('/status', { batch_id: j.batch_id })).json();
             $('sum-wait-status').textContent = `Submitted ${time(batch.created_at)} · last checked ${time(Date.now())}`;
+            if (etaTimer && batch.created_at) etaStart = new Date(batch.created_at).getTime();
             if (batch.processing_status !== 'ended') { schedulePoll(); return; }
 
             // Claim the finished batch so only one tab processes it.
             const claimed = await API.claimSummaryJob(j.id, { status: 'running', batch_id: j.batch_id }, { status: 'processing' });
             if (!claimed) { job = await API.getSummaryJob(j.id); render(); return; }
-            const out = await processBatch(claimed);
+            const secs = ((batch.ended_at ? new Date(batch.ended_at) : Date.now()) - new Date(batch.created_at)) / 1000;
+            if (secs > 0) saveTiming({ stage: j.stage, model: j.model_choice, ratio: secs / baseEstimate(j.stage, j.model_choice, jobChars(j)) });
+            const [out] = await Promise.all([processBatch(claimed), completeEta()]);
             if (job?.id === j.id) {
                 job = out;
                 render();
@@ -322,6 +324,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
     function render() {
         clearTimeout(pollTimer);
         stopWave();
+        stopEta();
         if (!job) { show('input'); return; }
         const stale = Date.now() - new Date(job.updated_at) > 2 * 60 * 1000;
         if (job.status === 'processing' && stale) {
@@ -342,12 +345,12 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
             $('sum-error-text').textContent = job.error || 'Unknown error.';
             show('error');
         } else if (['running', 'submitting', 'processing', 'new'].includes(job.status)) {
-            const who = 'Claude ' + (_MODEL_NAMES[job.model_choice] || '');
             $('sum-wait-title').textContent = job.stage === 'draft'
-                ? `${who} is reading the transcript…` : `${who} is writing the final summary and reference update…`;
+                ? 'Summarization in progress…' : 'Applying your answers…';
             $('sum-wait-status').textContent = 'Checking…';
             show('wait');
             startWave();
+            startEta();
             schedulePoll(0);
         } else if (job.stage === 'clarify') {
             renderClarify();
@@ -358,11 +361,73 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         }
     }
 
+    // ── Progress estimate while a batch runs ──────────────────────────────────
+    // Fills over the estimated time but never reaches 100% on its own; it only completes
+    // when the batch has really finished. The estimate learns from this browser's past runs.
+
+    const _TIMING_KEY = 'ppastel-summarizer-timing';
+    let etaTimer = null, etaStart = Date.now(), etaEst = 180;
+
+    function readTimings() { try { return JSON.parse(localStorage.getItem(_TIMING_KEY)) || []; } catch { return []; } }
+    function saveTiming(rec) {
+        try { localStorage.setItem(_TIMING_KEY, JSON.stringify([...readTimings(), rec].slice(-20))); } catch { /* private mode */ }
+    }
+
+    // Rough seconds for a batch of this size, before any learning (about 4 min for a 140 KB transcript).
+    function baseEstimate(stage, model, chars) {
+        const k = chars / 1000, fast = model === 'sonnet' ? 0.7 : 1;
+        return (stage === 'draft' ? 90 + k * 1.1 : 70 + k * 0.7) * fast;
+    }
+    const jobChars = j => (j.transcript || '').length + (j.reference_base || '').length
+        + (j.stage === 'final' ? (j.draft || '').length : 0);
+
+    function estimateSeconds(j) {
+        const base = baseEstimate(j.stage, j.model_choice, jobChars(j));
+        const r = readTimings().filter(t => t.stage === j.stage && t.model === j.model_choice).map(t => t.ratio).sort((a, b) => a - b);
+        const ratio = r.length ? Math.min(4, Math.max(0.3, r[Math.floor(r.length / 2)])) : 1;
+        return Math.max(45, base * ratio);
+    }
+
+    const fmtClock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    const fmtMin = s => s < 90 ? 'a minute' : `${Math.round(s / 60)} minutes`;
+
+    function tickEta() {
+        const e = (Date.now() - etaStart) / 1000;
+        const p = Math.min(0.98, 0.98 * (1 - Math.exp(-2.6 * e / etaEst)));
+        $('sum-eta-fill').style.width = (p * 100).toFixed(1) + '%';
+        $('sum-eta-text').textContent = e > etaEst * 1.2
+            ? `Taking a little longer than usual · ${fmtClock(e)} so far`
+            : `Usually about ${fmtMin(etaEst)} · ${fmtClock(e)} so far`;
+    }
+    function startEta() {
+        etaEst = estimateSeconds(job);
+        etaStart = new Date(job.updated_at).getTime() || Date.now();   // refined from the batch's own start time on first check
+        $('sum-eta-fill').style.transition = 'none';
+        $('sum-eta-fill').style.width = '0%';
+        void $('sum-eta-fill').offsetWidth;
+        $('sum-eta-fill').style.transition = '';
+        tickEta();
+        etaTimer = setInterval(tickEta, 500);
+    }
+    function stopEta() { clearInterval(etaTimer); etaTimer = null; }
+
+    // The batch really finished: fill the rest, give it a moment to show, then move on.
+    function completeEta() {
+        stopEta();
+        $('sum-eta-fill').style.width = '100%';
+        $('sum-eta-text').textContent = 'Done!';
+        return new Promise(r => setTimeout(r, 1100));
+    }
+
     // ── Waiting indicator: rotating silly phrases in a letter wave ────────────
 
     const WAVE_PHRASES = [
         'Rolling for Insight',
         'Reading the transcript (again)',
+        'Looking up how to spell that town',
+        'Fact-checking the bard',
+        'Consulting the campaign archives',
+        'Jacking into the transcript',
         'Untangling crosstalk',
         'Spell-checking NPC names',
         'Bribing the scribe',
@@ -373,7 +438,6 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         'Arguing with the timeline',
         'Checking who stabbed whom',
         'Inking the chronicle',
-        'Looking up how to spell that town',
         'Rereading the cliffhanger',
         'Herding the party into order',
         'Making a Perception check',
@@ -390,11 +454,9 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         'Taking notes the players forgot to',
         'Translating "I attack the darkness"',
         'Pretending that plan was always the plan',
-        'Fact-checking the bard',
         'Untying the knot of side quests',
         'Resolving the inter-party argument (on paper)',
         'Counting the bard\'s spell slots',
-        'Consulting the campaign archives',
         'Mapping the dungeon from memory',
         'Checking for mimics',
         'Calculating attacks of opportunity',
@@ -433,11 +495,8 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         'Panicking calmly, Mothership-style',
         'Reading the Kult fine print',
         'Searching the folklore of the Vaesen',
-        'Jacking into the transcript',
-        'Decking into the Shadowrun Matrix',
         'Paying the Shadowrun fixer',
         'Checking the Cyberpunk RED street cred',
-        'Installing chrome (carefully)',
         'Plotting a Traveller jump route',
         'Refueling at the starport',
         'Running from the Xenomorph',
@@ -493,7 +552,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
             setWave(WAVE_PHRASES[i]);
         };
         next();
-        waveTimer = setInterval(next, 4000);
+        waveTimer = setInterval(next, 9000);
     }
 
     function stopWave() { clearInterval(waveTimer); waveTimer = null; }
@@ -812,11 +871,24 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
                     <span class="sum-diff-reason">${esc(e.reason)}</span>
                     ${ctx ? `<pre class="sum-diff-ctx">${esc(ctx)}</pre>` : ''}
                     ${old ? `<pre class="sum-diff-old">${esc(old)}</pre>` : ''}
-                    ${e.op !== 'delete' ? `<pre class="sum-diff-new">${esc(e.text)}</pre>` : ''}
+                    ${e.op !== 'delete' ? `<textarea class="sum-diff-edit" data-kind="${kind}" data-i="${i}" rows="${Math.min(12, (e.text || '').split('\n').length + 1)}" aria-label="Proposed text (editable)">${esc(e.text)}</textarea>` : ''}
                 </span>
             </label>`;
         }).join('') : '<p class="sum-hint">No changes.</p>';
     }
+
+    // Edits to a proposed change are kept on the job, so they survive a refresh and are what gets applied.
+    const editTimers = {};
+    document.addEventListener('input', e => {
+        const ta = e.target.closest?.('textarea.sum-diff-edit');
+        if (!ta || !job) return;
+        const key = ta.dataset.kind + '_edits';
+        job[key][Number(ta.dataset.i)].text = ta.value;
+        clearTimeout(editTimers[key]);
+        const id = job.id, arr = job[key];
+        editTimers[key] = setTimeout(() => API.updateSummaryJob(id, { [key]: arr })
+            .catch(err => console.warn('[summarizer] could not save edit', err)), 800);
+    });
 
     function renderDiff() {
         renderEditList('sum-diff-summary', null, job.draft, job.summary_edits, 'summary');
@@ -851,6 +923,7 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         $('sum-output').hidden = false;
         firstTab($('sum-output'));
         summaryExported = false;
+        showFinalView();
         updateRefOut();
         $('sum-final').innerHTML = renderMd(job.final_md);
         const title = titleOf(job.final_md);
@@ -885,6 +958,35 @@ const _MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet' };
         URL.revokeObjectURL(a.href);
         summaryExported = true;
         if (finishDialog.open) renderFinish();
+    });
+
+    // Edit the final summary as Markdown. Saves to the job, so copy/download/wiki use the edited text.
+    function showFinalView() {
+        $('sum-final').innerHTML = renderMd(job.final_md);
+        $('sum-final').hidden = false;
+        $('sum-final-edit-wrap').hidden = true;
+        $('sum-edit-final').hidden = false;
+        note('sum-final-edit-msg', '');
+    }
+    $('sum-edit-final').addEventListener('click', () => {
+        $('sum-final-edit').value = job.final_md;
+        $('sum-final').hidden = true;
+        $('sum-final-edit-wrap').hidden = false;
+        $('sum-edit-final').hidden = true;
+        $('sum-final-edit').focus();
+    });
+    $('sum-final-edit-cancel').addEventListener('click', showFinalView);
+    guarded($('sum-final-edit-save'), async () => {
+        const text = $('sum-final-edit').value.trim();
+        if (!text) { alert('The summary can\'t be empty.'); return; }
+        if (text !== job.final_md) {
+            job = await API.updateSummaryJob(job.id, { final_md: text });
+            summaryExported = false;   // anything copied or downloaded earlier is now out of date
+        }
+        showFinalView();
+        if (job.wiki_entry_url) {
+            note('sum-final-edit-msg', 'Edits saved here. The wiki entry you created earlier still has the old text. Edit it in the wiki, or use Save to wiki to create a new copy.');
+        }
     });
 
     // Session number from the summary title or the transcript header ("Chapter_10", "Session 31").

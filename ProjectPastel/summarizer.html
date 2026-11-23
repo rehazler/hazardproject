@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex">
     <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261122c">
+    <link rel="stylesheet" href="styles.css?v=20261123b">
 </head>
 <body>
     <div id="navbar-placeholder"></div>
@@ -54,16 +54,16 @@
                 <input id="sum-transcript-file" type="file" accept=".txt,.md,.srt,.vtt,text/plain">
             </div>
             <fieldset class="sum-models">
-                <legend>Which Claude should write it?</legend>
+                <legend>How thorough should the summary be?</legend>
                 <label class="sum-model">
                     <input type="radio" name="sum-model" value="opus" checked>
-                    <span><strong>Opus — most accurate</strong>
+                    <span><strong>Most accurate</strong>
                         Best for long, messy sessions with lots of characters and crosstalk, where small details
                         matter. Uses about twice as much of the monthly credits.</span>
                 </label>
                 <label class="sum-model">
                     <input type="radio" name="sum-model" value="sonnet">
-                    <span><strong>Sonnet — good and economical</strong>
+                    <span><strong>Economical</strong>
                         Very good for most sessions at about half the cost, so the monthly credits last roughly twice as
                         long. May miss a few more small details on long or chaotic sessions.</span>
                 </label>
@@ -74,9 +74,11 @@
 
         <!-- Waiting on a batch -->
         <section id="sum-step-wait" class="sum-panel" hidden>
-            <h2 id="sum-wait-title">Claude is working…</h2>
+            <h2 id="sum-wait-title">Summarization in progress…</h2>
             <p id="sum-wave" class="sum-wave" aria-hidden="true"></p>
             <p class="sr-only">Working on your summary. This page updates by itself when it is ready.</p>
+            <div class="sum-eta" role="progressbar" aria-label="Estimated progress"><div id="sum-eta-fill" class="sum-eta-fill"></div></div>
+            <p id="sum-eta-text" class="sum-hint sum-eta-text"></p>
             <p>This usually takes a few minutes, sometimes longer. You can close this page and come back
                 any time — progress is saved.</p>
             <p id="sum-wait-status" class="sum-hint"></p>
@@ -119,7 +121,7 @@
           <div id="sum-diff">
             <h2>3 · Review changes</h2>
             <p>Claude applied your answers as a list of changes. Untick anything you don't want, then apply.
-                Red is removed, green is added. Changes to the reference doc come after you've saved the summary.</p>
+                Red is removed, green is added. You can edit any green text before applying. Changes to the reference doc come after you've saved the summary.</p>
             <div id="sum-diff-summary" class="sum-diff-list"></div>
             <div class="sum-actions">
                 <button id="sum-diff-apply" type="button">Apply selected changes</button>
@@ -140,8 +142,19 @@
                 <div class="sum-actions">
                     <button id="sum-copy" type="button">Copy Markdown</button>
                     <button id="sum-download" type="button">Download .md</button>
+                    <button id="sum-edit-final" type="button" class="sum-secondary">Edit summary</button>
                 </div>
                 <div id="sum-final" class="sum-doc"></div>
+                <div id="sum-final-edit-wrap" class="sum-pane" hidden>
+                    <p class="sum-hint">Edit the summary as Markdown (# headings, - bullets, **bold**). Copy, download and
+                        saving to the wiki use whatever is here after you save your edits.</p>
+                    <textarea id="sum-final-edit" rows="22"></textarea>
+                    <div class="sum-actions">
+                        <button id="sum-final-edit-save" type="button">Save edits</button>
+                        <button id="sum-final-edit-cancel" type="button" class="sum-secondary">Cancel</button>
+                    </div>
+                </div>
+                <p id="sum-final-edit-msg" class="sum-hint" hidden></p>
             </div>
 
             <div id="sum-out-pane-wiki" class="sum-pane" role="tabpanel" hidden>
@@ -197,7 +210,7 @@
 
         <div id="sum-ref-view-changes" class="sum-dialog-view">
             <p class="sum-hint">Claude's proposed updates to this campaign's reference doc from this session. Untick any
-                you don't want. Red is removed, green is added.</p>
+                you don't want, and edit any green text. Red is removed, green is added.</p>
             <div id="sum-diff-reference" class="sum-diff-list sum-dialog-scroll"></div>
             <footer class="sum-dialog-foot">
                 <span>
@@ -249,9 +262,9 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="scripts/api-client.js?v=20261122c"></script>
-    <script src="scripts/auth.js?v=20261122c"></script>
-    <script src="scripts/summarizer-edits.js?v=20261122c"></script>
-    <script src="scripts/summarizer.js?v=20261122c"></script>
+    <script src="scripts/api-client.js?v=20261123b"></script>
+    <script src="scripts/auth.js?v=20261123b"></script>
+    <script src="scripts/summarizer-edits.js?v=20261123b"></script>
+    <script src="scripts/summarizer.js?v=20261123b"></script>
 </body>
 </html>
