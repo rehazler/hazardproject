@@ -3003,7 +3003,12 @@
             (a.resource_type !== 'image' && /^(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba|wma)$/.test(_assetExt(a)));
     }
     // Anything that isn't an image can't render in <img>; show its extension instead.
-    function _isNonImage(a) { return _isAudioAsset(a) || (!!a.resource_type && a.resource_type !== 'image'); }
+    // Cloudinary also files pdf/psd/tiff/heic/etc. as 'image', which <img> can't show.
+    function _isNonImage(a) {
+        if (_isAudioAsset(a) || (a.resource_type && a.resource_type !== 'image')) return true;
+        const ext = _assetExt(a);
+        return !!ext && !/^(jpe?g|png|gif|webp|avif|svg|bmp|ico)$/.test(ext);
+    }
     function _extLabel(a) { return _assetExt(a) ? '.' + _assetExt(a).replace(/[^a-z0-9]/g, '') : '🎵'; }
 
     function _fmtBytes(n) {
