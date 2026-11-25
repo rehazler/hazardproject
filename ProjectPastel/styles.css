@@ -4525,24 +4525,30 @@ body.wiki-page img.wiki-section-float-img--left {
 
 /* Same width and centering as the step cards (section: 90%, max 800px). */
 .sum-bar, .sum-stepper { width: 90%; max-width: 800px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
-.sum-bar { margin-top: 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+.sum-bar {
+    margin-top: 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;
+    background: rgba(43, 27, 46, 0.94); border: 1px solid #503554; border-radius: 10px; padding: 12px 16px;
+}
 .sum-bar-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 .sum-campaign-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.sum-campaign-pick label { color: #a08ab0; font-size: 0.85rem; }
+.sum-campaign-pick label { color: #d3b3e7; font-size: 0.95rem; }
 .sum-campaign-pick select {
-    padding: 8px 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid #503554;
+    padding: 8px 30px 8px 12px; background-color: #2b1b2e; border: 1px solid #503554;
     border-radius: 8px; color: #f4f4f4; font-family: 'Spectral', serif; font-size: 0.95rem;
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d3b3e7' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
 }
 .sum-campaign-pick select option { background: #2b1b2e; }
 .sum-bar-small { font-size: 0.75rem; opacity: 0.75; margin-left: 4px; }
-.sum-usage { text-align: center; color: #a08ab0; font-size: 0.85rem; }
+.sum-usage { text-align: center; color: #d8c8e4; font-size: 0.9rem; }
 .sum-usage progress { width: 100%; height: 10px; accent-color: #98e6d6; }
 .sum-usage p { margin: 4px 0 0; }
 
 .sum-stepper { list-style: none; padding: 0; margin-bottom: 4px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .sum-stepper li {
-    font-size: 0.82rem; padding: 4px 12px; border-radius: 999px;
-    border: 1px solid #503554; color: #7d6a8c;
+    font-size: 0.85rem; padding: 4px 12px; border-radius: 999px;
+    background: rgba(43, 27, 46, 0.94); border: 1px solid #503554; color: #b9a5c8;
 }
 .sum-stepper li::before { content: attr(data-n) " · "; }
 .sum-stepper li.is-done { color: #d3b3e7; border-color: #7a5a86; }
