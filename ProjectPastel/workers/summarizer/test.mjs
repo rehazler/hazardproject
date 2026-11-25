@@ -41,3 +41,22 @@ assert.deepEqual(r.conflicts, [1, 2, 3, 4]);
 // empty doc: only insert_after 0 works (first reference doc for a campaign)
 assert.equal(apply('', [{ op: 'insert_after', line: 0, text: 'The Party\n  Bob' }]).text, 'The Party\n  Bob');
 console.log('edits ok');
+
+// ── Transcript cleaner (scripts/transcript-clean.js) ────────────────────────
+const { clean: c } = createRequire(import.meta.url)('../../scripts/transcript-clean.js');
+const clean = t => c(t).text;
+assert.equal(clean('0:00\n0 seconds\n[music]\n0:05\n5 seconds\n[music]'), '[00:00:00] [music]\n[00:00:05] [music]');
+assert.equal(clean('10:52\n10 minutes, 52 seconds\nback. Hey\n17:00\n17 minutes\nthem are'), '[00:10:52] back. Hey\n[00:17:00] them are');
+assert.equal(clean('1:00:04\n1 hour, 4 seconds\nYeah.\n1:01:35\n1 hour, 1 minute, 35 seconds\nI I could'), '[01:00:04] Yeah.\n[01:01:35] I I could');
+assert.equal(clean('1:02:001 hour, 2 minutes So, after swallowing'), '[01:02:00] So, after swallowing');
+assert.equal(clean('17:0017 minutes them\n0:055 seconds hi'), '[00:17:00] them\n[00:00:05] hi');
+assert.equal(clean('We met at 3:30 sharp'), 'We met at 3:30 sharp');   // no duration -> untouched
+assert.equal(clean('1:05\nhello'), '[00:01:05]\nhello');            // bare stamp line
+assert.equal(clean('1:02:00\n1 hour, 2 minutes 5 people came'), '[01:02:00] 5 people came');
+assert.deepEqual(c('1:02:00\n1 hour, 2 minutes\nok\n0:10\n10 seconds\nbacktrack').flags.length, 1);   // goes backward
+assert.equal(c('1:02:00\n1 hour, 3 minutes\nok').flags.length, 1);   // duration mismatch
+assert.equal(c('0:05\n5 seconds\nfine').flags.length, 0);
+const mid = c('so then 1:02:00 1 hour, 2 minutes he left');
+assert.equal(mid.text, 'so then 1:02:00 1 hour, 2 minutes he left');   // mid-line: skipped + flagged
+assert.equal(mid.flags.length, 1);
+console.log('transcript-clean ok');

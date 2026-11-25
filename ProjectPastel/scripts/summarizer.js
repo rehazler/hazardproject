@@ -728,6 +728,13 @@ const _MODEL_KEY = 'ppastel-summarizer-model';
         if (f) $('sum-transcript').value = await f.text();
     });
 
+    $('sum-clean').addEventListener('click', () => {
+        const r = TranscriptClean.clean($('sum-transcript').value);
+        if (!r.converted) { note('sum-clean-msg', 'No YouTube-style timestamps found.'); return; }
+        $('sum-transcript').value = r.text;
+        note('sum-clean-msg', `Cleaned ${r.converted} timestamps.` + (r.flags.length ? ` Check ${r.flags.length}: ${r.flags.slice(0, 5).join('; ')}${r.flags.length > 5 ? '; …' : ''}` : ''), r.flags.length > 0);
+    });
+
     $('sum-run').addEventListener('click', async () => {
         const transcript = $('sum-transcript').value.trim();
         if (!transcript) { note('sum-input-err', 'Paste or upload a transcript first.', true); return; }
