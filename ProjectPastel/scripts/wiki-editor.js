@@ -2441,7 +2441,7 @@
 
         function getFiltered() {
             return allAssets.filter(a => {
-                const matchesType   = activeFilter === 'all' || a.resource_type === activeFilter;
+                const matchesType   = activeFilter === 'all' || (activeFilter === 'audio' ? _isAudioAsset(a) : a.resource_type === activeFilter);
                 const matchesSearch = !searchTerm || (a.filename || '').toLowerCase().includes(searchTerm.toLowerCase());
                 return matchesType && matchesSearch;
             });
@@ -2458,10 +2458,10 @@
             assets.forEach(asset => {
                 const card = document.createElement('div');
                 card.className = 'ml-picker-card';
-                const isAudio = asset.resource_type === 'audio';
+                const isAudio = _isNonImage(asset);
                 card.innerHTML = `
                     ${isAudio
-                        ? '<div class="ml-picker-thumb-audio">🎵</div>'
+                        ? `<div class="ml-picker-thumb-audio">${_extLabel(asset)}</div>`
                         : `<img src="${asset.url.replace(/"/g,'&quot;')}" alt="" style="width:90px;height:68px;object-fit:cover;border-radius:4px;border:1px solid rgba(211,179,231,0.2)" loading="lazy">`
                     }
                     <div class="ml-picker-name" title="${(asset.filename||'').replace(/"/g,'&quot;')}">${(asset.filename||'untitled').replace(/</g,'&lt;')}</div>
@@ -2994,6 +2994,18 @@
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
+    // Cloudinary files audio under resource_type 'video', so check the extension too.
+    function _assetExt(a) {
+        return (a.format || (a.filename || a.url || '').split('?')[0].split('.').pop() || '').toLowerCase();
+    }
+    function _isAudioAsset(a) {
+        return a.resource_type === 'audio' ||
+            (a.resource_type !== 'image' && /^(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba|wma)$/.test(_assetExt(a)));
+    }
+    // Anything that isn't an image can't render in <img>; show its extension instead.
+    function _isNonImage(a) { return _isAudioAsset(a) || (!!a.resource_type && a.resource_type !== 'image'); }
+    function _extLabel(a) { return _assetExt(a) ? '.' + _assetExt(a).replace(/[^a-z0-9]/g, '') : '🎵'; }
+
     function _fmtBytes(n) {
         if (!n) return '';
         if (n < 1024) return n + ' B';
@@ -3160,7 +3172,7 @@
             filtered.forEach(asset => {
                 const card    = document.createElement('div');
                 card.className = 'ml-card';
-                const isAudio  = asset.resource_type === 'audio';
+                const isAudio  = _isNonImage(asset);
                 const sizeStr  = asset.bytes ? _fmtBytes(asset.bytes) : '';
                 const folderOptsHTML = knownFolders.map(f =>
                     `<option value="${f.replace(/"/g,'&quot;')}" ${(asset.folder||'Uncategorized')===f?'selected':''}>${f.replace(/</g,'&lt;')}</option>`
@@ -3168,7 +3180,7 @@
 
                 card.innerHTML = `
                     ${isAudio
-                        ? '<div class="ml-thumb-audio">🎵</div>'
+                        ? `<div class="ml-thumb-audio">${_extLabel(asset)}</div>`
                         : `<img class="ml-thumb" src="${asset.url.replace(/"/g,'&quot;')}" alt="" loading="lazy">`
                     }
                     <div class="ml-card-body">
