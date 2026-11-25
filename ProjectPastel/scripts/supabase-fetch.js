@@ -1246,11 +1246,15 @@ window.WikiSB = {
     WikiSB.nav.showCampaign     = showCampaign;
     WikiSB.nav.showEntry        = showEntry;
 
-    // ── Init — deferred one microtask so wiki-editor.js (loaded after this
-    //    script) can register its hooks before the first render fires. ─────────
-    Promise.resolve().then(async () => {
+    // ── Init — wait for DOMContentLoaded so every classic <script> (incl.
+    //    wiki-editor.js, which registers the editor hooks) has run first. A
+    //    microtask isn't enough: wiki-editor.js is still downloading then, so a
+    //    fast campaign fetch could render the list before its hooks existed. ──
+    const _init = async () => {
         await auth.init();
         await restoreFromURL();
-    });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
+    else _init();
 
 }());
